@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight, Camera, Check, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { Panel, PanelHeader } from '@/components/ui/panel'
@@ -18,6 +18,7 @@ import {
   kcal,
 } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { requestCameraPermission } from '@/lib/camera-permission'
 import type { ActivityLevel, Goal, Sex, TargetEstimate } from '@/lib/types'
 
 export default function OnboardingPage() {
@@ -35,6 +36,8 @@ export default function OnboardingPage() {
     goal: 'lose' as Goal,
   })
   const [preview, setPreview] = useState<TargetEstimate | null>(null)
+  const [cameraEnabled, setCameraEnabled] = useState(false)
+  const [requestingCamera, setRequestingCamera] = useState(false)
 
   const payload = useMemo(
     () => ({
@@ -73,6 +76,18 @@ export default function OnboardingPage() {
       },
       onError: () => toast.error('Non è stato possibile salvare il profilo'),
     })
+  }
+
+  const handleCameraPermission = async () => {
+    setRequestingCamera(true)
+    const result = await requestCameraPermission()
+    setRequestingCamera(false)
+    if (result.ok) {
+      setCameraEnabled(true)
+      toast.success('Fotocamera pronta per la scansione')
+    } else {
+      toast.info(result.message)
+    }
   }
 
   return (
@@ -227,6 +242,29 @@ export default function OnboardingPage() {
           </div>
         </Panel>
       ) : null}
+
+      <Panel className="mt-3">
+        <div className="flex items-center gap-3">
+          <span className="bg-secondary text-primary-strong flex size-10 shrink-0 items-center justify-center rounded-full">
+            {cameraEnabled ? <Check className="size-5" /> : <Camera className="size-5" />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold">Scansione codici a barre</h2>
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              Attiva ora la fotocamera. Potrai riprovare più tardi.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-10 shrink-0 rounded-xl px-3"
+            onClick={() => void handleCameraPermission()}
+            disabled={cameraEnabled || requestingCamera}
+          >
+            {cameraEnabled ? 'Pronta' : 'Attiva'}
+          </Button>
+        </div>
+      </Panel>
 
       <Button
         className="mt-4 mb-4 h-13 w-full rounded-full text-base font-semibold"

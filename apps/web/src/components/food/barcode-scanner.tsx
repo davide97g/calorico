@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, ScanBarcode } from 'lucide-react'
+import type { IScannerControls } from '@zxing/browser'
+import { Loader2, RefreshCw, ScanBarcode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -10,10 +11,6 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer'
 
-interface BarcodeDetectorLike {
-  detect: (source: CanvasImageSource) => Promise<{ rawValue: string }[]>
-}
-
 interface BarcodeScannerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -22,9 +19,8 @@ interface BarcodeScannerProps {
 }
 
 /**
- * Uses the native BarcodeDetector where available (Chrome, Android, recent
- * Safari on iOS 17+ behind a flag). Everywhere else the manual EAN field is the
- * scanner — no 300 kB WASM decoder for a personal app.
+ * ZXing supplies barcode decoding where native BarcodeDetector is unavailable,
+ * including desktop Safari and iOS PWAs.
  */
 export function BarcodeScanner({
   open,
@@ -35,60 +31,52 @@ export function BarcodeScanner({
   const videoRef = useRef<HTMLVideoElement>(null)
   const [manual, setManual] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [supported, setSupported] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const detectedRef = useRef(onDetected)
 
   useEffect(() => {
-    setSupported('BarcodeDetector' in window)
-  }, [])
+    detectedRef.current = onDetected
+  }, [onDetected])
 
   useEffect(() => {
-    if (!open || !('BarcodeDetector' in window)) return
+    if (!open) return
 
-    let stream: MediaStream | undefined
-    let raf = 0
+    setError(null)
+    let controls: IScannerControls | undefined
     let cancelled = false
+    let detected = false
 
     const start = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-        })
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop())
-          return
-        }
         const video = videoRef.current
-        if (!video) return
-        video.srcObject = stream
-        await video.play()
-
-        const Detector = (
-          window as unknown as {
-            BarcodeDetector: new (o: { formats: string[] }) => BarcodeDetectorLike
-          }
-        ).BarcodeDetector
-        const detector = new Detector({
-          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'],
-        })
-
-        const tick = async () => {
-          if (cancelled || !videoRef.current) return
-          try {
-            const codes = await detector.detect(videoRef.current)
-            const value = codes[0]?.rawValue
-            if (value) {
-              onDetected(value)
-              return
-            }
-          } catch {
-            // A single failed frame is normal; keep polling.
-          }
-          raf = requestAnimationFrame(() => void tick())
-        }
-        void tick()
-      } catch {
+        if (!video) throw new Error('Video non disponibile')
+        // Keep the decoder out of first paint: food scanning is optional, and
+        // ZXing is only needed after the sheet is deliberately opened.
+        const { BrowserMultiFormatReader } = await import('@zxing/browser')
+        if (cancelled) return
+        const reader = new BrowserMultiFormatReader()
+        controls = await reader.decodeFromConstraints(
+          {
+            video: { facingMode: { ideal: 'environment' } },
+            audio: false,
+          },
+          video,
+          (result) => {
+            const value = result?.getText()
+            if (!value || detected || cancelled) return
+            detected = true
+            controls?.stop()
+            detectedRef.current(value)
+          },
+        )
+        if (cancelled) controls.stop()
+      } catch (caught) {
+        if (cancelled) return
+        const name = caught instanceof DOMException ? caught.name : ''
         setError(
-          'Fotocamera non disponibile. Inserisci il codice a barre manualmente.',
+          name === 'NotAllowedError' || name === 'SecurityError'
+            ? 'Fotocamera bloccata. Abilitala nelle impostazioni del browser o dell’app, poi riprova.'
+            : 'Fotocamera non disponibile. Controlla permessi o chiudi le altre app che la usano.',
         )
       }
     }
@@ -97,10 +85,9 @@ export function BarcodeScanner({
 
     return () => {
       cancelled = true
-      cancelAnimationFrame(raf)
-      stream?.getTracks().forEach((t) => t.stop())
+      controls?.stop()
     }
-  }, [open, onDetected])
+  }, [open, attempt])
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -115,7 +102,7 @@ export function BarcodeScanner({
         </DrawerHeader>
 
         <div className="min-h-0 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-          {supported && !error ? (
+          {!error ? (
             <div className="bg-foreground/90 relative mb-4 h-[min(46dvh,320px)] w-full overflow-hidden rounded-3xl">
               <video
                 ref={videoRef}
@@ -131,10 +118,18 @@ export function BarcodeScanner({
               ) : null}
             </div>
           ) : (
-            <p className="text-muted-foreground mb-4 text-sm">
-              {error ??
-                'Il tuo browser non supporta la scansione. Inserisci il codice a barre qui sotto.'}
-            </p>
+            <div className="mb-4 rounded-2xl bg-secondary p-3">
+              <p className="text-muted-foreground text-sm">{error}</p>
+              <Button
+                type="button"
+                variant="secondary"
+                className="mt-3 rounded-xl"
+                onClick={() => setAttempt((value) => value + 1)}
+              >
+                <RefreshCw className="size-4" />
+                Riprova fotocamera
+              </Button>
+            </div>
           )}
 
           <form
