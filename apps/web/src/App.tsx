@@ -5,8 +5,8 @@ import {
   Routes,
   useLocation,
 } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { BrandLoader } from '@/components/ui/brand-loader'
 import TodayPage from '@/pages/today'
 import LoginPage from '@/pages/login'
 import RegisterPage from '@/pages/register'
@@ -25,7 +25,7 @@ const OnboardingPage = lazy(() => import('@/pages/onboarding'))
 function FullScreenLoader() {
   return (
     <div className="bg-background flex min-h-dvh items-center justify-center">
-      <Loader2 className="text-primary-strong size-7 animate-spin" />
+      <BrandLoader />
     </div>
   )
 }
