@@ -6,10 +6,12 @@ import {
 } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type {
+  BatchEntryInput,
   DiaryDay,
   DiaryEntry,
   Food,
   Meal,
+  MealAnalysis,
   Profile,
   StatsResponse,
   TargetEstimate,
@@ -106,6 +108,47 @@ export function useAddEntry() {
       // The created row comes back so a one-tap add can offer an undo.
     }) => api<DiaryEntry>('/diary', { method: 'POST', body: input }),
     onSuccess: (_data, input) => invalidate(input.day),
+  })
+}
+
+/**
+ * Saves a whole reviewed meal in one transaction — what the photo flow ends on.
+ * Invalidates exactly what a single add does, plus the search cache, since
+ * AI-estimated foods become new catalogue rows.
+ */
+export function useAddEntries() {
+  const invalidate = useInvalidateDiary()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      day: string
+      meal: Meal
+      items: BatchEntryInput[]
+    }) =>
+      api<{ entries: DiaryEntry[] }>('/diary/batch', {
+        method: 'POST',
+        body: input,
+      }),
+    onSuccess: (_data, input) => {
+      invalidate(input.day)
+      void queryClient.invalidateQueries({ queryKey: ['foods', 'search'] })
+    },
+  })
+}
+
+/** Whether the server has a vision provider configured at all. */
+export function useVisionStatus() {
+  return useQuery({
+    queryKey: ['vision', 'status'],
+    queryFn: () => api<{ enabled: boolean }>('/vision/status'),
+    staleTime: Infinity,
+  })
+}
+
+export function useAnalyzeMealPhoto() {
+  return useMutation({
+    mutationFn: (input: { image: string; contentType: string }) =>
+      api<MealAnalysis>('/vision/meal', { method: 'POST', body: input }),
   })
 }
 

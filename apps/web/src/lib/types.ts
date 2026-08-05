@@ -185,6 +185,55 @@ export interface TargetEstimate {
   targetKcalMax: number
 }
 
+export type Confidence = 'low' | 'medium' | 'high'
+
+/** Per 100 g/ml, the model's own estimate. */
+export interface Nutrients100 {
+  kcal100: number
+  protein100: number
+  carbs100: number
+  fat100: number
+  fiber100: number | null
+}
+
+/** One food the photo analysis found, with catalogue candidates attached. */
+export interface AnalyzedItem {
+  label: string
+  searchQuery: string
+  quantityG: number
+  confidence: Confidence
+  /** What the quantity estimate is anchored on. Shown under the row. */
+  basis: string
+  isLiquid: boolean
+  packaged: boolean
+  nutrients100: Nutrients100 | null
+  /** Best catalogue guesses, best first. May be empty. */
+  candidates: Food[]
+  /** True when candidates[0] is good enough to preselect. */
+  matched: boolean
+}
+
+export interface MealAnalysis {
+  items: AnalyzedItem[]
+  labelText: string | null
+}
+
+/** What POST /api/diary/batch accepts for a food that is not in the catalogue. */
+export interface NewFoodInput {
+  name: string
+  brand?: string
+  kcal100: number
+  protein100: number
+  carbs100: number
+  fat100: number
+  fiber100?: number
+  isLiquid: boolean
+}
+
+export type BatchEntryInput =
+  | { foodId: string; quantityG: number }
+  | { newFood: NewFoodInput; quantityG: number }
+
 export interface AuthResponse {
   token: string
   user: User

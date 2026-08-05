@@ -77,6 +77,13 @@ const MESSAGES: Record<string, string> = {
   incomplete_profile: 'Completa prima il tuo profilo.',
   no_weight_logged: 'Registra prima un peso.',
   unauthorized: 'Sessione scaduta, accedi di nuovo.',
+  vision_disabled: 'Il riconoscimento foto non è attivo su questo server.',
+  vision_unavailable:
+    'Non riesco ad analizzare la foto in questo momento. Riprova tra poco.',
+  no_food_detected:
+    'Non ho riconosciuto cibo nella foto. Prova a inquadrare meglio il piatto.',
+  image_too_large: 'La foto è troppo pesante.',
+  unsupported_media_type: 'Formato immagine non supportato.',
   internal_error: 'Qualcosa è andato storto. Riprova.',
 }
 

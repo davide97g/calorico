@@ -1,0 +1,89 @@
+import { getTableColumns, sql as raw } from 'drizzle-orm'
+import { db } from '../db/index.js'
+import { foods, type Food } from '../db/schema.js'
+
+/** A search hit plus the trigram score that ranked it. */
+export type ScoredFood = Food & { score: number }
+
+/**
+ * Local catalogue search: exact prefix first, then trigram similarity on
+ * "brand + name", with generic (composition-table) foods nudged up — when
+ * someone types "pollo" they almost always mean the raw cut, not a ready meal.
+ *
+ * Lives here rather than in the route because the photo matcher needs the exact
+ * same ranking; two copies of this SQL would drift the first time one is tuned.
+ */
+export async function searchLocalFoods(
+  term: string,
+  limit: number,
+): Promise<ScoredFood[]> {
+  const like = `%${term}%`
+  const nameKey = raw`unaccent(lower(${foods.name}))`
+  const brandKey = raw`unaccent(lower(coalesce(${foods.brand}, '')))`
+
+  /**
+   * OFF holds the same product under several barcodes, with the brand spelled
+   * differently each time ("Ferrero", "Nutella", "FerreroNutella"), so "nutella"
+   * alone returns a dozen identical rows. Collapse on name + energy — same name
+   * and same kcal is the same food in practice — and keep the most useful copy:
+   * branded, with a photo and a serving size, most recently imported.
+   */
+  const deduped = db
+    .selectDistinctOn([nameKey, raw`round(${foods.kcal100})`], {
+      ...getTableColumns(foods),
+      /**
+       * "Is this the same food?", as opposed to the ORDER BY below, which
+       * answers "which of these should be shown first". The search route drops
+       * this; the photo matcher thresholds on it to decide whether to preselect
+       * a catalogue food or fall back to an estimate.
+       *
+       * `strict_word_similarity` and not `similarity`, because plain similarity
+       * divides by the length of the whole name and so punishes a correct match
+       * against a long name. Measured against the seeded catalogue:
+       *
+       *   query -> name                             strict_word   similarity
+       *   olio oliva -> Olio extravergine di oliva      0.750        0.333
+       *   riso -> Riso bianco cotto                     1.000        0.278
+       *   pasta pomodoro -> Pomodori     (wrong)        0.438        0.438
+       *
+       * With plain similarity the wrong answer outranks the right one, so no
+       * threshold could separate them.
+       *
+       * The explicit alias is required: referencing a raw field of a subquery
+       * without one throws at query-build time.
+       */
+      score: raw<number>`greatest(
+        strict_word_similarity(${term}, ${foods.name}),
+        strict_word_similarity(${term}, coalesce(${foods.brand}, ''))
+      )`.as('score'),
+    })
+    .from(foods)
+    .where(
+      raw`(
+        ${nameKey} like unaccent(lower(${like}))
+        or ${brandKey} like unaccent(lower(${like}))
+        or similarity(${foods.name}, ${term}) > 0.22
+      )`,
+    )
+    .orderBy(
+      raw`${nameKey}, round(${foods.kcal100}),
+        (${foods.brand} is null),
+        (${foods.imageUrl} is null),
+        (${foods.servingSizeG} is null),
+        ${foods.updatedAt} desc`,
+    )
+    .as('deduped')
+
+  return db
+    .select()
+    .from(deduped)
+    .orderBy(
+      raw`
+        (case when unaccent(lower(${deduped.name})) like unaccent(lower(${term + '%'})) then 0 else 1 end),
+        (case when ${deduped.source} = 'generic' then 0 else 1 end),
+        ${deduped.score} desc,
+        length(${deduped.name}) asc
+      `,
+    )
+    .limit(limit)
+}

@@ -1,9 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/index.js'
 import { diaryEntries, foods, profiles } from '../db/schema.js'
 import { scaleNutriments } from '../lib/nutrition.js'
+import { env } from '../env.js'
+import { customFood } from './foods.js'
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const meal = z.enum(['breakfast', 'lunch', 'dinner', 'snack'])
@@ -19,6 +21,26 @@ const patchBody = z.object({
   quantityG: z.number().min(0.1).max(5000).optional(),
   meal: meal.optional(),
   day: day.optional(),
+})
+
+const quantityG = z.number().min(0.1).max(5000)
+
+/**
+ * A batched row is either an existing food or one the photo flow invented,
+ * which has to become a real `foods` row before it can be logged — diary
+ * entries reference a food by id.
+ */
+const batchItem = z.union([
+  z.object({ foodId: z.string().uuid(), quantityG }),
+  z.object({ newFood: customFood, quantityG }),
+])
+
+const batchBody = z.object({
+  day,
+  meal,
+  // One photo of one plate. Well above what a meal produces, low enough that a
+  // buggy client cannot write hundreds of rows in one call.
+  items: z.array(batchItem).min(1).max(20),
 })
 
 export const diaryRoutes: FastifyPluginAsync = async (app) => {
@@ -119,6 +141,75 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
       .returning()
 
     return reply.code(201).send(created)
+  })
+
+  /**
+   * Saves a whole reviewed meal at once — what the photo flow produces. Foods
+   * the catalogue did not have are created as custom foods owned by the caller,
+   * so they are searchable and re-loggable next time.
+   *
+   * All or nothing: a plate half-written because row four had a stale food id
+   * is worse than a plate the user has to re-confirm.
+   */
+  app.post('/batch', async (request, reply) => {
+    const body = batchBody.parse(request.body)
+    const userId = request.user.sub
+
+    // Resolve the existing foods in one query, before opening a transaction —
+    // a bad id should 404 rather than roll back work already done.
+    const ids = body.items.flatMap((i) => ('foodId' in i ? [i.foodId] : []))
+    const existing = ids.length
+      ? await db.select().from(foods).where(inArray(foods.id, ids))
+      : []
+    const byId = new Map(existing.map((f) => [f.id, f]))
+    if (ids.some((id) => !byId.has(id)))
+      return reply.code(404).send({ error: 'food_not_found' })
+
+    const created = await db.transaction(async (tx) => {
+      const rows = []
+
+      for (const item of body.items) {
+        let food: typeof foods.$inferSelect
+        if ('foodId' in item) {
+          // Presence was checked above, before the transaction opened.
+          food = byId.get(item.foodId)!
+        } else {
+          const [inserted] = await tx
+            .insert(foods)
+            .values({
+              ...item.newFood,
+              source: 'custom',
+              unit: item.newFood.isLiquid ? 'ml' : 'g',
+              createdBy: userId,
+              // The marker rides in the existing jsonb column, so telling
+              // AI guesses apart from foods the user typed needs no migration.
+              raw: {
+                aiEstimated: true,
+                via: 'photo',
+                model: env.vision?.model ?? null,
+              },
+            })
+            .returning()
+          if (!inserted) throw new Error('failed to create food')
+          food = inserted
+        }
+
+        rows.push({
+          userId,
+          foodId: food.id,
+          day: body.day,
+          meal: body.meal,
+          quantityG: item.quantityG,
+          nameSnapshot: food.name,
+          brandSnapshot: food.brand,
+          ...scaleNutriments(food, item.quantityG),
+        })
+      }
+
+      return tx.insert(diaryEntries).values(rows).returning()
+    })
+
+    return reply.code(201).send({ entries: created })
   })
 
   app.patch('/:id', async (request, reply) => {

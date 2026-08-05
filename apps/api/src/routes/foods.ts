@@ -1,9 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { and, desc, eq, sql as raw } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/index.js'
 import { diaryEntries, favorites, foods, type NewFood } from '../db/schema.js'
 import { fetchByBarcode, searchOff } from '../lib/off.js'
+import { cacheFoods } from '../lib/food-cache.js'
+import { searchLocalFoods } from '../lib/food-search.js'
 import { listFoodImages, syncOffImages } from '../lib/food-images.js'
 import { r2Enabled } from '../lib/r2.js'
 
@@ -14,7 +16,8 @@ const searchQuery = z.object({
   local: z.coerce.boolean().default(false),
 })
 
-const customFood = z.object({
+/** Also the shape POST /api/diary/batch accepts for an AI-estimated food. */
+export const customFood = z.object({
   name: z.string().min(2).max(160),
   brand: z.string().max(120).optional(),
   kcal100: z.number().min(0).max(950),
@@ -31,115 +34,15 @@ const customFood = z.object({
     .optional(),
 })
 
-/**
- * Upserts imported/searched products. Barcode is the natural key; rows without
- * one (rare, from free-text search) are inserted as-is.
- */
-async function cacheFoods(rows: NewFood[]) {
-  if (rows.length === 0) return []
-  const withBarcode = rows.filter((r) => r.barcode)
-  const withoutBarcode = rows.filter((r) => !r.barcode)
-  const saved = []
-
-  if (withBarcode.length > 0) {
-    saved.push(
-      ...(await db
-        .insert(foods)
-        .values(withBarcode)
-        .onConflictDoUpdate({
-          target: foods.barcode,
-          // Matches the partial unique index in the schema.
-          targetWhere: raw`${foods.barcode} is not null`,
-          set: {
-            name: raw`excluded.name`,
-            brand: raw`excluded.brand`,
-            imageUrl: raw`excluded.image_url`,
-            kcal100: raw`excluded.kcal_100`,
-            protein100: raw`excluded.protein_100`,
-            carbs100: raw`excluded.carbs_100`,
-            fat100: raw`excluded.fat_100`,
-            sugars100: raw`excluded.sugars_100`,
-            satFat100: raw`excluded.sat_fat_100`,
-            fiber100: raw`excluded.fiber_100`,
-            salt100: raw`excluded.salt_100`,
-            servingSizeG: raw`excluded.serving_size_g`,
-            servingLabel: raw`excluded.serving_label`,
-            packageSizeG: raw`excluded.package_size_g`,
-            packageSizeLabel: raw`excluded.package_size_label`,
-            updatedAt: new Date(),
-          },
-        })
-        .returning()),
-    )
-  }
-  if (withoutBarcode.length > 0) {
-    saved.push(...(await db.insert(foods).values(withoutBarcode).returning()))
-  }
-  return saved
-}
-
 export const foodRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('onRequest', app.authenticate)
 
-  /**
-   * Ranking: exact prefix first, then trigram similarity on "brand + name",
-   * with generic (composition-table) foods nudged up — when someone types
-   * "pollo" they almost always mean the raw cut, not a ready meal.
-   */
+  /** Ranking lives in lib/food-search.ts — the photo matcher reuses it. */
   app.get('/search', async (request) => {
     const { q, limit, local } = searchQuery.parse(request.query)
     const term = q.trim()
 
-    const like = `%${term}%`
-    const nameKey = raw`unaccent(lower(${foods.name}))`
-    const brandKey = raw`unaccent(lower(coalesce(${foods.brand}, '')))`
-
-    const runLocal = async () => {
-      /**
-       * OFF holds the same product under several barcodes, with the brand
-       * spelled differently each time ("Ferrero", "Nutella", "FerreroNutella"),
-       * so "nutella" alone returns a dozen identical rows. Collapse on
-       * name + energy — same name and same kcal is the same food in practice —
-       * and keep the most useful copy: branded, with a photo and a serving
-       * size, most recently imported.
-       */
-      const deduped = db
-        .selectDistinctOn([nameKey, raw`round(${foods.kcal100})`])
-        .from(foods)
-        .where(
-          raw`(
-            ${nameKey} like unaccent(lower(${like}))
-            or ${brandKey} like unaccent(lower(${like}))
-            or similarity(${foods.name}, ${term}) > 0.22
-          )`,
-        )
-        .orderBy(
-          raw`${nameKey}, round(${foods.kcal100}),
-            (${foods.brand} is null),
-            (${foods.imageUrl} is null),
-            (${foods.servingSizeG} is null),
-            ${foods.updatedAt} desc`,
-        )
-        .as('deduped')
-
-      return db
-        .select()
-        .from(deduped)
-        .orderBy(
-          raw`
-            (case when unaccent(lower(${deduped.name})) like unaccent(lower(${term + '%'})) then 0 else 1 end),
-            (case when ${deduped.source} = 'generic' then 0 else 1 end),
-            greatest(
-              similarity(${deduped.name}, ${term}),
-              similarity(coalesce(${deduped.brand}, ''), ${term})
-            ) desc,
-            length(${deduped.name}) asc
-          `,
-        )
-        .limit(limit)
-    }
-
-    let results = await runLocal()
+    let results = await searchLocalFoods(term, limit)
 
     // Thin local mirror? Ask Open Food Facts once, cache, then re-query so the
     // ranking rules apply to the newcomers too.
@@ -148,14 +51,16 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
         const remote = await searchOff(term, limit)
         if (remote.length > 0) {
           await cacheFoods(remote)
-          results = await runLocal()
+          results = await searchLocalFoods(term, limit)
         }
       } catch (err) {
         request.log.warn({ err }, 'OFF search failed, serving local results')
       }
     }
 
-    return { items: results, source: results.length ? 'db' : 'empty' }
+    // `score` is a ranking detail; the client has never seen it.
+    const items = results.map(({ score: _score, ...food }) => food)
+    return { items, source: items.length ? 'db' : 'empty' }
   })
 
   app.get('/barcode/:code', async (request, reply) => {

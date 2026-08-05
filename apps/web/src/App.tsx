@@ -23,6 +23,7 @@ const WeightPage = lazy(() => import('@/pages/weight'))
 const ProfilePage = lazy(() => import('@/pages/profile'))
 const OnboardingPage = lazy(() => import('@/pages/onboarding'))
 const GroceryPage = lazy(() => import('@/pages/grocery'))
+const PhotoReviewPage = lazy(() => import('@/pages/photo-review'))
 
 function FullScreenLoader() {
   return (
@@ -134,6 +135,14 @@ export default function App() {
           element={
             <RequireAuth>
               <FoodInfoPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/photo-review"
+          element={
+            <RequireAuth>
+              <PhotoReviewPage />
             </RequireAuth>
           }
         />

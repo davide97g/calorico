@@ -18,6 +18,8 @@ Food data comes from two sources:
 - Product search (trigram + prefix ranking, duplicates collapsed) with an
   Open Food Facts fallback that caches into Postgres
 - Barcode lookup, with native camera scanning where the browser supports it
+- Meal photos: one shot becomes food + estimated quantity per item, reviewed and
+  corrected before it reaches the diary — see [Meal photos](#meal-photos)
 - Custom foods, favourites, recent foods, copy-a-previous-day
 - One emoji per food in every list and grouped view, guessed from the name; real
   product photos appear only on the detail pages, under **Foto** — packshot,
@@ -176,6 +178,75 @@ How an upload goes:
 Deleting a photo removes the object and then the row; if R2 says no, the row goes
 anyway — an orphaned object is cheaper than a broken gallery.
 
+## Meal photos
+
+One photo of a plate becomes a list of *(food, quantity)* rows: the model names
+what it sees and estimates how much of it there is, each row is matched against
+the food database, and nothing is written until you have corrected it on a
+review screen.
+
+Set three variables and the **Fotografa il pasto** button appears; leave any of
+them unset and the feature switches itself off, the same way photo upload does
+without R2.
+
+```env
+VISION_PROVIDER=openai        # openai | mistral | stub
+VISION_API_KEY=<your key>
+VISION_MODEL=<a vision-capable model>
+```
+
+No model id is baked into the code on purpose — they get renamed and retired
+faster than this file gets edited. Any vision-capable model that supports
+strict JSON-schema output works; the mini tiers are plenty and keep the
+per-photo cost low.
+
+`VISION_PROVIDER=openai` also drives anything speaking the same
+chat-completions dialect — Groq, OpenRouter, Together, a local Ollama — by
+setting `VISION_BASE_URL` to that host.
+
+How a photo goes:
+
+1. **The browser compresses first**, to a 1568 px long edge and ~500 KB — more
+   pixels than a gallery upload gets, because the model reads nutrition labels
+   off the same image. The canvas round-trip strips EXIF, so no GPS leaves the
+   phone.
+2. It is posted inline to `POST /api/vision/meal` and forwarded to the provider.
+   **The photo is never stored** — not on the VPS, not on R2, not in the logs.
+   That route carries its own 1 MB body limit (the app-wide one is 512 KB) and
+   its own 10/min rate limit, because each call costs money.
+3. Every detected item is searched against the local catalogue with the same
+   trigram ranking the search screen uses; packaged products additionally fall
+   back to Open Food Facts. The three best candidates ride along so swapping a
+   food on the review screen needs no round trip.
+4. Anything with no good match keeps the model's own per-100 g estimate. On
+   save it becomes a **custom food owned by you**, so it is searchable and
+   re-loggable next time, and it is marked `raw.aiEstimated` to tell it apart
+   from foods you typed yourself.
+5. `POST /api/diary/batch` writes the whole meal in one transaction — a plate
+   half-saved is worse than one you have to confirm again.
+
+### Adding another provider
+
+`apps/api/src/lib/vision/` splits the provider-neutral parts (the JSON schema,
+the prompt, the sanity clamps, the matcher) from the adapters. A new provider is
+one file exporting a `VisionProvider` plus a `case` in `index.ts` — which is
+exactly what adding OpenAI alongside Mistral cost.
+
+### Developing without a key
+
+`VISION_PROVIDER=stub` (with any placeholder key and model) returns a canned
+three-item analysis through the real parser and clamps. The whole flow —
+capture sheet, review screen, batch save — works offline and costs nothing.
+
+### On the estimates
+
+Quantity from a single 2D photo has a real error floor; depth is unrecoverable
+and dense foods (rice, oil, cheese) are the worst case. The UI leans into that
+rather than hiding it: low-confidence rows say what the estimate was anchored
+on, and every number is editable before save. Cooked-versus-dry weight is the
+biggest systematic trap — 80 g of dry pasta is ~200 g cooked — and the prompt
+addresses it explicitly.
+
 ## PWA and updates
 
 The web app installs as a standalone app. Assets live in `apps/web/public/icons`
@@ -233,6 +304,12 @@ Worth knowing:
 | `CORS_ORIGINS`    | `http://localhost:5173`        | Comma separated; unused in the nginx setup   |
 | `OFF_USER_AGENT`  | `Calorico/0.1 …`               | Open Food Facts asks for a contact address   |
 | `OFF_ENABLED`     | `true`                         | `false` runs entirely off the local mirror   |
+| `VISION_PROVIDER` | —                              | `openai`, `mistral` or `stub`; with key + model, enables meal photos |
+| `VISION_API_KEY`  | —                              | Required together with provider and model    |
+| `VISION_MODEL`    | —                              | No default: model ids change too often       |
+| `VISION_BASE_URL` | —                              | `openai` only: any compatible host (Groq, OpenRouter, Ollama) |
+| `VISION_MAX_IMAGE_BYTES` | `1048576`               | Backstop for a client that skipped compression |
+| `VISION_TIMEOUT_MS` | `30000`                      | Vision calls are slow                        |
 | `OFF_BASE_URL`    | `https://world.openfoodfacts.org` | Barcode lookups                           |
 | `OFF_SEARCH_URL`  | `https://search.openfoodfacts.org` | Text search (the v2 search endpoint is mostly 503) |
 

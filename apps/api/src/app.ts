@@ -16,6 +16,7 @@ import { diaryRoutes } from './routes/diary.js'
 import { statsRoutes } from './routes/stats.js'
 import { weightRoutes } from './routes/weight.js'
 import { groceryRoutes } from './routes/grocery.js'
+import { visionRoutes } from './routes/vision.js'
 
 declare module '@fastify/jwt' {
   interface FastifyJWT {
@@ -99,6 +100,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(statsRoutes, { prefix: '/api/stats' })
   await app.register(weightRoutes, { prefix: '/api/weight' })
   await app.register(groceryRoutes, { prefix: '/api/grocery' })
+  await app.register(visionRoutes, { prefix: '/api/vision' })
 
   return app
 }

@@ -46,6 +46,36 @@ const schema = z.object({
     .int()
     .positive()
     .default(3 * 1024 * 1024),
+
+  /**
+   * Meal photo analysis. Provider, key and model are required together; leave
+   * any of them unset and the photo button never appears — same all-or-nothing
+   * gate as R2 above.
+   *
+   * No model is defaulted on purpose: model names are renamed and retired far
+   * faster than this file is edited, and a stale default fails at request time
+   * with a confusing 502 instead of at boot with a clear one.
+   */
+  VISION_PROVIDER: z.enum(['openai', 'mistral', 'stub']).optional(),
+  VISION_API_KEY: z.string().optional(),
+  VISION_MODEL: z.string().optional(),
+  /**
+   * Only for `openai`: point the adapter at any host speaking the same
+   * chat-completions dialect (Groq, OpenRouter, Together, a local Ollama).
+   * Unset means OpenAI itself.
+   */
+  VISION_BASE_URL: z.string().optional(),
+  /**
+   * Backstop for a client that skipped compression. The browser aims for
+   * ~500 KB, which is ~667 KB once base64'd.
+   */
+  VISION_MAX_IMAGE_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(1024 * 1024),
+  /** Vision calls are slow; well above the 8s we allow Open Food Facts. */
+  VISION_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
 })
 
 const parsed = schema.safeParse(process.env)
@@ -80,6 +110,19 @@ const r2 =
       }
     : null
 
+/** Present only when a provider, a key and a model are all configured. */
+const vision =
+  d.VISION_PROVIDER && d.VISION_API_KEY && d.VISION_MODEL
+    ? {
+        provider: d.VISION_PROVIDER,
+        apiKey: d.VISION_API_KEY,
+        model: d.VISION_MODEL,
+        baseUrl: d.VISION_BASE_URL,
+        maxImageBytes: d.VISION_MAX_IMAGE_BYTES,
+        timeoutMs: d.VISION_TIMEOUT_MS,
+      }
+    : null
+
 export const env = {
   ...d,
   corsOrigins: d.CORS_ORIGINS.split(',')
@@ -87,4 +130,5 @@ export const env = {
     .filter(Boolean),
   isProd: d.NODE_ENV === 'production',
   r2,
+  vision,
 }

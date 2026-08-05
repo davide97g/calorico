@@ -7,7 +7,11 @@
  * every metadata block — strips the GPS coordinates out of the file too.
  */
 
-/** Long edge of the stored image. Twice the widest slot in the UI, for retina. */
+/**
+ * Defaults, sized for a stored gallery photo: twice the widest slot in the UI,
+ * for retina. Meal analysis overrides both — a model reading a nutrition label
+ * wants the pixels more than the bucket wants the bytes.
+ */
 const MAX_EDGE = 1400
 /** Anything under this is small enough; the loop stops early. */
 const TARGET_BYTES = 320 * 1024
@@ -31,10 +35,10 @@ function bestFormat(): string {
     : 'image/jpeg'
 }
 
-function scaledSize(width: number, height: number) {
+function scaledSize(width: number, height: number, maxEdge: number) {
   const longest = Math.max(width, height)
-  if (longest <= MAX_EDGE) return { width, height }
-  const ratio = MAX_EDGE / longest
+  if (longest <= maxEdge) return { width, height }
+  const ratio = maxEdge / longest
   return {
     width: Math.round(width * ratio),
     height: Math.round(height * ratio),
@@ -58,13 +62,25 @@ async function encode(
   })
 }
 
-export async function compressImage(file: File): Promise<CompressedImage> {
+export interface CompressOptions {
+  /** Long edge of the output, in pixels. */
+  maxEdge?: number
+  /** Stop dropping quality once the encode lands under this. */
+  targetBytes?: number
+}
+
+export async function compressImage(
+  file: File,
+  options: CompressOptions = {},
+): Promise<CompressedImage> {
   if (!file.type.startsWith('image/')) throw new Error('not_an_image')
+  const maxEdge = options.maxEdge ?? MAX_EDGE
+  const targetBytes = options.targetBytes ?? TARGET_BYTES
 
   // `from-image` applies the EXIF orientation, so portrait shots stay upright
   // even though the re-encode throws the EXIF block away.
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
-  const { width, height } = scaledSize(bitmap.width, bitmap.height)
+  const { width, height } = scaledSize(bitmap.width, bitmap.height, maxEdge)
 
   const canvas =
     typeof OffscreenCanvas === 'function'
@@ -82,7 +98,7 @@ export async function compressImage(file: File): Promise<CompressedImage> {
   const contentType = bestFormat()
   let blob = await encode(canvas, contentType, QUALITY_STEPS[0]!)
   for (const quality of QUALITY_STEPS.slice(1)) {
-    if (blob.size <= TARGET_BYTES) break
+    if (blob.size <= targetBytes) break
     blob = await encode(canvas, contentType, quality)
   }
 
