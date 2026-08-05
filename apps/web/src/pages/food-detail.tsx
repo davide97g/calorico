@@ -36,11 +36,13 @@ export default function FoodDetailPage() {
   const [meal, setMeal] = useState<Meal>(
     (params.get('meal') as Meal | null) ?? currentMeal(),
   )
-  const [quantity, setQuantity] = useState<string>('')
-
   // Default portion: the pack's serving size when it has one, else 100 g.
   const defaultQuantity = food?.servingSizeG ?? 100
-  const grams_ = Number(quantity.replace(',', '.')) || defaultQuantity
+  const [quantity, setQuantity] = useState<string | null>(null)
+  // The field shows the real default rather than hiding it in a placeholder —
+  // an empty-looking input while the values below compute on 100 g is a lie.
+  const quantityValue = quantity ?? String(defaultQuantity)
+  const grams_ = Number(quantityValue.replace(',', '.')) || 0
 
   const macros = useMemo(() => {
     if (!food) return null
@@ -121,7 +123,9 @@ export default function FoodDetailPage() {
           <Star
             className={cn(
               'size-4',
-              food.isFavorite && 'fill-primary text-primary',
+              // Lime fill, darker green outline: the light lime alone is
+              // invisible against a white card.
+              food.isFavorite && 'fill-primary text-primary-strong',
             )}
           />
         </Button>
@@ -163,39 +167,32 @@ export default function FoodDetailPage() {
       <Panel className="mt-3">
         <PanelHeader title="Quantità" />
 
+        {/* One control per row: a number field, a unit and a meal picker
+            crammed into one 375 px line was three unrelated jobs. */}
         <div className="mt-3 flex items-center gap-2">
-          <Input
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            placeholder={String(defaultQuantity)}
-            inputMode="decimal"
-            className="h-12 rounded-2xl text-base font-semibold"
-            aria-label={`Quantità in ${food.unit}`}
-          />
-          <span className="text-muted-foreground w-8 text-sm">{food.unit}</span>
-
-          <Select value={meal} onValueChange={(v) => setMeal(v as Meal)}>
-            <SelectTrigger className="h-12 flex-1 rounded-2xl" aria-label="Pasto">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="rounded-2xl">
-              {MEAL_ORDER.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {MEAL_LABELS[m]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="relative flex-1">
+            <Input
+              value={quantityValue}
+              onChange={(e) => setQuantity(e.target.value)}
+              onFocus={(e) => e.currentTarget.select()}
+              inputMode="decimal"
+              className="h-13 rounded-2xl pr-12 text-base font-bold"
+              aria-label={`Quantità in ${food.unit}`}
+            />
+            <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-sm font-semibold">
+              {food.unit}
+            </span>
+          </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-2">
           {quickPortions.map((p) => (
             <button
               key={p}
               type="button"
               onClick={() => setQuantity(String(p))}
               className={cn(
-                'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                'h-11 rounded-full px-4 text-xs font-semibold transition-colors',
                 grams_ === p
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-secondary-foreground',
@@ -207,6 +204,30 @@ export default function FoodDetailPage() {
                 : ''}
             </button>
           ))}
+        </div>
+
+        <div className="mt-3">
+          <label
+            className="text-muted-foreground mb-1.5 block px-1 text-[11px] font-semibold"
+            htmlFor="meal-select"
+          >
+            Pasto
+          </label>
+          <Select value={meal} onValueChange={(v) => setMeal(v as Meal)}>
+            <SelectTrigger
+              id="meal-select"
+              className="h-13 w-full rounded-2xl font-semibold"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="rounded-2xl">
+              {MEAL_ORDER.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {MEAL_LABELS[m]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </Panel>
 
@@ -221,7 +242,7 @@ export default function FoodDetailPage() {
             size={96}
           />
           <div className="flex-1">
-            <p className="tabular text-[28px] leading-none font-extrabold">
+            <p className="font-display tabular text-[30px] leading-none font-extrabold">
               {kcal(macros.kcal)}
               <span className="text-muted-foreground ml-1 text-sm font-medium">
                 kcal

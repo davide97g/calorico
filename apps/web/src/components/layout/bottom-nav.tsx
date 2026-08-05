@@ -1,20 +1,21 @@
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutGrid, LineChart, Plus, Scale } from 'lucide-react'
+import { useState } from 'react'
+import { NavLink } from 'react-router-dom'
+import { House, LineChart, ScanBarcode, Scale } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { ScanSheet } from '@/components/food/scan-sheet'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 
-const items = [
-  { to: '/', icon: LayoutGrid, label: 'Oggi' },
+const leftItems = [
+  { to: '/', icon: House, label: 'Oggi' },
   { to: '/stats', icon: LineChart, label: 'Statistiche' },
 ] as const
 
 const rightItems = [{ to: '/weight', icon: Scale, label: 'Peso' }] as const
 
 export function BottomNav() {
-  const navigate = useNavigate()
-  const location = useLocation()
   const { user } = useAuth()
+  const [scanning, setScanning] = useState(false)
 
   const initials =
     user?.name
@@ -25,52 +26,67 @@ export function BottomNav() {
       .toUpperCase() ?? '?'
 
   return (
-    <nav className="bg-card/90 border-border/70 supports-[backdrop-filter]:bg-card/70 absolute inset-x-0 bottom-0 z-20 border-t px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl">
-      <ul className="flex items-center justify-between">
-        {items.map((item) => (
-          <NavItem key={item.to} {...item} />
-        ))}
+    <>
+      <nav className="bg-card/90 border-border/70 supports-[backdrop-filter]:bg-card/70 absolute inset-x-0 bottom-0 z-20 h-[calc(var(--nav-h)+env(safe-area-inset-bottom))] border-t px-3 pt-1.5 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
+        <ul className="flex items-start justify-between">
+          {leftItems.map((item) => (
+            <NavItem key={item.to} {...item} />
+          ))}
 
-        <li className="-mt-8">
-          <button
-            type="button"
-            onClick={() =>
-              navigate('/add', { state: { from: location.pathname } })
-            }
-            className="bg-foreground text-background shadow-float flex size-14 items-center justify-center rounded-full transition-transform active:scale-95"
-            aria-label="Aggiungi alimento"
-          >
-            <Plus className="size-6" strokeWidth={2.5} />
-          </button>
-        </li>
+          {/* Scan is the primary action, so it gets the signature lime and the
+              only oversized target in the bar. */}
+          <li className="-mt-7">
+            <button
+              type="button"
+              onClick={() => setScanning(true)}
+              className="bg-primary text-primary-foreground shadow-float flex size-16 flex-col items-center justify-center gap-0.5 rounded-full transition-transform active:scale-95"
+              aria-label="Scansiona un codice a barre"
+            >
+              <ScanBarcode className="size-6" strokeWidth={2.4} />
+              <span className="text-[9px] leading-none font-bold">SCAN</span>
+            </button>
+          </li>
 
-        {rightItems.map((item) => (
-          <NavItem key={item.to} {...item} />
-        ))}
+          {rightItems.map((item) => (
+            <NavItem key={item.to} {...item} />
+          ))}
 
-        <li>
-          <NavLink
-            to="/profile"
-            className="block rounded-full ring-offset-2 transition-all"
-            aria-label="Profilo"
-          >
-            {({ isActive }) => (
-              <Avatar
-                className={cn(
-                  'size-9 transition-all',
-                  isActive && 'ring-primary ring-2 ring-offset-2 ring-offset-card',
-                )}
-              >
-                {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} /> : null}
-                <AvatarFallback className="bg-secondary text-xs font-semibold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-            )}
-          </NavLink>
-        </li>
-      </ul>
-    </nav>
+          <li>
+            <NavLink
+              to="/profile"
+              className="flex w-16 flex-col items-center gap-1 rounded-2xl pt-1.5"
+              aria-label="Profilo"
+            >
+              {({ isActive }) => (
+                <>
+                  <Avatar
+                    className={cn(
+                      'size-6 transition-all',
+                      isActive && 'ring-primary-strong ring-2 ring-offset-2 ring-offset-card',
+                    )}
+                  >
+                    {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} /> : null}
+                    <AvatarFallback className="bg-secondary text-[9px] font-bold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span
+                    className={cn(
+                      'text-[10px] leading-none font-semibold',
+                      isActive ? 'text-primary-strong' : 'text-muted-foreground',
+                    )}
+                  >
+                    Profilo
+                  </span>
+                </>
+              )}
+            </NavLink>
+          </li>
+        </ul>
+      </nav>
+
+      <ScanSheet open={scanning} onOpenChange={setScanning} />
+    </>
   )
 }
 
@@ -80,7 +96,7 @@ function NavItem({
   label,
 }: {
   to: string
-  icon: typeof LayoutGrid
+  icon: typeof House
   label: string
 }) {
   return (
@@ -88,17 +104,16 @@ function NavItem({
       <NavLink
         to={to}
         end={to === '/'}
+        // Labels, not icons alone: an icon-only bar makes the user guess.
         className={({ isActive }) =>
           cn(
-            'flex size-11 items-center justify-center rounded-2xl transition-colors',
-            isActive
-              ? 'text-primary bg-primary/12'
-              : 'text-muted-foreground hover:text-foreground',
+            'flex h-12 w-16 flex-col items-center justify-start gap-1 rounded-2xl pt-1.5 transition-colors',
+            isActive ? 'text-primary-strong' : 'text-muted-foreground',
           )
         }
-        aria-label={label}
       >
         <Icon className="size-5" strokeWidth={2.2} />
+        <span className="text-[10px] leading-none font-semibold">{label}</span>
       </NavLink>
     </li>
   )

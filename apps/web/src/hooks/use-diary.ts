@@ -7,6 +7,7 @@ import {
 import { api } from '@/lib/api'
 import type {
   DiaryDay,
+  DiaryEntry,
   Food,
   Meal,
   Profile,
@@ -102,7 +103,8 @@ export function useAddEntry() {
       day: string
       meal: Meal
       quantityG: number
-    }) => api('/diary', { method: 'POST', body: input }),
+      // The created row comes back so a one-tap add can offer an undo.
+    }) => api<DiaryEntry>('/diary', { method: 'POST', body: input }),
     onSuccess: (_data, input) => invalidate(input.day),
   })
 }

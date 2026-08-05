@@ -29,7 +29,11 @@ export function AppShell({
         <main
           className={cn(
             'no-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-4 pt-[max(1rem,env(safe-area-inset-top))]',
-            nav ? 'pb-28' : 'pb-8',
+            // Clears the bar itself, its safe-area padding, and the scan button
+            // that overhangs it — derived from --nav-h instead of a guess.
+            nav
+              ? 'pb-[calc(var(--nav-h)+env(safe-area-inset-bottom)+2.5rem)]'
+              : 'pb-8',
           )}
         >
           {children}

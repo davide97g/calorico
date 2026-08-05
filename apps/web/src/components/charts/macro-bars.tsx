@@ -78,3 +78,52 @@ export function MacroBars({ carbs, fat, protein, className }: MacroBarsProps) {
     </div>
   )
 }
+
+/**
+ * Three columns, each leading with the grams still to go — the dashboard needs
+ * the actionable figure, not a second percentage. A third of the height of the
+ * stacked `MacroBars`, which is what buys the hero its space.
+ */
+export function MacroTriple({ carbs, fat, protein, className }: MacroBarsProps) {
+  return (
+    <div className={cn('grid grid-cols-3 gap-3', className)}>
+      <MacroCell macro="carbs" {...carbs} />
+      <MacroCell macro="fat" {...fat} />
+      <MacroCell macro="protein" {...protein} />
+    </div>
+  )
+}
+
+function MacroCell({ macro, value, target }: MacroBarProps) {
+  const meta = MACRO_META[macro]
+  const filled = progress(value, target)
+  const left = target - value
+  const over = left < 0
+
+  return (
+    <div>
+      <p className="text-muted-foreground truncate text-[11px] font-medium">
+        {meta.label}
+      </p>
+      <p className="font-display tabular mt-1 text-[22px] leading-none font-extrabold">
+        {over ? '+' : ''}
+        {grams(Math.abs(left))}
+        <span className="text-muted-foreground ml-0.5 text-[11px] font-bold">
+          g
+        </span>
+      </p>
+      <div className="bg-secondary mt-2 h-1.5 overflow-hidden rounded-full">
+        <div
+          className={cn(
+            'h-full rounded-full transition-[width] duration-700 ease-out',
+            over ? 'bg-destructive/70' : meta.bar,
+          )}
+          style={{ width: `${Math.min(100, filled)}%` }}
+        />
+      </div>
+      <p className="text-muted-foreground tabular mt-1.5 text-[10px] font-medium">
+        {grams(value)}/{grams(target)}
+      </p>
+    </div>
+  )
+}

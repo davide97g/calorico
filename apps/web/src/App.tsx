@@ -25,7 +25,7 @@ const OnboardingPage = lazy(() => import('@/pages/onboarding'))
 function FullScreenLoader() {
   return (
     <div className="bg-background flex min-h-dvh items-center justify-center">
-      <Loader2 className="text-primary size-7 animate-spin" />
+      <Loader2 className="text-primary-strong size-7 animate-spin" />
     </div>
   )
 }

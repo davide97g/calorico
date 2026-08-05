@@ -1,27 +1,17 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Copy, MoreHorizontal } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { addDaysISO, isFutureDay, labelForDay, todayISO } from '@/lib/date'
 
 interface DaySwitcherProps {
   day: string
   onChange: (day: string) => void
-  onCopyYesterday?: () => void
-  onOpenWeight?: () => void
 }
 
-export function DaySwitcher({
-  day,
-  onChange,
-  onCopyYesterday,
-  onOpenWeight,
-}: DaySwitcherProps) {
+/**
+ * Just the date. "Copy yesterday" and "log weight" used to hide behind an
+ * overflow menu here; both are now visible actions on the dashboard.
+ */
+export function DaySwitcher({ day, onChange }: DaySwitcherProps) {
   const canGoForward = !isFutureDay(addDaysISO(day, 1))
 
   return (
@@ -31,7 +21,7 @@ export function DaySwitcher({
         <button
           type="button"
           onClick={() => onChange(addDaysISO(day, -1))}
-          className="hover:bg-secondary flex size-7 items-center justify-center rounded-full"
+          className="hover:bg-secondary active:bg-secondary flex size-9 items-center justify-center rounded-full transition-colors"
           aria-label="Giorno precedente"
         >
           <ChevronLeft className="size-4" />
@@ -43,54 +33,23 @@ export function DaySwitcher({
           type="button"
           onClick={() => canGoForward && onChange(addDaysISO(day, 1))}
           disabled={!canGoForward}
-          className="hover:bg-secondary flex size-7 items-center justify-center rounded-full disabled:opacity-30"
+          className="hover:bg-secondary active:bg-secondary flex size-9 items-center justify-center rounded-full transition-colors disabled:opacity-30"
           aria-label="Giorno successivo"
         >
           <ChevronRight className="size-4" />
         </button>
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
-        {day !== todayISO() ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            className="bg-card shadow-soft rounded-full"
-            onClick={() => onChange(todayISO())}
-          >
-            Oggi
-          </Button>
-        ) : null}
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="bg-card shadow-soft size-9 rounded-full"
-              aria-label="Altre azioni"
-            >
-              <MoreHorizontal className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="rounded-2xl">
-            {onCopyYesterday ? (
-              <DropdownMenuItem onClick={onCopyYesterday}>
-                <Copy className="size-4" />
-                Copia il giorno precedente
-              </DropdownMenuItem>
-            ) : null}
-            {onOpenWeight ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onOpenWeight}>
-                  Registra il peso
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      {day !== todayISO() ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          className="bg-card shadow-soft ml-auto h-9 rounded-full px-4"
+          onClick={() => onChange(todayISO())}
+        >
+          Oggi
+        </Button>
+      ) : null}
     </div>
   )
 }

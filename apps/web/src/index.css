@@ -5,6 +5,9 @@
 
 :root {
   --radius: 1.5rem;
+  /* Height of the bottom bar without its safe-area padding. The scroll
+     container reserves this instead of guessing with a fixed pb-* value. */
+  --nav-h: 4.25rem;
 
   --background: oklch(0.968 0.008 120);
   --foreground: oklch(0.21 0.015 145);
@@ -15,15 +18,19 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.21 0.015 145);
 
-  /* signature lime */
+  /* Signature lime. Bright enough to carry a whole surface, far too light to
+     be legible as text — so it is a FILL colour only. */
   --primary: oklch(0.9 0.18 120);
   --primary-foreground: oklch(0.24 0.04 145);
+  /* The same green pushed down to ~5:1 on white, for text, icons and links. */
+  --primary-strong: oklch(0.46 0.14 135);
 
   --secondary: oklch(0.955 0.01 120);
   --secondary-foreground: oklch(0.28 0.02 145);
 
   --muted: oklch(0.955 0.008 120);
-  --muted-foreground: oklch(0.55 0.015 145);
+  /* 0.5 rather than 0.55: secondary text has to clear 4.5:1 on white too. */
+  --muted-foreground: oklch(0.5 0.015 145);
 
   --accent: oklch(0.94 0.09 120);
   --accent-foreground: oklch(0.24 0.04 145);
@@ -60,6 +67,8 @@
 
   --primary: oklch(0.85 0.19 122);
   --primary-foreground: oklch(0.2 0.04 145);
+  /* On dark surfaces the light lime already clears AA, so it doubles as text. */
+  --primary-strong: oklch(0.85 0.19 122);
 
   --secondary: oklch(0.27 0.016 145);
   --secondary-foreground: oklch(0.96 0.008 120);
@@ -98,6 +107,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-strong: var(--primary-strong);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -128,6 +138,9 @@
 
   --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system,
     'Segoe UI', sans-serif;
+  /* Reserved for figures: the number is the product, so it gets its own face. */
+  --font-display: 'Bricolage Grotesque', 'Plus Jakarta Sans', ui-sans-serif,
+    system-ui, sans-serif;
 }
 
 @layer base {
@@ -144,6 +157,20 @@
     font-feature-settings: 'ss01', 'cv11';
     text-rendering: optimizeLegibility;
     overscroll-behavior-y: none;
+  }
+
+  /* Every transition and keyframe in the app is decorative; honour the OS
+     switch globally so no component has to remember to. JS-driven motion
+     (the hero count-up) reads the same query via usePrefersReducedMotion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
