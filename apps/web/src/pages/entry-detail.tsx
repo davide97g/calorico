@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Check, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, Info, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
@@ -127,6 +127,16 @@ export default function EntryDetailPage() {
             ) : null}
           </div>
         </div>
+        {entry.foodId ? (
+          <Button
+            variant="secondary"
+            className="mt-4 h-10 w-full rounded-xl text-xs font-semibold"
+            onClick={() => navigate(`/food/${entry.foodId}/info`)}
+          >
+            <Info className="size-4" />
+            Vedi tutti i dati alimento
+          </Button>
+        ) : null}
       </Panel>
 
       <FoodGallery foodId={entry.foodId} name={entry.nameSnapshot} />

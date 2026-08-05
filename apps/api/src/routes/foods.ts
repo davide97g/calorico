@@ -64,6 +64,8 @@ async function cacheFoods(rows: NewFood[]) {
             salt100: raw`excluded.salt_100`,
             servingSizeG: raw`excluded.serving_size_g`,
             servingLabel: raw`excluded.serving_label`,
+            packageSizeG: raw`excluded.package_size_g`,
+            packageSizeLabel: raw`excluded.package_size_label`,
             updatedAt: new Date(),
           },
         })

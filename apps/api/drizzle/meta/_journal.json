@@ -15,6 +15,13 @@
       "when": 1785923816359,
       "tag": "0001_flawless_white_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785923816360,
+      "tag": "0002_food_package_size",
+      "breakpoints": true
     }
   ]
 }

@@ -106,6 +106,9 @@ export const foods = pgTable(
     /** Default portion offered in the UI (e.g. 30 g biscuit serving). */
     servingSizeG: real('serving_size_g'),
     servingLabel: text('serving_label'),
+    /** Net weight/volume printed on the pack, when OFF provides it. */
+    packageSizeG: real('package_size_g'),
+    packageSizeLabel: text('package_size_label'),
     /** 'g' for solids, 'ml' for drinks — affects the unit shown. */
     unit: text('unit').notNull().default('g'),
     isLiquid: boolean('is_liquid').notNull().default(false),

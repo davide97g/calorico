@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Check, Star } from 'lucide-react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, Check, ChevronRight, Info, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { MacroDonut } from '@/components/charts/macro-donut'
@@ -140,29 +140,23 @@ export default function FoodDetailPage() {
           />
           <div className="min-w-0">
             <h1 className="text-lg leading-tight font-bold">{food.name}</h1>
-            <p className="text-muted-foreground mt-1 text-xs">
-              {food.brand ? `${food.brand} · ` : ''}
-              {food.source === 'off'
-                ? 'Open Food Facts'
-                : food.source === 'generic'
-                  ? 'Tabelle di composizione'
-                  : 'Personalizzato'}
+            <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+              {food.category ?? 'Alimento'}
+              {food.brand ? ` · ${food.brand}` : ''}
             </p>
-            {food.barcode ? (
-              <p className="text-muted-foreground tabular mt-0.5 text-[11px]">
-                {food.barcode}
-              </p>
-            ) : null}
           </div>
         </div>
+        <Link
+          to={`/food/${food.id}/info`}
+          className="bg-secondary/70 mt-4 flex h-11 items-center justify-between rounded-2xl px-3 text-xs font-semibold transition-colors active:scale-[0.98]"
+        >
+          <span className="flex items-center gap-2">
+            <Info className="text-primary-strong size-4" />
+            Vedi tutti i dati
+          </span>
+          <ChevronRight className="text-muted-foreground size-4" />
+        </Link>
       </Panel>
-
-      <FoodGallery
-        foodId={food.id}
-        name={food.name}
-        images={food.images ?? []}
-        uploadEnabled={food.imageUploadEnabled}
-      />
 
       <Panel className="mt-3">
         <PanelHeader title="Quantità" />
@@ -206,6 +200,15 @@ export default function FoodDetailPage() {
           ))}
         </div>
 
+        {food.packageSizeG ? (
+          <p className="text-muted-foreground mt-3 px-1 text-xs">
+            {grams(grams_)} {food.unit} su {food.packageSizeLabel ?? `${grams(food.packageSizeG)} ${food.unit}`}
+            <span className="ml-1 tabular">
+              · {Math.min(100, Math.round((grams_ / food.packageSizeG) * 100))}% confezione
+            </span>
+          </p>
+        ) : null}
+
         <div className="mt-3">
           <label
             className="text-muted-foreground mb-1.5 block px-1 text-[11px] font-semibold"
@@ -234,36 +237,39 @@ export default function FoodDetailPage() {
       <Panel className="mt-3">
         <PanelHeader title={`Valori per ${grams(grams_)} ${food.unit}`} />
 
-        <div className="mt-3 flex items-center gap-4">
-          <MacroDonut
-            carbsG={macros.carbsG}
-            fatG={macros.fatG}
-            proteinG={macros.proteinG}
-            size={96}
-          />
-          <div className="flex-1">
-            <p className="font-display tabular text-[30px] leading-none font-extrabold">
+        <div className="mt-4 grid grid-cols-[auto_1fr] items-center gap-4">
+          <MacroDonut carbsG={macros.carbsG} fatG={macros.fatG} proteinG={macros.proteinG} size={108} />
+          <div>
+            <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Energia</p>
+            <p className="font-display tabular mt-1 text-[38px] leading-none font-extrabold tracking-tight">
               {kcal(macros.kcal)}
-              <span className="text-muted-foreground ml-1 text-sm font-medium">
-                kcal
-              </span>
+              <span className="text-muted-foreground ml-1 text-sm font-semibold">kcal</span>
             </p>
-            <dl className="mt-3 flex flex-col gap-1.5 text-xs">
-              <NutrientRow label="Carboidrati" value={macros.carbsG} accent="carbs" />
-              <NutrientRow label="di cui zuccheri" value={macros.sugarsG} muted />
-              <NutrientRow label="Grassi" value={macros.fatG} accent="fat" />
-              <NutrientRow label="di cui saturi" value={macros.satFatG} muted />
-              <NutrientRow label="Proteine" value={macros.proteinG} accent="protein" />
-              <NutrientRow label="Fibre" value={macros.fiberG} muted />
-              <NutrientRow label="Sale" value={macros.saltG} muted />
+            <dl className="mt-3 grid grid-cols-3 gap-2">
+              <MacroCell label="Carboidrati" value={macros.carbsG} accent="carbs" />
+              <MacroCell label="Grassi" value={macros.fatG} accent="fat" />
+              <MacroCell label="Proteine" value={macros.proteinG} accent="protein" />
             </dl>
           </div>
         </div>
+        <dl className="border-border/70 mt-4 grid grid-cols-2 gap-x-5 gap-y-2 border-t pt-3 text-xs">
+          <NutrientRow label="Zuccheri" value={macros.sugarsG} muted />
+          <NutrientRow label="Saturi" value={macros.satFatG} muted />
+          <NutrientRow label="Fibre" value={macros.fiberG} muted />
+          <NutrientRow label="Sale" value={macros.saltG} muted />
+        </dl>
       </Panel>
 
-      <div className="mt-4 pb-4">
+      <FoodGallery
+        foodId={food.id}
+        name={food.name}
+        images={food.images ?? []}
+        uploadEnabled={food.imageUploadEnabled}
+      />
+
+      <div className="sticky bottom-0 z-10 -mx-4 mt-4 bg-gradient-to-t from-background via-background to-transparent px-4 pt-7 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <Button
-          className="h-13 w-full rounded-full text-base font-semibold"
+          className="shadow-float h-13 w-full rounded-full text-base font-semibold"
           onClick={handleSave}
           disabled={addEntry.isPending || grams_ <= 0}
         >
@@ -272,6 +278,19 @@ export default function FoodDetailPage() {
         </Button>
       </div>
     </AppShell>
+  )
+}
+
+function MacroCell({ label, value, accent }: { label: string; value: number; accent: 'carbs' | 'fat' | 'protein' }) {
+  const dot = { carbs: 'bg-carbs', fat: 'bg-fat', protein: 'bg-protein' }
+  return (
+    <div className="bg-secondary/65 min-w-0 rounded-xl px-2 py-2">
+      <dt className="text-muted-foreground flex items-center gap-1 text-[9px] leading-none font-medium">
+        <span className={cn('size-1.5 shrink-0 rounded-full', dot[accent])} />
+        <span className="truncate">{label}</span>
+      </dt>
+      <dd className="tabular mt-1 text-sm leading-none font-bold">{grams(value)} g</dd>
+    </div>
   )
 }
 

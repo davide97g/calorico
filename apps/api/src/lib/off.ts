@@ -113,6 +113,18 @@ export function parseServingGrams(
   return grams > 0 && grams < 2000 ? grams : null
 }
 
+/** "250 g", "1,5 l", "33 cl" -> grams/ml in the product's own unit. */
+export function parsePackageSize(quantity?: string): number | null {
+  if (!quantity) return null
+  const match = quantity.replace(',', '.').match(/(\d+(?:\.\d+)?)\s*(g|gr|ml|cl|dl|l)\b/i)
+  if (!match?.[1] || !match[2]) return null
+  const value = Number(match[1])
+  const unit = match[2].toLowerCase()
+  const multiplier = unit === 'cl' ? 10 : unit === 'dl' ? 100 : unit === 'l' ? 1000 : 1
+  const size = value * multiplier
+  return size > 0 && size < 20_000 ? size : null
+}
+
 export function isLiquidProduct(p: OffProduct): boolean {
   const tags = (p.categories_tags ?? []).map((t) => t.toLowerCase())
   if (tags.some((t) => SOLID_TAGS.has(t))) return false
@@ -159,6 +171,7 @@ export function mapOffProduct(p: OffProduct): NewFood | null {
 
   const liquid = isLiquidProduct(p)
   const serving = parseServingGrams(p.serving_size, p.serving_quantity)
+  const packageSize = parsePackageSize(p.quantity)
 
   return {
     source: 'off',
@@ -178,6 +191,8 @@ export function mapOffProduct(p: OffProduct): NewFood | null {
     salt100: num(n['salt_100g']),
     servingSizeG: serving,
     servingLabel: p.serving_size?.trim() || null,
+    packageSizeG: packageSize,
+    packageSizeLabel: p.quantity?.trim() || null,
     unit: liquid ? 'ml' : 'g',
     isLiquid: liquid,
     countries: p.countries_tags ?? null,

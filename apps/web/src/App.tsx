@@ -16,6 +16,7 @@ import RegisterPage from '@/pages/register'
 const StatsPage = lazy(() => import('@/pages/stats'))
 const AddFoodPage = lazy(() => import('@/pages/add-food'))
 const FoodDetailPage = lazy(() => import('@/pages/food-detail'))
+const FoodInfoPage = lazy(() => import('@/pages/food-info'))
 const CreateFoodPage = lazy(() => import('@/pages/create-food'))
 const EntryDetailPage = lazy(() => import('@/pages/entry-detail'))
 const WeightPage = lazy(() => import('@/pages/weight'))
@@ -116,6 +117,14 @@ export default function App() {
           element={
             <RequireAuth>
               <FoodDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/food/:id/info"
+          element={
+            <RequireAuth>
+              <FoodInfoPage />
             </RequireAuth>
           }
         />

@@ -64,6 +64,8 @@ export interface Food {
   salt100: number | null
   servingSizeG: number | null
   servingLabel: string | null
+  packageSizeG: number | null
+  packageSizeLabel: string | null
   unit: string
   isLiquid: boolean
   verified: boolean
