@@ -45,6 +45,7 @@ export function BarcodeScanner({
     let controls: IScannerControls | undefined
     let cancelled = false
     let detected = false
+    let startFrame = 0
 
     const start = async () => {
       try {
@@ -81,10 +82,14 @@ export function BarcodeScanner({
       }
     }
 
-    void start()
+    // On retry the error panel is currently mounted instead of the video. Let
+    // React commit the cleared error and remount the video before ZXing reads
+    // its ref; otherwise every retry fails with "Video non disponibile".
+    startFrame = requestAnimationFrame(() => void start())
 
     return () => {
       cancelled = true
+      cancelAnimationFrame(startFrame)
       controls?.stop()
     }
   }, [open, attempt])
