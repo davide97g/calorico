@@ -329,8 +329,8 @@ function GroceryRow({
         onPointerUp={finishSwipe}
         onPointerCancel={cancelSwipe}
         className={cn(
-          'bg-card relative flex min-h-[72px] touch-pan-y items-center gap-3 rounded-[22px] px-2.5 py-2 outline-none transition-[transform,opacity] focus-visible:ring-2 focus-visible:ring-ring',
-          item.completed && 'opacity-55',
+          'bg-card relative flex min-h-[72px] touch-pan-y items-center gap-3 rounded-[22px] px-2.5 py-2 outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring',
+          item.completed && 'text-muted-foreground',
         )}
         style={{ transform: `translateX(${offset}px)` }}
       >
