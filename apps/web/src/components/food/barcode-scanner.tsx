@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { IScannerControls } from '@zxing/browser'
+import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { Loader2, RefreshCw, ScanBarcode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -55,10 +56,27 @@ export function BarcodeScanner({
         // ZXing is only needed after the sheet is deliberately opened.
         const { BrowserMultiFormatReader } = await import('@zxing/browser')
         if (cancelled) return
-        const reader = new BrowserMultiFormatReader()
+        // Ask for the full camera resolution. Default browser constraints can
+        // settle at 640 px, where narrow supermarket EAN bars are lost before
+        // the decoder ever sees them. TRY_HARDER costs a little CPU, but gives
+        // the one-dimensional reader more passes for small codes.
+        const hints = new Map<DecodeHintType, any>([
+          [DecodeHintType.TRY_HARDER, true],
+          [DecodeHintType.POSSIBLE_FORMATS, [
+            BarcodeFormat.EAN_13,
+            BarcodeFormat.EAN_8,
+            BarcodeFormat.UPC_A,
+            BarcodeFormat.UPC_E,
+          ]],
+        ])
+        const reader = new BrowserMultiFormatReader(hints)
         controls = await reader.decodeFromConstraints(
           {
-            video: { facingMode: { ideal: 'environment' } },
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+            },
             audio: false,
           },
           video,
