@@ -1,11 +1,10 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { CopyPlus, PencilLine, Search } from 'lucide-react'
+import { CopyPlus, PencilLine } from 'lucide-react'
 
 /**
- * The three secondary ways in. Scanning is not here on purpose — it lives on
- * the lime button in the bottom bar, reachable from every screen, so each
- * action appears exactly once.
+ * Secondary dashboard jobs. Food logging now has a dedicated, labelled card
+ * above this row, so these never compete with the main action.
  */
 export function ActionTiles({
   day,
@@ -17,21 +16,20 @@ export function ActionTiles({
   copying?: boolean
 }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
-      <Tile to={`/add?day=${day}`} icon={<Search />} label="Cerca" />
+    <div className="grid grid-cols-2 gap-2">
       <Tile
         onClick={onCopyYesterday}
         icon={<CopyPlus />}
-        label="Copia ieri"
+        label="Copia da ieri"
         disabled={copying}
       />
-      <Tile to={`/food/new?day=${day}`} icon={<PencilLine />} label="Crea" />
+      <Tile to={`/food/new?day=${day}`} icon={<PencilLine />} label="Crea alimento" />
     </div>
   )
 }
 
 const TILE =
-  'bg-card shadow-soft flex h-[72px] flex-col items-center justify-center gap-1.5 rounded-3xl transition-transform active:scale-[0.97] disabled:opacity-50 [&_svg]:size-5 [&_svg]:text-primary-strong'
+  'bg-card shadow-soft flex h-[64px] flex-row items-center justify-center gap-2 rounded-[22px] px-3 text-sm font-semibold transition-transform active:scale-[0.97] disabled:opacity-50 [&_svg]:size-5 [&_svg]:text-primary-strong'
 
 function Tile({
   to,

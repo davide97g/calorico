@@ -56,10 +56,12 @@
 }
 
 .dark {
-  --background: oklch(0.16 0.012 145);
+  /* A noticeably lighter canvas gives the dark cards a clear silhouette,
+     without turning the calorie dashboard into a grey slab. */
+  --background: oklch(0.29 0.02 145);
   --foreground: oklch(0.96 0.008 120);
 
-  --card: oklch(0.21 0.014 145);
+  --card: oklch(0.18 0.014 145);
   --card-foreground: oklch(0.96 0.008 120);
 
   --popover: oklch(0.21 0.014 145);
@@ -188,8 +190,8 @@
 /* soft elevation used by every card in the design */
 @utility shadow-soft {
   box-shadow:
-    0 1px 2px oklch(0.21 0.015 145 / 0.04),
-    0 8px 24px -12px oklch(0.21 0.015 145 / 0.12);
+    0 1px 2px oklch(0.08 0.015 145 / 0.12),
+    0 10px 24px -12px oklch(0.08 0.015 145 / 0.28);
 }
 
 @utility shadow-float {

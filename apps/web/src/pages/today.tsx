@@ -4,6 +4,7 @@ import { PieChart, Scale, TrendingDown, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { ActionTiles } from '@/components/dashboard/action-tiles'
+import { AddFoodAction } from '@/components/dashboard/add-food-action'
 import { DaySwitcher } from '@/components/dashboard/day-switcher'
 import { DiaryPanel } from '@/components/dashboard/diary-panel'
 import { IntakeHero } from '@/components/dashboard/intake-hero'
@@ -96,6 +97,8 @@ export default function TodayPage() {
               max={targets.kcalMax}
               label={day === todayISO() ? 'Budget di oggi' : 'Budget del giorno'}
             />
+
+            <AddFoodAction day={day} />
 
             <ActionTiles
               day={day}
