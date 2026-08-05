@@ -1,0 +1,172 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 1.5rem;
+
+  --background: oklch(0.968 0.008 120);
+  --foreground: oklch(0.21 0.015 145);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.015 145);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.015 145);
+
+  /* signature lime */
+  --primary: oklch(0.9 0.18 120);
+  --primary-foreground: oklch(0.24 0.04 145);
+
+  --secondary: oklch(0.955 0.01 120);
+  --secondary-foreground: oklch(0.28 0.02 145);
+
+  --muted: oklch(0.955 0.008 120);
+  --muted-foreground: oklch(0.55 0.015 145);
+
+  --accent: oklch(0.94 0.09 120);
+  --accent-foreground: oklch(0.24 0.04 145);
+
+  --destructive: oklch(0.62 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  --border: oklch(0.92 0.008 120);
+  --input: oklch(0.92 0.008 120);
+  --ring: oklch(0.82 0.16 120);
+
+  /* macro + chart tokens */
+  --carbs: oklch(0.83 0.09 5);
+  --fat: oklch(0.89 0.12 90);
+  --protein: oklch(0.83 0.08 245);
+  --ring-track: oklch(0.94 0.02 120);
+
+  --chart-1: oklch(0.83 0.09 5);
+  --chart-2: oklch(0.89 0.12 90);
+  --chart-3: oklch(0.83 0.08 245);
+  --chart-4: oklch(0.86 0.17 120);
+  --chart-5: oklch(0.72 0.12 160);
+}
+
+.dark {
+  --background: oklch(0.16 0.012 145);
+  --foreground: oklch(0.96 0.008 120);
+
+  --card: oklch(0.21 0.014 145);
+  --card-foreground: oklch(0.96 0.008 120);
+
+  --popover: oklch(0.21 0.014 145);
+  --popover-foreground: oklch(0.96 0.008 120);
+
+  --primary: oklch(0.85 0.19 122);
+  --primary-foreground: oklch(0.2 0.04 145);
+
+  --secondary: oklch(0.27 0.016 145);
+  --secondary-foreground: oklch(0.96 0.008 120);
+
+  --muted: oklch(0.27 0.016 145);
+  --muted-foreground: oklch(0.68 0.015 145);
+
+  --accent: oklch(0.3 0.05 130);
+  --accent-foreground: oklch(0.96 0.008 120);
+
+  --destructive: oklch(0.62 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.7 0.14 122);
+
+  --carbs: oklch(0.72 0.11 5);
+  --fat: oklch(0.8 0.13 90);
+  --protein: oklch(0.72 0.1 245);
+  --ring-track: oklch(0.3 0.02 145);
+
+  --chart-1: oklch(0.72 0.11 5);
+  --chart-2: oklch(0.8 0.13 90);
+  --chart-3: oklch(0.72 0.1 245);
+  --chart-4: oklch(0.8 0.18 122);
+  --chart-5: oklch(0.65 0.12 160);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-carbs: var(--carbs);
+  --color-fat: var(--fat);
+  --color-protein: var(--protein);
+  --color-ring-track: var(--ring-track);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 8px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* soft elevation used by every card in the design */
+@utility shadow-soft {
+  box-shadow:
+    0 1px 2px oklch(0.21 0.015 145 / 0.04),
+    0 8px 24px -12px oklch(0.21 0.015 145 / 0.12);
+}
+
+@utility shadow-float {
+  box-shadow:
+    0 2px 6px oklch(0.21 0.015 145 / 0.06),
+    0 18px 40px -16px oklch(0.21 0.015 145 / 0.22);
+}

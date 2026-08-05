@@ -1,0 +1,26 @@
+{
+  "name": "calorico",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Calorie and macro tracker with Italian supermarket product data (Open Food Facts, ODbL)",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:api": "npm run dev -w @calorico/api",
+    "dev:web": "npm run dev -w @calorico/web",
+    "build": "npm run build -w @calorico/api && npm run build -w @calorico/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "npm run db:generate -w @calorico/api",
+    "db:migrate": "npm run db:migrate -w @calorico/api",
+    "db:studio": "npm run db:studio -w @calorico/api",
+    "seed": "npm run seed -w @calorico/api",
+    "import:off": "npm run import:off -w @calorico/api",
+    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker-compose.dev.yml down"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

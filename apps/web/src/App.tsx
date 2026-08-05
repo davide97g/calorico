@@ -1,0 +1,151 @@
+import { lazy, Suspense } from 'react'
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom'
+import { Loader2 } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
+import TodayPage from '@/pages/today'
+import LoginPage from '@/pages/login'
+import RegisterPage from '@/pages/register'
+
+// Everything past the dashboard is a separate chunk — the first paint on a
+// phone only needs the diary.
+const StatsPage = lazy(() => import('@/pages/stats'))
+const AddFoodPage = lazy(() => import('@/pages/add-food'))
+const FoodDetailPage = lazy(() => import('@/pages/food-detail'))
+const CreateFoodPage = lazy(() => import('@/pages/create-food'))
+const EntryDetailPage = lazy(() => import('@/pages/entry-detail'))
+const WeightPage = lazy(() => import('@/pages/weight'))
+const ProfilePage = lazy(() => import('@/pages/profile'))
+const OnboardingPage = lazy(() => import('@/pages/onboarding'))
+
+function FullScreenLoader() {
+  return (
+    <div className="bg-background flex min-h-dvh items-center justify-center">
+      <Loader2 className="text-primary size-7 animate-spin" />
+    </div>
+  )
+}
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { user, isLoading, needsOnboarding } = useAuth()
+  const location = useLocation()
+
+  if (isLoading) return <FullScreenLoader />
+  if (!user) return <Navigate to="/login" replace state={{ from: location }} />
+  // A profile without body metrics cannot produce meaningful targets.
+  if (needsOnboarding && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />
+  }
+  return <>{children}</>
+}
+
+function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth()
+  if (isLoading) return <FullScreenLoader />
+  if (user) return <Navigate to="/" replace />
+  return <>{children}</>
+}
+
+export default function App() {
+  return (
+    <Suspense fallback={<FullScreenLoader />}>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <RedirectIfAuthed>
+              <LoginPage />
+            </RedirectIfAuthed>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <RedirectIfAuthed>
+              <RegisterPage />
+            </RedirectIfAuthed>
+          }
+        />
+
+        <Route
+          path="/"
+          element={
+            <RequireAuth>
+              <TodayPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/onboarding"
+          element={
+            <RequireAuth>
+              <OnboardingPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/stats"
+          element={
+            <RequireAuth>
+              <StatsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/add"
+          element={
+            <RequireAuth>
+              <AddFoodPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/food/new"
+          element={
+            <RequireAuth>
+              <CreateFoodPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/food/:id"
+          element={
+            <RequireAuth>
+              <FoodDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/entry/:id"
+          element={
+            <RequireAuth>
+              <EntryDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/weight"
+          element={
+            <RequireAuth>
+              <WeightPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <ProfilePage />
+            </RequireAuth>
+          }
+        />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
+  )
+}

@@ -1,0 +1,45 @@
+import 'dotenv/config'
+import { z } from 'zod'
+
+const schema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.coerce.number().int().default(3001),
+  HOST: z.string().default('0.0.0.0'),
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  JWT_SECRET: z.string().min(24, 'JWT_SECRET must be at least 24 chars'),
+  /** Comma separated list of allowed browser origins. */
+  CORS_ORIGINS: z.string().default('http://localhost:5173'),
+  /** Open Food Facts requires a descriptive User-Agent. */
+  OFF_USER_AGENT: z
+    .string()
+    .default('Calorico/0.1 (personal project; contact: you@example.com)'),
+  OFF_BASE_URL: z.string().default('https://world.openfoodfacts.org'),
+  /**
+   * Text search lives on a separate service (search-a-licious). The legacy
+   * /api/v2/search and /cgi/search.pl endpoints answer 503 most of the time.
+   */
+  OFF_SEARCH_URL: z.string().default('https://search.openfoodfacts.org'),
+  /** Set false to run fully offline against the local foods table only. */
+  OFF_ENABLED: z
+    .string()
+    .default('true')
+    .transform((v) => v !== 'false'),
+})
+
+const parsed = schema.safeParse(process.env)
+
+if (!parsed.success) {
+  console.error('Invalid environment:')
+  for (const issue of parsed.error.issues) {
+    console.error(`  ${issue.path.join('.')}: ${issue.message}`)
+  }
+  process.exit(1)
+}
+
+export const env = {
+  ...parsed.data,
+  corsOrigins: parsed.data.CORS_ORIGINS.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean),
+  isProd: parsed.data.NODE_ENV === 'production',
+}

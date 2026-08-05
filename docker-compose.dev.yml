@@ -1,0 +1,22 @@
+# Local development: Postgres only. The apps run on the host with `npm run dev`.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: calorico-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: calorico
+      POSTGRES_PASSWORD: calorico
+      POSTGRES_DB: calorico
+    ports:
+      - '5432:5432'
+    volumes:
+      - calorico_pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U calorico -d calorico']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  calorico_pgdata_dev:
