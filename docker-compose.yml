@@ -44,6 +44,14 @@ services:
       R2_BUCKET: ${R2_BUCKET:-}
       R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL:-}
       R2_MAX_UPLOAD_BYTES: ${R2_MAX_UPLOAD_BYTES:-3145728}
+      # Meal photo analysis. Provider, key and model are needed together;
+      # leave them unset and the feature switches itself off.
+      VISION_PROVIDER: ${VISION_PROVIDER:-}
+      VISION_API_KEY: ${VISION_API_KEY:-}
+      VISION_MODEL: ${VISION_MODEL:-}
+      VISION_BASE_URL: ${VISION_BASE_URL:-}
+      VISION_MAX_IMAGE_BYTES: ${VISION_MAX_IMAGE_BYTES:-1048576}
+      VISION_TIMEOUT_MS: ${VISION_TIMEOUT_MS:-30000}
     expose:
       - '3001'
     healthcheck:

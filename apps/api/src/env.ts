@@ -1,6 +1,15 @@
 import 'dotenv/config'
 import { z } from 'zod'
 
+/**
+ * Compose interpolates an unset variable to an empty string rather than
+ * omitting it, so `VISION_PROVIDER: ${VISION_PROVIDER:-}` arrives as `''`.
+ * Treat that as "not set" — otherwise an optional enum rejects it and the
+ * container dies at boot over a feature nobody turned on.
+ */
+const blankToUndefined = <T extends z.ZodTypeAny>(inner: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), inner)
+
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().default(3001),
@@ -56,15 +65,17 @@ const schema = z.object({
    * faster than this file is edited, and a stale default fails at request time
    * with a confusing 502 instead of at boot with a clear one.
    */
-  VISION_PROVIDER: z.enum(['openai', 'mistral', 'stub']).optional(),
-  VISION_API_KEY: z.string().optional(),
-  VISION_MODEL: z.string().optional(),
+  VISION_PROVIDER: blankToUndefined(
+    z.enum(['openai', 'mistral', 'stub']).optional(),
+  ),
+  VISION_API_KEY: blankToUndefined(z.string().optional()),
+  VISION_MODEL: blankToUndefined(z.string().optional()),
   /**
    * Only for `openai`: point the adapter at any host speaking the same
    * chat-completions dialect (Groq, OpenRouter, Together, a local Ollama).
    * Unset means OpenAI itself.
    */
-  VISION_BASE_URL: z.string().optional(),
+  VISION_BASE_URL: blankToUndefined(z.string().optional()),
   /**
    * Backstop for a client that skipped compression. The browser aims for
    * ~500 KB, which is ~667 KB once base64'd.
