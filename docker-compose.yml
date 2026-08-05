@@ -36,6 +36,13 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-https://calorico.example.com}
       OFF_USER_AGENT: '${OFF_USER_AGENT:-Calorico/0.1 (personal; contact you@example.com)}'
       OFF_ENABLED: ${OFF_ENABLED:-true}
+      # Photo upload. Leave unset to switch the feature off.
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL:-}
+      R2_MAX_UPLOAD_BYTES: ${R2_MAX_UPLOAD_BYTES:-3145728}
     expose:
       - '3001'
     healthcheck:

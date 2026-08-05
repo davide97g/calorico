@@ -8,6 +8,13 @@
       "when": 1785884933780,
       "tag": "0000_polite_zzzax",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785923816359,
+      "tag": "0001_flawless_white_tiger",
+      "breakpoints": true
     }
   ]
 }

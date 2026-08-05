@@ -19,6 +19,10 @@ Food data comes from two sources:
   Open Food Facts fallback that caches into Postgres
 - Barcode lookup, with native camera scanning where the browser supports it
 - Custom foods, favourites, recent foods, copy-a-previous-day
+- One emoji per food in every list and grouped view, guessed from the name; real
+  product photos appear only on the detail pages, under **Foto** — packshot,
+  ingredients and nutrition-label shots, plus your own photos on Cloudflare R2
+  (see [Photos](#photos))
 - Weight log with trend chart and BMI
 - Targets computed with Mifflin-St Jeor + activity factor, then editable
 - Installable PWA (iOS included): standalone window, launch images, offline shell,
@@ -124,6 +128,53 @@ experiments the Parquet dump + DuckDB is faster to pre-filter with; point
 
 `docker-compose.yml` keeps Postgres data in the named volume `calorico_pgdata` —
 add it to Dokploy's backup schedule.
+
+## Photos
+
+Lists and grouped views only ever show emoji. Real photos live on the two detail
+pages, in the **Foto** panel: the Open Food Facts packshot, its ingredients and
+nutrition-label shots, and any photo you add yourself — the jar on your shelf,
+the label of the loaf you actually buy — so the food is recognisable next time.
+
+Rows live in `food_images`. `user_id` is null for the shots that came with the
+product and everyone sees; it is set for a photo you took, and those come back
+only to their author. Only your own photos can be deleted.
+
+Open Food Facts publishes the label shots under separate fields, and the bulk
+importer deliberately writes one row per product, so they are fetched the first
+time a food's detail page is opened and the attempt is stamped in
+`foods.images_synced_at` — a product without photos never re-asks.
+
+### Uploads (Cloudflare R2)
+
+Set the five `R2_*` variables from `.env.example` and the camera button appears;
+leave them unset and photo upload switches itself off — the API answers
+`uploads_disabled` and the UI hides the button.
+
+1. Create an R2 bucket and an API token scoped to it with **Object Read & Write**.
+2. Give the bucket a public URL (the r2.dev domain is fine, a custom domain is
+   nicer) and put it in `R2_PUBLIC_BASE_URL`.
+3. Set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`.
+
+How an upload goes:
+
+1. **The browser compresses first** (`apps/web/src/lib/image-compress.ts`): the
+   photo is scaled to a 1400 px long edge and re-encoded as WebP, dropping
+   quality in steps until it is under ~320 KB. A 3024×4032 camera shot lands at
+   around 50 KB. The canvas round-trip also throws away every metadata block, so
+   no GPS coordinates leave the phone.
+2. The API signs a `PUT` for `foods/<foodId>/<userId>/<uuid>.<ext>` and the
+   browser uploads **straight to R2** — the photo never passes through the VPS,
+   which is why Fastify's body limit stays at 512 KB.
+3. The browser asks the API to record the image. The key is re-checked against
+   the caller and the food, and the object is `HEAD`ed before a row is written,
+   so a signed URL cannot be turned into a row for someone else's photo or a file
+   that was never uploaded.
+4. `R2_MAX_UPLOAD_BYTES` (3 MB by default) is the backstop for a client that
+   skipped step 1. Eight photos per food per user.
+
+Deleting a photo removes the object and then the row; if R2 says no, the row goes
+anyway — an orphaned object is cheaper than a broken gallery.
 
 ## PWA and updates
 

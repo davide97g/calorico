@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
 import { Panel } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
+import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { MEAL_EMOJI, MEAL_LABELS, grams, kcal } from '@/lib/format'
 import type { DiaryEntry, Meal } from '@/lib/types'
 
@@ -55,16 +56,7 @@ export function MealSection({ meal, entries, day, onDelete }: MealSectionProps) 
                 to={`/entry/${entry.id}?day=${day}`}
                 className="flex min-w-0 flex-1 items-center gap-3"
               >
-                {entry.imageUrl ? (
-                  <img
-                    src={entry.imageUrl}
-                    alt=""
-                    loading="lazy"
-                    className="bg-secondary size-9 shrink-0 rounded-xl object-cover"
-                  />
-                ) : (
-                  <span className="bg-secondary size-9 shrink-0 rounded-xl" />
-                )}
+                <FoodEmojiTile name={entry.nameSnapshot} size="sm" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">
                     {entry.nameSnapshot}

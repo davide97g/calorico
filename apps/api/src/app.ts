@@ -11,6 +11,7 @@ import { env } from './env.js'
 import { authRoutes } from './routes/auth.js'
 import { profileRoutes } from './routes/profile.js'
 import { foodRoutes } from './routes/foods.js'
+import { foodImageRoutes } from './routes/food-images.js'
 import { diaryRoutes } from './routes/diary.js'
 import { statsRoutes } from './routes/stats.js'
 import { weightRoutes } from './routes/weight.js'
@@ -92,6 +93,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(authRoutes, { prefix: '/api/auth' })
   await app.register(profileRoutes, { prefix: '/api/profile' })
   await app.register(foodRoutes, { prefix: '/api/foods' })
+  await app.register(foodImageRoutes, { prefix: '/api/foods' })
   await app.register(diaryRoutes, { prefix: '/api/diary' })
   await app.register(statsRoutes, { prefix: '/api/stats' })
   await app.register(weightRoutes, { prefix: '/api/weight' })

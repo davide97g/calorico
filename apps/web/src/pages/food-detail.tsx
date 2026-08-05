@@ -4,6 +4,8 @@ import { ArrowLeft, Check, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { MacroDonut } from '@/components/charts/macro-donut'
+import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
+import { FoodGallery } from '@/components/food/food-gallery'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -127,13 +129,11 @@ export default function FoodDetailPage() {
 
       <Panel>
         <div className="flex items-start gap-3">
-          {food.imageUrl ? (
-            <img
-              src={food.imageUrl}
-              alt=""
-              className="bg-secondary size-16 shrink-0 rounded-2xl object-cover"
-            />
-          ) : null}
+          <FoodEmojiTile
+            name={food.name}
+            category={food.category}
+            size="lg"
+          />
           <div className="min-w-0">
             <h1 className="text-lg leading-tight font-bold">{food.name}</h1>
             <p className="text-muted-foreground mt-1 text-xs">
@@ -152,6 +152,13 @@ export default function FoodDetailPage() {
           </div>
         </div>
       </Panel>
+
+      <FoodGallery
+        foodId={food.id}
+        name={food.name}
+        images={food.images ?? []}
+        uploadEnabled={food.imageUploadEnabled}
+      />
 
       <Panel className="mt-3">
         <PanelHeader title="Quantità" />

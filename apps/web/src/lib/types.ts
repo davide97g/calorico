@@ -34,6 +34,18 @@ export interface Profile {
   locale: string
 }
 
+export type FoodImageKind = 'front' | 'ingredients' | 'nutrition' | 'user'
+
+export interface FoodImage {
+  id: string
+  url: string
+  kind: FoodImageKind
+  width: number | null
+  height: number | null
+  /** Uploaded by the signed-in user, so it can also be deleted by them. */
+  mine: boolean
+}
+
 export interface Food {
   id: string
   source: FoodSource
@@ -56,6 +68,9 @@ export interface Food {
   isLiquid: boolean
   verified: boolean
   isFavorite?: boolean
+  /** Only returned by the single-food endpoint; lists never carry photos. */
+  images?: FoodImage[]
+  imageUploadEnabled?: boolean
 }
 
 export interface DiaryEntry {

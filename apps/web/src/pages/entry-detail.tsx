@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Check, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
+import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
+import { FoodGallery } from '@/components/food/food-gallery'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -112,13 +114,22 @@ export default function EntryDetailPage() {
       </header>
 
       <Panel>
-        <h1 className="text-lg leading-tight font-bold">{entry.nameSnapshot}</h1>
-        {entry.brandSnapshot ? (
-          <p className="text-muted-foreground mt-1 text-xs">
-            {entry.brandSnapshot}
-          </p>
-        ) : null}
+        <div className="flex items-start gap-3">
+          <FoodEmojiTile name={entry.nameSnapshot} size="lg" />
+          <div className="min-w-0">
+            <h1 className="text-lg leading-tight font-bold">
+              {entry.nameSnapshot}
+            </h1>
+            {entry.brandSnapshot ? (
+              <p className="text-muted-foreground mt-1 text-xs">
+                {entry.brandSnapshot}
+              </p>
+            ) : null}
+          </div>
+        </div>
       </Panel>
+
+      <FoodGallery foodId={entry.foodId} name={entry.nameSnapshot} />
 
       <Panel className="mt-3">
         <PanelHeader title="Modifica" />

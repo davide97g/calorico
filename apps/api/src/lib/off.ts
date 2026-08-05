@@ -79,6 +79,10 @@ export interface OffProduct {
   image_front_small_url?: string
   image_small_url?: string
   image_url?: string
+  /** Display-size shots, used for the gallery on a detail page. */
+  image_front_url?: string
+  image_ingredients_url?: string
+  image_nutrition_url?: string
   countries_tags?: string[]
   nutriments?: Record<string, number | string | undefined>
 }
@@ -243,6 +247,49 @@ export async function fetchByBarcode(
   )) as { status?: number; product?: OffProduct }
   if (!data?.product) return null
   return mapOffProduct(data.product)
+}
+
+export type OffImageKind = 'front' | 'ingredients' | 'nutrition'
+export interface OffImage {
+  kind: OffImageKind
+  url: string
+}
+
+const IMAGE_FIELDS = [
+  'image_front_url',
+  'image_ingredients_url',
+  'image_nutrition_url',
+].join(',')
+
+/**
+ * The packshot plus the ingredients and nutrition-label shots, in that order.
+ * Only fetched when a product's detail page is opened for the first time — the
+ * bulk import deliberately stays a single write per product.
+ */
+export async function fetchOffImages(barcode: string): Promise<OffImage[]> {
+  if (!env.OFF_ENABLED) return []
+  const data = (await offFetch(
+    env.OFF_BASE_URL,
+    `/api/v2/product/${barcode}.json`,
+    { fields: IMAGE_FIELDS },
+  )) as { product?: OffProduct }
+  const p = data?.product
+  if (!p) return []
+
+  const candidates: OffImage[] = [
+    { kind: 'front', url: p.image_front_url ?? '' },
+    { kind: 'ingredients', url: p.image_ingredients_url ?? '' },
+    { kind: 'nutrition', url: p.image_nutrition_url ?? '' },
+  ]
+  // The same file can be selected as both front and ingredients shot.
+  const seen = new Set<string>()
+  const out: OffImage[] = []
+  for (const image of candidates) {
+    if (!image.url.startsWith('https://') || seen.has(image.url)) continue
+    seen.add(image.url)
+    out.push(image)
+  }
+  return out
 }
 
 /**

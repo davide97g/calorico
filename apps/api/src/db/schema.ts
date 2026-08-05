@@ -29,6 +29,12 @@ export const foodSourceEnum = pgEnum('food_source', [
   'generic', // composition tables (raw & cooked foods)
   'custom', // created by a user
 ])
+export const foodImageKindEnum = pgEnum('food_image_kind', [
+  'front', // packshot from Open Food Facts
+  'ingredients', // ingredients list shot
+  'nutrition', // nutrition table shot
+  'user', // photo taken by a user, hosted by us on R2
+])
 
 export const users = pgTable(
   'users',
@@ -81,7 +87,13 @@ export const foods = pgTable(
     brand: text('brand'),
     /** Free-form category path from OFF, or our own for generic foods. */
     category: text('category'),
+    /** Thumbnail used nowhere in lists any more; kept as the gallery's first shot. */
     imageUrl: text('image_url'),
+    /**
+     * When we last asked Open Food Facts for this product's photo set. Null
+     * means "never", which is what triggers the lazy backfill on first view.
+     */
+    imagesSyncedAt: timestamp('images_synced_at', { withTimezone: true }),
     /** Nutriments are always stored per 100 g (or 100 ml). */
     kcal100: real('kcal_100').notNull(),
     protein100: real('protein_100').notNull().default(0),
@@ -118,6 +130,39 @@ export const foods = pgTable(
     index('foods_name_trgm').using('gin', sql`${t.name} gin_trgm_ops`),
     index('foods_brand_trgm').using('gin', sql`${t.brand} gin_trgm_ops`),
     index('foods_source_idx').on(t.source),
+  ],
+)
+
+export const foodImages = pgTable(
+  'food_images',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    foodId: uuid('food_id')
+      .notNull()
+      .references(() => foods.id, { onDelete: 'cascade' }),
+    /**
+     * Null for the shots that came with the product (Open Food Facts), which
+     * everyone sees. Set for a photo a user took: only its author gets it back,
+     * because "the jar on my shelf" is a private landmark, not product data.
+     */
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    kind: foodImageKindEnum('kind').notNull().default('user'),
+    url: text('url').notNull(),
+    /** R2 object key — only set for images we host, so we can delete them. */
+    storageKey: text('storage_key'),
+    width: integer('width'),
+    height: integer('height'),
+    bytes: integer('bytes'),
+    /** Ascending display order; the OFF front shot sorts first. */
+    sort: integer('sort').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('food_images_food_idx').on(t.foodId, t.sort),
+    index('food_images_user_idx').on(t.userId),
+    uniqueIndex('food_images_food_url_unique').on(t.foodId, t.url),
   ],
 )
 
@@ -211,5 +256,7 @@ export type User = typeof users.$inferSelect
 export type Profile = typeof profiles.$inferSelect
 export type Food = typeof foods.$inferSelect
 export type NewFood = typeof foods.$inferInsert
+export type FoodImage = typeof foodImages.$inferSelect
+export type NewFoodImage = typeof foodImages.$inferInsert
 export type DiaryEntry = typeof diaryEntries.$inferSelect
 export type WeightLog = typeof weightLogs.$inferSelect

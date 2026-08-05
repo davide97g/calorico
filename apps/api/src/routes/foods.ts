@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { db } from '../db/index.js'
 import { diaryEntries, favorites, foods, type NewFood } from '../db/schema.js'
 import { fetchByBarcode, searchOff } from '../lib/off.js'
+import { listFoodImages, syncOffImages } from '../lib/food-images.js'
+import { r2Enabled } from '../lib/r2.js'
 
 const searchQuery = z.object({
   q: z.string().min(1).max(120),
@@ -228,6 +230,9 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
     const [food] = await db.select().from(foods).where(eq(foods.id, id)).limit(1)
     if (!food) return reply.code(404).send({ error: 'not_found' })
 
+    // First view of an OFF product also pulls in its label shots.
+    await syncOffImages(food)
+
     const [fav] = await db
       .select({ foodId: favorites.foodId })
       .from(favorites)
@@ -239,7 +244,12 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
       )
       .limit(1)
 
-    return { ...food, isFavorite: Boolean(fav) }
+    return {
+      ...food,
+      isFavorite: Boolean(fav),
+      images: await listFoodImages(id, request.user.sub),
+      imageUploadEnabled: r2Enabled(),
+    }
   })
 
   app.put('/:id/favorite', async (request) => {

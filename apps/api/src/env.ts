@@ -24,6 +24,28 @@ const schema = z.object({
     .string()
     .default('true')
     .transform((v) => v !== 'false'),
+
+  /**
+   * Cloudflare R2, for the photos users take of their own foods. All five are
+   * required together; leave them unset and photo upload switches itself off.
+   */
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().optional(),
+  /** Public base URL of the bucket: an r2.dev domain or your own. */
+  R2_PUBLIC_BASE_URL: z.string().optional(),
+  /** Defaults to the account's S3 endpoint; override for a custom jurisdiction. */
+  R2_ENDPOINT: z.string().optional(),
+  /**
+   * Hard ceiling per upload. The browser compresses to a few hundred KB, so
+   * this only catches clients that skip or fail that step.
+   */
+  R2_MAX_UPLOAD_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(3 * 1024 * 1024),
 })
 
 const parsed = schema.safeParse(process.env)
@@ -36,10 +58,33 @@ if (!parsed.success) {
   process.exit(1)
 }
 
+const d = parsed.data
+
+/** Present only when the bucket is fully configured. */
+const r2 =
+  d.R2_ACCOUNT_ID &&
+  d.R2_ACCESS_KEY_ID &&
+  d.R2_SECRET_ACCESS_KEY &&
+  d.R2_BUCKET &&
+  d.R2_PUBLIC_BASE_URL
+    ? {
+        accountId: d.R2_ACCOUNT_ID,
+        accessKeyId: d.R2_ACCESS_KEY_ID,
+        secretAccessKey: d.R2_SECRET_ACCESS_KEY,
+        bucket: d.R2_BUCKET,
+        publicBaseUrl: d.R2_PUBLIC_BASE_URL.replace(/\/$/, ''),
+        endpoint: (
+          d.R2_ENDPOINT ?? `https://${d.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+        ).replace(/\/$/, ''),
+        maxUploadBytes: d.R2_MAX_UPLOAD_BYTES,
+      }
+    : null
+
 export const env = {
-  ...parsed.data,
-  corsOrigins: parsed.data.CORS_ORIGINS.split(',')
+  ...d,
+  corsOrigins: d.CORS_ORIGINS.split(',')
     .map((o) => o.trim())
     .filter(Boolean),
-  isProd: parsed.data.NODE_ENV === 'production',
+  isProd: d.NODE_ENV === 'production',
+  r2,
 }
