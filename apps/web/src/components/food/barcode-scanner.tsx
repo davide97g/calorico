@@ -98,7 +98,7 @@ export function BarcodeScanner({
     <Drawer open={open} onOpenChange={onOpenChange}>
       {/* Vaul portals to the body, so the sheet has to be constrained to the
           phone column itself — otherwise it spans the whole desktop window. */}
-      <DrawerContent className="mx-auto max-h-[88dvh] max-w-[440px] rounded-t-[28px]">
+      <DrawerContent className="mx-auto max-h-[94dvh] max-w-[440px] rounded-t-[28px]">
         <DrawerHeader className="shrink-0">
           <DrawerTitle>Scansiona il codice a barre</DrawerTitle>
           <DrawerDescription>
@@ -108,14 +108,17 @@ export function BarcodeScanner({
 
         <div className="min-h-0 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           {!error ? (
-            <div className="bg-foreground/90 relative mb-4 h-[min(46dvh,320px)] w-full overflow-hidden rounded-3xl">
+            <div className="bg-foreground/90 relative mb-4 h-[min(56dvh,440px)] w-full overflow-hidden rounded-3xl">
               <video
                 ref={videoRef}
                 muted
                 playsInline
                 className="size-full object-cover"
               />
-              <div className="border-primary pointer-events-none absolute inset-x-8 inset-y-1/3 rounded-2xl border-2" />
+              <div className="border-primary pointer-events-none absolute inset-x-5 inset-y-[22%] rounded-2xl border-2 shadow-[0_0_0_999px_oklch(0.08_0.015_145_/_0.28)]" />
+              <p className="bg-foreground/65 text-background pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[11px] font-semibold whitespace-nowrap">
+                Centra il codice nel riquadro
+              </p>
               {isLoading ? (
                 <div className="bg-foreground/40 absolute inset-0 flex items-center justify-center">
                   <Loader2 className="text-background size-6 animate-spin" />
