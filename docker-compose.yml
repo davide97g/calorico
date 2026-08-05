@@ -1,8 +1,9 @@
 # Production stack for Dokploy.
 #
-# Dokploy provides the reverse proxy (Traefik) and TLS. Expose the web service
-# on port 80 in the Dokploy UI and point the API at the same domain under /api,
-# or give the API its own subdomain and set VITE_API_URL accordingly.
+# Dokploy provides the reverse proxy (Traefik) and TLS. Only `web` is routed: it
+# joins Traefik's network and the domain points at its port 80. `api` and `db`
+# stay on the internal network, and nginx proxies /api to the api container, so
+# there is one origin, no CORS and no host port published.
 services:
   db:
     image: postgres:17-alpine
@@ -69,8 +70,15 @@ services:
     # only ever talks to one origin — no CORS, no second domain to configure.
     expose:
       - '80'
-    ports:
-      - '${WEB_PORT:-8080}:80'
+    networks:
+      # Dokploy's Traefik lives on this external network; without it the domain
+      # router can never reach the container (symptom: Traefik default cert, 404).
+      - dokploy-network
+      - default
+
+networks:
+  dokploy-network:
+    external: true
 
 volumes:
   calorico_pgdata:
