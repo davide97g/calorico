@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { House, LineChart, ScanBarcode, Scale } from 'lucide-react'
+import { House, ScanBarcode, Scale, ShoppingBasket } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScanSheet } from '@/components/food/scan-sheet'
 import { useAuth } from '@/hooks/use-auth'
@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 
 const leftItems = [
   { to: '/', icon: House, label: 'Oggi' },
-  { to: '/stats', icon: LineChart, label: 'Statistiche' },
+  { to: '/grocery', icon: ShoppingBasket, label: 'Spesa' },
 ] as const
 
 const rightItems = [{ to: '/weight', icon: Scale, label: 'Peso' }] as const

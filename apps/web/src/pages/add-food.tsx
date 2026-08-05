@@ -16,6 +16,7 @@ import {
   useFoodSearch,
   useRecentFoods,
 } from '@/hooks/use-diary'
+import { useAddGroceryItem } from '@/hooks/use-grocery'
 import { ApiError } from '@/lib/api'
 import { todayISO } from '@/lib/date'
 import { currentMeal } from '@/lib/format'
@@ -41,13 +42,20 @@ export default function AddFoodPage() {
   const recent = useRecentFoods()
   const favorites = useFavoriteFoods()
   const barcode = useBarcodeLookup()
+  const addGroceryItem = useAddGroceryItem()
 
   const foodLink = (id: string) => `/food/${id}?day=${day}&meal=${meal}`
 
   const handleDetected = (code: string) => {
     barcode.mutate(code, {
-      onSuccess: (food) => {
+      onSuccess: async (food) => {
         setScannerOpen(false)
+        try {
+          await addGroceryItem.mutateAsync({ foodId: food.id })
+          toast.success(`${food.name} aggiunto alla spesa`)
+        } catch {
+          toast.error('Scansione riuscita, ma aggiunta alla spesa non riuscita')
+        }
         navigate(foodLink(food.id))
       },
       onError: (err) => {

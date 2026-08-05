@@ -235,6 +235,39 @@ export const favorites = pgTable(
   (t) => [uniqueIndex('favorites_pk').on(t.userId, t.foodId)],
 )
 
+export const groceryItems = pgTable(
+  'grocery_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    foodId: uuid('food_id').references(() => foods.id, {
+      onDelete: 'set null',
+    }),
+    /** Stable key used to merge repeated active adds and barcode scans. */
+    dedupeKey: text('dedupe_key').notNull(),
+    /** Snapshots keep the shopping row useful if the catalogue food changes. */
+    nameSnapshot: text('name_snapshot').notNull(),
+    brandSnapshot: text('brand_snapshot'),
+    quantity: integer('quantity').notNull().default(1),
+    completed: boolean('completed').notNull().default(false),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('grocery_user_active_item_unique')
+      .on(t.userId, t.dedupeKey)
+      .where(sql`${t.completed} = false`),
+    index('grocery_user_status_idx').on(t.userId, t.completed, t.createdAt),
+  ],
+)
+
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(profiles, {
     fields: [users.id],
@@ -242,6 +275,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   }),
   entries: many(diaryEntries),
   weights: many(weightLogs),
+  groceryItems: many(groceryItems),
 }))
 
 export const diaryEntriesRelations = relations(diaryEntries, ({ one }) => ({
@@ -255,6 +289,17 @@ export const diaryEntriesRelations = relations(diaryEntries, ({ one }) => ({
   }),
 }))
 
+export const groceryItemsRelations = relations(groceryItems, ({ one }) => ({
+  food: one(foods, {
+    fields: [groceryItems.foodId],
+    references: [foods.id],
+  }),
+  user: one(users, {
+    fields: [groceryItems.userId],
+    references: [users.id],
+  }),
+}))
+
 export type User = typeof users.$inferSelect
 export type Profile = typeof profiles.$inferSelect
 export type Food = typeof foods.$inferSelect
@@ -263,3 +308,4 @@ export type FoodImage = typeof foodImages.$inferSelect
 export type NewFoodImage = typeof foodImages.$inferInsert
 export type DiaryEntry = typeof diaryEntries.$inferSelect
 export type WeightLog = typeof weightLogs.$inferSelect
+export type GroceryItem = typeof groceryItems.$inferSelect

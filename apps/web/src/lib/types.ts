@@ -157,6 +157,24 @@ export interface WeightResponse {
   bmi: number | null
 }
 
+export interface GroceryItem {
+  id: string
+  userId: string
+  foodId: string | null
+  dedupeKey: string
+  nameSnapshot: string
+  brandSnapshot: string | null
+  quantity: number
+  completed: boolean
+  completedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GroceryResponse {
+  items: GroceryItem[]
+}
+
 export interface TargetEstimate {
   maintenanceKcal: number
   targetKcal: number

@@ -1,7 +1,8 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { BarcodeScanner } from '@/components/food/barcode-scanner'
 import { useBarcodeLookup } from '@/hooks/use-diary'
+import { useAddGroceryItem } from '@/hooks/use-grocery'
 import { ApiError } from '@/lib/api'
 import { todayISO } from '@/lib/date'
 import { currentMeal } from '@/lib/format'
@@ -21,15 +22,26 @@ interface ScanSheetProps {
  */
 export function ScanSheet({ open, onOpenChange, day, meal }: ScanSheetProps) {
   const navigate = useNavigate()
+  const location = useLocation()
   const lookup = useBarcodeLookup()
+  const addGroceryItem = useAddGroceryItem()
 
   const handleDetected = (code: string) => {
     lookup.mutate(code, {
-      onSuccess: (food) => {
+      onSuccess: async (food) => {
         onOpenChange(false)
-        const d = day ?? todayISO()
-        const m = meal ?? currentMeal()
-        navigate(`/food/${food.id}?day=${d}&meal=${m}`)
+        try {
+          await addGroceryItem.mutateAsync({ foodId: food.id })
+          toast.success(`${food.name} aggiunto alla spesa`)
+        } catch {
+          toast.error('Scansione riuscita, ma aggiunta alla spesa non riuscita')
+        }
+
+        if (location.pathname !== '/grocery') {
+          const d = day ?? todayISO()
+          const m = meal ?? currentMeal()
+          navigate(`/food/${food.id}?day=${d}&meal=${m}`)
+        }
       },
       onError: (err) => {
         const notFound =

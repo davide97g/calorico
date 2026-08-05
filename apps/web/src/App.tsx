@@ -22,6 +22,7 @@ const EntryDetailPage = lazy(() => import('@/pages/entry-detail'))
 const WeightPage = lazy(() => import('@/pages/weight'))
 const ProfilePage = lazy(() => import('@/pages/profile'))
 const OnboardingPage = lazy(() => import('@/pages/onboarding'))
+const GroceryPage = lazy(() => import('@/pages/grocery'))
 
 function FullScreenLoader() {
   return (
@@ -93,6 +94,14 @@ export default function App() {
           element={
             <RequireAuth>
               <StatsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/grocery"
+          element={
+            <RequireAuth>
+              <GroceryPage />
             </RequireAuth>
           }
         />
