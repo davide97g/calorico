@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, LogOut, RefreshCw, Target } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import {
+  ArrowLeft,
+  LogOut,
+  Monitor,
+  Moon,
+  RefreshCw,
+  Sun,
+  Target,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { Panel, PanelHeader } from '@/components/ui/panel'
@@ -28,6 +37,7 @@ import type { ActivityLevel, Goal } from '@/lib/types'
 export default function ProfilePage() {
   const navigate = useNavigate()
   const { user, profile, logout } = useAuth()
+  const { theme, setTheme } = useTheme()
   const updateProfile = useUpdateProfile()
   const [saving, setSaving] = useState(false)
 
@@ -256,6 +266,35 @@ export default function ProfilePage() {
       </Panel>
 
       <Panel className="mt-3">
+        <PanelHeader title="Aspetto" />
+        <fieldset className="mt-3">
+          <legend className="text-muted-foreground mb-2 text-xs">
+            Tema dell'app
+          </legend>
+          <div className="bg-muted grid grid-cols-3 gap-1 rounded-2xl p-1">
+            <ThemeOption
+              label="Chiaro"
+              icon={<Sun className="size-4" />}
+              selected={theme === 'light'}
+              onSelect={() => setTheme('light')}
+            />
+            <ThemeOption
+              label="Scuro"
+              icon={<Moon className="size-4" />}
+              selected={theme === 'dark'}
+              onSelect={() => setTheme('dark')}
+            />
+            <ThemeOption
+              label="Sistema"
+              icon={<Monitor className="size-4" />}
+              selected={theme === 'system'}
+              onSelect={() => setTheme('system')}
+            />
+          </div>
+        </fieldset>
+      </Panel>
+
+      <Panel className="mt-3">
         <PanelHeader title="Dati e licenze" />
         <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
           I prodotti confezionati arrivano da{' '}
@@ -285,6 +324,34 @@ export default function ProfilePage() {
         Esci
       </Button>
     </AppShell>
+  )
+}
+
+function ThemeOption({
+  label,
+  icon,
+  selected,
+  onSelect,
+}: {
+  label: string
+  icon: React.ReactNode
+  selected: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+        selected
+          ? 'bg-card text-foreground shadow-soft'
+          : 'text-muted-foreground hover:text-foreground'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
   )
 }
 
