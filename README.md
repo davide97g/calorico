@@ -87,6 +87,7 @@ talks to one origin — same as in production.
 | `npm run db:migrate`   | Apply migrations (also creates the extensions)      |
 | `npm run db:studio`    | Drizzle Studio                                      |
 | `npm run seed`         | Idempotent seed; `SEED_SKIP_OFF=true` to stay local |
+| `npm run seed -- --foods` | Foods only — no demo account, safe on a live database |
 | `npm run vapid`        | Prints a VAPID key pair for the push reminders       |
 | `npm run typecheck`    | Typecheck both workspaces                           |
 | `npm run lint`         | oxlint on the web app                               |
@@ -189,11 +190,18 @@ Notes on the join:
    fresh volume ends up with the right schema on its own. Its healthcheck hits
    `/api/ready`, which touches Postgres — see
    [Health, headers and errors](#health-headers-and-errors).
-5. Seed the food database once, from the Dokploy terminal for the api service:
+5. Seed the food database, from the Dokploy terminal for the api service:
 
    ```bash
-   node dist/scripts/seed.js
+   node dist/scripts/seed.js --foods
    ```
+
+   Re-run it after a deploy that changed the generic catalogue: it inserts
+   what is missing and backfills search aliases, and touches nothing else.
+
+   **Use `--foods` here.** Without it the seed also creates the demo account,
+   whose email and password are printed in this README — fine on a laptop,
+   an open door on a public deployment.
 
 `docker-compose.yml` keeps Postgres data in the named volume `calorico_pgdata` —
 add it to Dokploy's backup schedule.

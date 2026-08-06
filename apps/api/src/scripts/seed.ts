@@ -60,10 +60,13 @@ async function seedGenericFoods() {
   }
 
   // Rows seeded before the catalogue existed have no search aliases. Backfill
-  // rather than reinsert: a diary entry may already point at them.
-  const stale = allGenericFoods.filter(
-    (f) => (known.get(f.name)?.aliases ?? null) === null && f.aliases?.length,
-  )
+  // rather than reinsert: a diary entry may already point at them. Only rows
+  // that were already there — the ones just inserted arrived with aliases, and
+  // a missing key must not read as a missing column.
+  const stale = allGenericFoods.filter((food) => {
+    const existing = known.get(food.name)
+    return existing != null && existing.aliases == null && food.aliases?.length
+  })
   for (const food of stale) {
     await db
       .update(foods)
@@ -265,13 +268,26 @@ async function seedWeights(userId: string) {
   console.log(`weight: ${rows.length} weigh-ins`)
 }
 
+/**
+ * The demo account and its fortnight of invented meals are a development
+ * convenience, and on a public deployment they are an account with a password
+ * printed in the README. `--foods` loads the catalogue and stops there, which
+ * is the only part of this script a live database should ever see.
+ */
+const foodsOnly =
+  process.argv.includes('--foods') || process.env.SEED_FOODS_ONLY === 'true'
+
 async function main() {
-  console.log('seeding...')
+  console.log(foodsOnly ? 'seeding foods...' : 'seeding...')
   await seedGenericFoods()
   await seedOffProducts()
-  const userId = await seedDemoUser()
-  await seedDiary(userId)
-  await seedWeights(userId)
+
+  if (!foodsOnly) {
+    const userId = await seedDemoUser()
+    await seedDiary(userId)
+    await seedWeights(userId)
+  }
+
   console.log('done')
   await sql.end()
 }
