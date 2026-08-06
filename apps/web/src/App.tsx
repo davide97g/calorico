@@ -6,6 +6,7 @@ import {
   useLocation,
 } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import { getPendingInvite } from '@/hooks/use-family'
 import { BrandLoader } from '@/components/ui/brand-loader'
 import TodayPage from '@/pages/today'
 import LoginPage from '@/pages/login'
@@ -24,6 +25,9 @@ const ProfilePage = lazy(() => import('@/pages/profile'))
 const OnboardingPage = lazy(() => import('@/pages/onboarding'))
 const GroceryPage = lazy(() => import('@/pages/grocery'))
 const PhotoReviewPage = lazy(() => import('@/pages/photo-review'))
+const FamilyPage = lazy(() => import('@/pages/family'))
+const JoinPage = lazy(() => import('@/pages/join'))
+const ScansPage = lazy(() => import('@/pages/scans'))
 
 function FullScreenLoader() {
   return (
@@ -42,6 +46,11 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   // A profile without body metrics cannot produce meaningful targets.
   if (needsOnboarding && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />
+  }
+  // An invite opened while signed out survives login and onboarding here.
+  const pendingInvite = getPendingInvite()
+  if (pendingInvite && !location.pathname.startsWith('/join/')) {
+    return <Navigate to={`/join/${pendingInvite}`} replace />
   }
   return <>{children}</>
 }
@@ -170,6 +179,24 @@ export default function App() {
             </RequireAuth>
           }
         />
+        <Route
+          path="/family"
+          element={
+            <RequireAuth>
+              <FamilyPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/scans"
+          element={
+            <RequireAuth>
+              <ScansPage />
+            </RequireAuth>
+          }
+        />
+        {/* Outside RequireAuth on purpose — see the page's own comment. */}
+        <Route path="/join/:token" element={<JoinPage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

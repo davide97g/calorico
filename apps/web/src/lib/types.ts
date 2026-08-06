@@ -157,9 +157,18 @@ export interface WeightResponse {
   bmi: number | null
 }
 
+/** The subset of a user shown next to anything they added or scanned. */
+export interface PersonRef {
+  id: string
+  name: string
+  avatarUrl?: string | null
+}
+
 export interface GroceryItem {
   id: string
   userId: string
+  /** Null on a private list; set once the row belongs to a family. */
+  familyId: string | null
   foodId: string | null
   dedupeKey: string
   nameSnapshot: string
@@ -169,10 +178,69 @@ export interface GroceryItem {
   completedAt: string | null
   createdAt: string
   updatedAt: string
+  /** Absent only on the optimistic row a mutation writes before the response. */
+  addedBy?: PersonRef
 }
 
 export interface GroceryResponse {
   items: GroceryItem[]
+}
+
+export interface FamilyMember extends PersonRef {
+  joinedAt: string
+}
+
+export interface Family {
+  id: string
+  name: string
+  createdAt: string
+  joinedAt: string
+  members: FamilyMember[]
+}
+
+export interface FamiliesResponse {
+  families: Family[]
+  /** Where this user's new shared rows land. */
+  activeFamilyId: string | null
+}
+
+export interface FamilyInvite {
+  id: string
+  familyId: string
+  token: string
+  expiresAt: string
+  revokedAt: string | null
+  createdAt: string
+}
+
+export interface InvitePreview {
+  id: string
+  familyId: string
+  familyName: string
+  expiresAt: string
+  memberCount: number
+  alreadyMember: boolean
+}
+
+export type ScanKind = 'barcode' | 'photo'
+
+export interface ScanEvent {
+  id: string
+  kind: ScanKind
+  foodId: string | null
+  barcode: string | null
+  nameSnapshot: string
+  brandSnapshot: string | null
+  /** Photo scans only: what the model saw. Never nutrition figures. */
+  items: { label: string; quantityG: number }[] | null
+  familyId: string | null
+  createdAt: string
+  scannedBy: PersonRef
+}
+
+export interface ScansResponse {
+  items: ScanEvent[]
+  nextCursor: string | null
 }
 
 export interface TargetEstimate {

@@ -9,13 +9,15 @@ import {
   RefreshCw,
   Sun,
   Target,
+  Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { AvatarGroup, AvatarGroupCount } from '@/components/ui/avatar'
+import { UserAvatar } from '@/components/user-avatar'
 import {
   Select,
   SelectContent,
@@ -24,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useAuth } from '@/hooks/use-auth'
+import { useFamilies } from '@/hooks/use-family'
 import { useUpdateProfile } from '@/hooks/use-diary'
 import { api } from '@/lib/api'
 import {
@@ -39,6 +42,7 @@ export default function ProfilePage() {
   const { user, profile, logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const updateProfile = useUpdateProfile()
+  const families = useFamilies()
   const [saving, setSaving] = useState(false)
 
   const [targets, setTargets] = useState({
@@ -49,6 +53,8 @@ export default function ProfilePage() {
   })
 
   if (!profile || !user) return null
+
+  const familyList = families.data?.families ?? []
 
   const num = (v: string, fallback: number) => {
     const n = Number(v.replace(',', '.'))
@@ -89,13 +95,6 @@ export default function ProfilePage() {
     }
   }
 
-  const initials = user.name
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-
   return (
     <AppShell>
       <header className="mb-3 flex items-center gap-2">
@@ -112,15 +111,56 @@ export default function ProfilePage() {
       </header>
 
       <Panel className="flex items-center gap-3">
-        <Avatar className="size-14">
-          <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar
+          user={user}
+          className="size-14"
+          fallbackClassName="bg-primary text-primary-foreground text-lg"
+        />
         <div className="min-w-0">
           <p className="truncate text-base font-bold">{user.name}</p>
           <p className="text-muted-foreground truncate text-xs">{user.email}</p>
         </div>
+      </Panel>
+
+      <Panel className="mt-3">
+        <PanelHeader icon={<Users />} title="Famiglia" to="/family" />
+        {familyList.length ? (
+          <ul className="mt-3 flex flex-col gap-3">
+            {familyList.map((family) => (
+              <li key={family.id} className="flex items-center gap-3">
+                <AvatarGroup>
+                  {family.members.slice(0, 4).map((member) => (
+                    <UserAvatar
+                      key={member.id}
+                      user={member}
+                      size="sm"
+                      fallbackClassName="text-[9px]"
+                    />
+                  ))}
+                  {family.members.length > 4 ? (
+                    <AvatarGroupCount className="size-6 text-[10px]">
+                      +{family.members.length - 4}
+                    </AvatarGroupCount>
+                  ) : null}
+                </AvatarGroup>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">
+                    {family.name}
+                  </span>
+                  <span className="text-muted-foreground block text-xs">
+                    {family.members.length}{' '}
+                    {family.members.length === 1 ? 'membro' : 'membri'}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground mt-2 text-sm">
+            Condividi lista della spesa e scansioni con chi vive con te. Il
+            diario e il peso restano solo tuoi.
+          </p>
+        )}
       </Panel>
 
       <Panel className="mt-3">

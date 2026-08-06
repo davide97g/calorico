@@ -84,6 +84,8 @@ const MESSAGES: Record<string, string> = {
     'Non ho riconosciuto cibo nella foto. Prova a inquadrare meglio il piatto.',
   image_too_large: 'La foto è troppo pesante.',
   unsupported_media_type: 'Formato immagine non supportato.',
+  invite_not_found: 'Invito non valido o scaduto.',
+  not_a_member: 'Non fai parte di questa famiglia.',
   internal_error: 'Qualcosa è andato storto. Riprova.',
 }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { House, ScanBarcode, Scale, ShoppingBasket } from 'lucide-react'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { UserAvatar } from '@/components/user-avatar'
 import { ScanSheet } from '@/components/food/scan-sheet'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
@@ -16,14 +16,6 @@ const rightItems = [{ to: '/weight', icon: Scale, label: 'Peso' }] as const
 export function BottomNav() {
   const { user } = useAuth()
   const [scanning, setScanning] = useState(false)
-
-  const initials =
-    user?.name
-      ?.split(' ')
-      .map((p) => p[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase() ?? '?'
 
   return (
     <>
@@ -59,17 +51,14 @@ export function BottomNav() {
             >
               {({ isActive }) => (
                 <>
-                  <Avatar
+                  <UserAvatar
+                    user={user}
                     className={cn(
                       'size-6 transition-all',
                       isActive && 'ring-primary-strong ring-2 ring-offset-2 ring-offset-card',
                     )}
-                  >
-                    {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} /> : null}
-                    <AvatarFallback className="bg-secondary text-[9px] font-bold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
+                    fallbackClassName="text-[9px]"
+                  />
                   <span
                     className={cn(
                       'text-[10px] leading-none font-semibold',

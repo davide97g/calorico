@@ -1,4 +1,10 @@
-import { format, isToday, isYesterday, parseISO } from 'date-fns'
+import {
+  format,
+  formatDistanceToNow,
+  isToday,
+  isYesterday,
+  parseISO,
+} from 'date-fns'
 import { it } from 'date-fns/locale'
 
 /**
@@ -47,4 +53,31 @@ export function longDayLabel(day: string) {
 
 export function lastNDays(n: number, endDay = todayISO()) {
   return { from: addDaysISO(endDay, -(n - 1)), to: endDay }
+}
+
+/**
+ * Timestamps, not calendar days. Shared rows carry a full instant because
+ * "chi e quando" only reads well at minute granularity.
+ */
+
+/** "2 minuti fa", "circa 3 ore fa". */
+export function relativeTime(timestamp: string) {
+  return formatDistanceToNow(parseISO(timestamp), {
+    addSuffix: true,
+    locale: it,
+  })
+}
+
+/** "oggi 14:32", "ieri 09:05", otherwise "4 ago 14:32". */
+export function dayTimeLabel(timestamp: string) {
+  const d = parseISO(timestamp)
+  const time = format(d, 'HH:mm', { locale: it })
+  if (isToday(d)) return `oggi ${time}`
+  if (isYesterday(d)) return `ieri ${time}`
+  return `${format(d, 'd MMM', { locale: it })} ${time}`
+}
+
+/** The calendar day a timestamp falls on, for grouping feeds. */
+export function dayOf(timestamp: string) {
+  return toISODay(parseISO(timestamp))
 }

@@ -2,8 +2,15 @@ import type { FastifyPluginAsync } from 'fastify'
 import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/index.js'
-import { diaryEntries, favorites, foods, type NewFood } from '../db/schema.js'
+import {
+  diaryEntries,
+  favorites,
+  foods,
+  type Food,
+  type NewFood,
+} from '../db/schema.js'
 import { fetchByBarcode, searchOff } from '../lib/off.js'
+import { recordScan } from '../lib/scan-log.js'
 import { cacheFoods } from '../lib/food-cache.js'
 import { searchLocalFoods } from '../lib/food-search.js'
 import { listFoodImages, syncOffImages } from '../lib/food-images.js'
@@ -68,12 +75,31 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
       .object({ code: z.string().regex(/^\d{6,14}$/) })
       .parse(request.params)
 
+    // A GET with a side effect, deliberately: this route is only ever reached
+    // from the scanner sheets, so it is the one honest place to record that a
+    // scan happened. Logging is best-effort and never fails the lookup.
+    const logScan = (food: Food) =>
+      recordScan(
+        request.user.sub,
+        {
+          kind: 'barcode',
+          foodId: food.id,
+          barcode: code,
+          nameSnapshot: food.name,
+          brandSnapshot: food.brand,
+        },
+        request.log,
+      )
+
     const [local] = await db
       .select()
       .from(foods)
       .where(eq(foods.barcode, code))
       .limit(1)
-    if (local) return local
+    if (local) {
+      await logScan(local)
+      return local
+    }
 
     let mapped: NewFood | null = null
     try {
@@ -85,6 +111,7 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
     if (!mapped) return reply.code(404).send({ error: 'product_not_found' })
 
     const [saved] = await cacheFoods([mapped])
+    if (saved) await logScan(saved)
     return saved
   })
 

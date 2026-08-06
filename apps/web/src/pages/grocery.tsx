@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Check,
+  History,
   Loader2,
   Minus,
   Plus,
@@ -11,6 +13,7 @@ import {
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
+import { UserAvatar } from '@/components/user-avatar'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -31,6 +34,8 @@ import {
   useUpdateGroceryItem,
 } from '@/hooks/use-grocery'
 import { useFoodSearch } from '@/hooks/use-diary'
+import { useFamilies } from '@/hooks/use-family'
+import { relativeTime } from '@/lib/date'
 import type { Food, GroceryItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -49,8 +54,18 @@ export default function GroceryPage() {
   }, [term])
 
   const search = useFoodSearch(debounced)
+  const families = useFamilies()
   const items = grocery.data?.items ?? []
   const activeCount = items.filter((item) => !item.completed).length
+
+  // The eyebrow names the list: one family, several, or nobody but you.
+  const familyList = families.data?.families ?? []
+  const eyebrow =
+    familyList.length === 1
+      ? familyList[0]!.name
+      : familyList.length > 1
+        ? `${familyList.length} famiglie`
+        : 'Lista unica'
 
   const finishAdd = (label: string) => {
     setTerm('')
@@ -122,15 +137,28 @@ export default function GroceryPage() {
   return (
     <AppShell>
       <header className="flex items-end justify-between px-1">
-        <div>
-          <p className="text-primary-strong text-[11px] font-bold tracking-[0.16em] uppercase">
-            Lista unica
+        <div className="min-w-0">
+          <p className="text-primary-strong truncate text-[11px] font-bold tracking-[0.16em] uppercase">
+            {eyebrow}
           </p>
           <h1 className="font-display text-[28px] leading-tight font-bold">Spesa</h1>
         </div>
-        <span className="bg-primary text-primary-foreground tabular rounded-full px-3 py-1.5 text-xs font-bold">
-          {activeCount} da prendere
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            asChild
+            variant="secondary"
+            size="icon"
+            className="rounded-full"
+            aria-label="Scansioni"
+          >
+            <Link to="/scans">
+              <History />
+            </Link>
+          </Button>
+          <span className="bg-primary text-primary-foreground tabular rounded-full px-3 py-1.5 text-xs font-bold">
+            {activeCount} da prendere
+          </span>
+        </div>
       </header>
 
       <div className="relative mt-4">
@@ -351,6 +379,19 @@ function GroceryRow({
           {item.brandSnapshot ? (
             <span className="text-muted-foreground block truncate text-[11px]">
               {item.brandSnapshot}
+            </span>
+          ) : null}
+          {/* Only worth the extra line once the list is actually shared. */}
+          {item.familyId && item.addedBy ? (
+            <span className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-[11px]">
+              <UserAvatar
+                user={item.addedBy}
+                className="size-4"
+                fallbackClassName="text-[7px]"
+              />
+              <span className="truncate">
+                {item.addedBy.name.split(' ')[0]} · {relativeTime(item.createdAt)}
+              </span>
             </span>
           ) : null}
         </span>

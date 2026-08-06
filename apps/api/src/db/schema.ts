@@ -12,7 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
-import { relations, sql } from 'drizzle-orm'
+import { relations, sql, type SQL } from 'drizzle-orm'
 
 export const sexEnum = pgEnum('sex', ['male', 'female'])
 export const activityEnum = pgEnum('activity_level', [
@@ -34,6 +34,10 @@ export const foodImageKindEnum = pgEnum('food_image_kind', [
   'ingredients', // ingredients list shot
   'nutrition', // nutrition table shot
   'user', // photo taken by a user, hosted by us on R2
+])
+export const scanKindEnum = pgEnum('scan_kind', [
+  'barcode', // product scanned from its EAN/UPC
+  'photo', // meal photo sent to the vision provider
 ])
 
 export const users = pgTable(
@@ -71,10 +75,77 @@ export const profiles = pgTable('profiles', {
   targetKcalMin: integer('target_kcal_min').notNull().default(1900),
   targetKcalMax: integer('target_kcal_max').notNull().default(2100),
   locale: text('locale').notNull().default('it'),
+  /**
+   * Where new shared rows (grocery items, scans) are written. Reads are merged
+   * across every family the user belongs to, but a write needs one target.
+   * Null means "no family yet", i.e. keep it private.
+   */
+  activeFamilyId: uuid('active_family_id').references(() => families.id, {
+    onDelete: 'set null',
+  }),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
 })
+
+/**
+ * A household. Members are all equal: anyone can invite, rename, and edit the
+ * shared list. Only the grocery list and the scan feed are shared — the diary,
+ * weights and targets stay strictly per user.
+ */
+export const families = pgTable('families', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  createdBy: uuid('created_by').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+export const familyMembers = pgTable(
+  'family_members',
+  {
+    familyId: uuid('family_id')
+      .notNull()
+      .references(() => families.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    joinedAt: timestamp('joined_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('family_members_pk').on(t.familyId, t.userId),
+    index('family_members_user_idx').on(t.userId),
+  ],
+)
+
+/** Reusable join link. One active invite per family; rotating revokes the old. */
+export const familyInvites = pgTable(
+  'family_invites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    familyId: uuid('family_id')
+      .notNull()
+      .references(() => families.id, { onDelete: 'cascade' }),
+    token: text('token').notNull(),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('family_invites_token_unique').on(t.token),
+    index('family_invites_family_idx').on(t.familyId),
+  ],
+)
 
 export const foods = pgTable(
   'foods',
@@ -239,9 +310,22 @@ export const groceryItems = pgTable(
   'grocery_items',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    /** Who added the row. Attribution, not ownership — see listId. */
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
+    /** Null means a private list; set means the whole family sees the row. */
+    familyId: uuid('family_id').references(() => families.id, {
+      onDelete: 'cascade',
+    }),
+    /**
+     * The list this row lives in. Generated rather than derived in queries so
+     * the one-active-row rule below can stay a plain unique index that
+     * `on conflict (list_id, dedupe_key)` can still name as a target.
+     */
+    listId: uuid('list_id').generatedAlwaysAs(
+      (): SQL => sql`coalesce(${groceryItems.familyId}, ${groceryItems.userId})`,
+    ),
     foodId: uuid('food_id').references(() => foods.id, {
       onDelete: 'set null',
     }),
@@ -261,10 +345,43 @@ export const groceryItems = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex('grocery_user_active_item_unique')
-      .on(t.userId, t.dedupeKey)
+    uniqueIndex('grocery_list_active_item_unique')
+      .on(t.listId, t.dedupeKey)
       .where(sql`${t.completed} = false`),
-    index('grocery_user_status_idx').on(t.userId, t.completed, t.createdAt),
+    index('grocery_list_status_idx').on(t.listId, t.completed, t.createdAt),
+  ],
+)
+
+/**
+ * One row per scan, shared with the family that was active at scan time.
+ * Photo scans record only the labels the vision model returned — the image
+ * itself is never stored, here or anywhere else.
+ */
+export const scanEvents = pgTable(
+  'scan_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    familyId: uuid('family_id').references(() => families.id, {
+      onDelete: 'set null',
+    }),
+    kind: scanKindEnum('kind').notNull(),
+    foodId: uuid('food_id').references(() => foods.id, { onDelete: 'set null' }),
+    barcode: text('barcode'),
+    /** Product name, or a joined summary of the meal's items. */
+    nameSnapshot: text('name_snapshot').notNull(),
+    brandSnapshot: text('brand_snapshot'),
+    /** Photo scans only: `[{ label, quantityG }]`. Never nutrition figures. */
+    items: jsonb('items').$type<{ label: string; quantityG: number }[]>(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('scan_events_family_idx').on(t.familyId, t.createdAt),
+    index('scan_events_user_idx').on(t.userId, t.createdAt),
   ],
 )
 
@@ -276,6 +393,41 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   entries: many(diaryEntries),
   weights: many(weightLogs),
   groceryItems: many(groceryItems),
+  memberships: many(familyMembers),
+  scans: many(scanEvents),
+}))
+
+export const familiesRelations = relations(families, ({ many }) => ({
+  members: many(familyMembers),
+  invites: many(familyInvites),
+  groceryItems: many(groceryItems),
+  scans: many(scanEvents),
+}))
+
+export const familyMembersRelations = relations(familyMembers, ({ one }) => ({
+  family: one(families, {
+    fields: [familyMembers.familyId],
+    references: [families.id],
+  }),
+  user: one(users, {
+    fields: [familyMembers.userId],
+    references: [users.id],
+  }),
+}))
+
+export const scanEventsRelations = relations(scanEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [scanEvents.userId],
+    references: [users.id],
+  }),
+  food: one(foods, {
+    fields: [scanEvents.foodId],
+    references: [foods.id],
+  }),
+  family: one(families, {
+    fields: [scanEvents.familyId],
+    references: [families.id],
+  }),
 }))
 
 export const diaryEntriesRelations = relations(diaryEntries, ({ one }) => ({
@@ -298,6 +450,10 @@ export const groceryItemsRelations = relations(groceryItems, ({ one }) => ({
     fields: [groceryItems.userId],
     references: [users.id],
   }),
+  family: one(families, {
+    fields: [groceryItems.familyId],
+    references: [families.id],
+  }),
 }))
 
 export type User = typeof users.$inferSelect
@@ -309,3 +465,8 @@ export type NewFoodImage = typeof foodImages.$inferInsert
 export type DiaryEntry = typeof diaryEntries.$inferSelect
 export type WeightLog = typeof weightLogs.$inferSelect
 export type GroceryItem = typeof groceryItems.$inferSelect
+export type Family = typeof families.$inferSelect
+export type FamilyMember = typeof familyMembers.$inferSelect
+export type FamilyInvite = typeof familyInvites.$inferSelect
+export type ScanEvent = typeof scanEvents.$inferSelect
+export type NewScanEvent = typeof scanEvents.$inferInsert

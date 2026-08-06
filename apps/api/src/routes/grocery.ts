@@ -2,7 +2,12 @@ import type { FastifyPluginAsync } from 'fastify'
 import { and, asc, desc, eq, ne, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/index.js'
-import { foods, groceryItems } from '../db/schema.js'
+import { foods, groceryItems, users } from '../db/schema.js'
+import {
+  getFamilyIds,
+  groceryVisibility,
+  resolveWriteFamilyId,
+} from '../lib/family.js'
 
 const quantity = z.number().int().min(1).max(999)
 
@@ -33,10 +38,32 @@ export const groceryRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('onRequest', app.authenticate)
 
   app.get('/', async (request) => {
+    const userId = request.user.sub
+    const familyIds = await getFamilyIds(userId)
+
     const items = await db
-      .select()
+      .select({
+        id: groceryItems.id,
+        userId: groceryItems.userId,
+        familyId: groceryItems.familyId,
+        foodId: groceryItems.foodId,
+        dedupeKey: groceryItems.dedupeKey,
+        nameSnapshot: groceryItems.nameSnapshot,
+        brandSnapshot: groceryItems.brandSnapshot,
+        quantity: groceryItems.quantity,
+        completed: groceryItems.completed,
+        completedAt: groceryItems.completedAt,
+        createdAt: groceryItems.createdAt,
+        updatedAt: groceryItems.updatedAt,
+        addedBy: {
+          id: users.id,
+          name: users.name,
+          avatarUrl: users.avatarUrl,
+        },
+      })
       .from(groceryItems)
-      .where(eq(groceryItems.userId, request.user.sub))
+      .innerJoin(users, eq(users.id, groceryItems.userId))
+      .where(groceryVisibility(userId, familyIds))
       .orderBy(
         asc(groceryItems.completed),
         desc(
@@ -49,6 +76,7 @@ export const groceryRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/', async (request, reply) => {
     const body = createBody.parse(request.body)
+    const userId = request.user.sub
     let foodId: string | null = null
     let name: string
     let brand: string | null = null
@@ -73,7 +101,8 @@ export const groceryRoutes: FastifyPluginAsync = async (app) => {
     const [item] = await db
       .insert(groceryItems)
       .values({
-        userId: request.user.sub,
+        userId,
+        familyId: await resolveWriteFamilyId(userId),
         foodId,
         dedupeKey,
         nameSnapshot: name,
@@ -81,7 +110,9 @@ export const groceryRoutes: FastifyPluginAsync = async (app) => {
         quantity: body.quantity,
       })
       .onConflictDoUpdate({
-        target: [groceryItems.userId, groceryItems.dedupeKey],
+        // `listId` is generated from familyId/userId, so this merges into
+        // whichever list the row belongs to — private or shared.
+        target: [groceryItems.listId, groceryItems.dedupeKey],
         targetWhere: sql`${groceryItems.completed} = false`,
         set: {
           quantity: sql`least(999, ${groceryItems.quantity} + excluded.quantity)`,
@@ -97,12 +128,15 @@ export const groceryRoutes: FastifyPluginAsync = async (app) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
     const body = patchBody.parse(request.body)
     const userId = request.user.sub
+    const familyIds = await getFamilyIds(userId)
+    // Members are all equal: anyone in the family may tick off or edit any row.
+    const visible = groceryVisibility(userId, familyIds)
 
     const result = await db.transaction(async (tx) => {
       const [existing] = await tx
         .select()
         .from(groceryItems)
-        .where(and(eq(groceryItems.id, id), eq(groceryItems.userId, userId)))
+        .where(and(eq(groceryItems.id, id), visible))
         .limit(1)
       if (!existing) return null
 
@@ -113,7 +147,7 @@ export const groceryRoutes: FastifyPluginAsync = async (app) => {
           .from(groceryItems)
           .where(
             and(
-              eq(groceryItems.userId, userId),
+              eq(groceryItems.listId, existing.listId!),
               eq(groceryItems.dedupeKey, existing.dedupeKey),
               eq(groceryItems.completed, false),
               ne(groceryItems.id, id),
@@ -160,14 +194,12 @@ export const groceryRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete('/:id', async (request, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+    const userId = request.user.sub
+    const familyIds = await getFamilyIds(userId)
+
     const deleted = await db
       .delete(groceryItems)
-      .where(
-        and(
-          eq(groceryItems.id, id),
-          eq(groceryItems.userId, request.user.sub),
-        ),
-      )
+      .where(and(eq(groceryItems.id, id), groceryVisibility(userId, familyIds)))
       .returning({ id: groceryItems.id })
 
     if (deleted.length === 0) return reply.code(404).send({ error: 'not_found' })

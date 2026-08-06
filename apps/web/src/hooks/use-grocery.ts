@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 import type { GroceryItem, GroceryResponse } from '@/lib/types'
 
 export const groceryKey = ['grocery'] as const
@@ -22,13 +23,22 @@ export function useGrocery() {
 
 export function useAddGroceryItem() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   return useMutation({
     mutationFn: (body: { foodId?: string; name?: string; quantity?: number }) =>
       api<GroceryItem>('/grocery', { method: 'POST', body }),
     onSuccess: (item) => {
+      // The insert returns the raw row; only the list endpoint joins the
+      // author. Fill it in so a shared row doesn't flash without its avatar.
+      const withAuthor: GroceryItem = {
+        ...item,
+        addedBy:
+          item.addedBy ??
+          (user ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl } : undefined),
+      }
       queryClient.setQueryData<GroceryResponse>(groceryKey, (current) => ({
         items: sortItems([
-          item,
+          withAuthor,
           ...(current?.items.filter((existing) => existing.id !== item.id) ?? []),
         ]),
       }))

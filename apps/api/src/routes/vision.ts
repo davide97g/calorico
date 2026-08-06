@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { env } from '../env.js'
 import { getVisionProvider } from '../lib/vision/index.js'
 import { matchAnalysis } from '../lib/vision/match.js'
+import { recordScan } from '../lib/scan-log.js'
 
 const ACCEPTED = new Set(['image/webp', 'image/jpeg', 'image/png'])
 
@@ -70,6 +71,20 @@ export const visionRoutes: FastifyPluginAsync = async (app) => {
 
       if (analysis.items.length === 0)
         return reply.code(422).send({ error: 'no_food_detected' })
+
+      // Labels and portions only — the photo stays unstored, as above.
+      await recordScan(
+        request.user.sub,
+        {
+          kind: 'photo',
+          nameSnapshot: analysis.items.map((i) => i.label).join(', '),
+          items: analysis.items.map((i) => ({
+            label: i.label,
+            quantityG: i.quantityG,
+          })),
+        },
+        request.log,
+      )
 
       return matchAnalysis(analysis, request.log)
     },
