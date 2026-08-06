@@ -10,6 +10,9 @@ Food data comes from two sources:
 - **Composition tables** (CREA / BDA-IEO) for the generic foods Open Food Facts
   cannot cover: raw chicken breast, cooked pasta, an apple. That half of a diary
   is shipped as a curated seed list.
+- **Open Food Facts categories + ANSES-CIQUAL** for the rest of the unpackaged
+  shelf, generated into `data/generic-catalogue.json` — see
+  [The generic catalogue](#the-generic-catalogue).
 
 ## What's in it
 
@@ -89,6 +92,7 @@ talks to one origin — same as in production.
 | `npm run lint`         | oxlint on the web app                               |
 | `npm test`             | Tests in both workspaces — see [Tests](#tests)      |
 | `npm run import:off`   | Bulk import from the Open Food Facts dump           |
+| `npm run build:catalogue` | Regenerate the generic food catalogue            |
 
 ## Filling the product database
 
@@ -111,6 +115,49 @@ The importer keeps only products tagged `en:italy`, normalises everything to
 per-100 g values, and drops records with no usable energy value. For repeated
 experiments the Parquet dump + DuckDB is faster to pre-filter with; point
 `--file` at the JSONL you export from it.
+
+## The generic catalogue
+
+Open Food Facts is an archive of packaged goods. Search it for `pesca` and it
+answers with iced tea, nectar, jam and a tin of mussels — there is no record of
+a peach, because nobody scans loose fruit. Anything eaten unpackaged has to come
+from somewhere else.
+
+Two sources cover it, joined on the CIQUAL food code:
+
+| Source                              | Provides                    |
+| ----------------------------------- | --------------------------- |
+| OFF **categories taxonomy** (ODbL)  | the name, in Italian        |
+| **ANSES-CIQUAL 2020** table         | the per-100 g composition   |
+
+About 3 000 of the taxonomy's 14 600 categories carry a CIQUAL code, and roughly
+700 of those are already named in Italian. The rest are named once, at build
+time, by an LLM reading the English and French names — never at request time.
+The output is committed to `apps/api/src/data/generic-catalogue.json`, so the
+diff is the review, and `npm run seed` loads it alongside the curated list.
+
+```bash
+npm run build:catalogue              # full rebuild, translations included
+npm run build:catalogue -- --no-llm  # taxonomy names only, no API key needed
+```
+
+Downloads (4 MB taxonomy, 3 MB CIQUAL archive) are cached in
+`apps/api/.cache/catalogue`; delete it to pull fresh sources. Translation reads
+`CATALOGUE_LLM_API_KEY` / `_MODEL` / `_BASE_URL`, falling back to the `VISION_*`
+credentials the photo feature already uses.
+
+Notes on the join:
+
+- a category the taxonomy names in Italian wins the CIQUAL code over one that
+  merely has a more precise code — `en:peaches` (named, proxy code) beats
+  `en:fresh-peaches` (unnamed, exact code), and ranking it the other way round
+  dropped the peach out of the catalogue entirely
+- a curated food always beats a generated one of the same name: Italian tables
+  over the French one, and a real serving size over a per-shelf guess
+- CIQUAL leaves energy blank on about a quarter of its rows, including raw
+  peach, so kcal falls back to the Atwater sum of the macros
+- names are stored in one number ("Pesche") and the other forms live in
+  `foods.aliases`, which is also where the English name goes
 
 ## Deploying on Dokploy
 
@@ -539,8 +586,13 @@ compensates:
 
 ## Licence and attribution
 
-Product data © Open Food Facts contributors, licensed under the
+Product data and the categories taxonomy © Open Food Facts contributors,
+licensed under the
 [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
-The app credits it on the profile screen. If you publish a modified copy of the
-database itself, ODbL's share-alike applies to that database; your application
-code is unaffected.
+If you publish a modified copy of the database itself, ODbL's share-alike
+applies to that database; your application code is unaffected.
+
+Composition data for the generic catalogue comes from the
+[ANSES-CIQUAL 2020](https://ciqual.anses.fr) table, which requires attribution;
+the curated generic foods come from the Italian CREA / BDA-IEO tables. The app
+credits all three on the profile screen.

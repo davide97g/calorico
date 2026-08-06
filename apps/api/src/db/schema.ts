@@ -199,6 +199,13 @@ export const foods = pgTable(
     /** EAN/UPC. Unique per non-null value; generic foods have none. */
     barcode: text('barcode'),
     name: text('name').notNull(),
+    /**
+     * Extra search terms: the other number of the noun, the English name,
+     * regional synonyms. Generic foods carry them because the catalogue names
+     * them once, in one number ("Pesche"), while people type whichever form
+     * they think of. Never shown in the UI — matched only.
+     */
+    aliases: text('aliases').array(),
     brand: text('brand'),
     /** Free-form category path from OFF, or our own for generic foods. */
     category: text('category'),
@@ -246,6 +253,17 @@ export const foods = pgTable(
       .on(t.barcode)
       .where(sql`${t.barcode} is not null`),
     index('foods_name_trgm').using('gin', sql`${t.name} gin_trgm_ops`),
+    /**
+     * Matches the expression food-search.ts searches aliases with, character
+     * for character — an expression index is only used by a query that spells
+     * it the same way. `food_alias_haystack` exists because `array_to_string`
+     * is merely STABLE and Postgres refuses to index it; the function is
+     * declared IMMUTABLE in the same migration that creates this index.
+     */
+    index('foods_aliases_trgm').using(
+      'gin',
+      sql`food_alias_haystack(${t.aliases}) gin_trgm_ops`,
+    ),
     index('foods_brand_trgm').using('gin', sql`${t.brand} gin_trgm_ops`),
     index('foods_source_idx').on(t.source),
   ],

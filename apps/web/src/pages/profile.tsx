@@ -502,9 +502,19 @@ export default function ProfilePage() {
           >
             Open Food Facts
           </a>
-          , database aperto rilasciato con licenza ODbL. Gli alimenti generici
-          (crudi e cotti) provengono dalle tabelle di composizione degli
-          alimenti CREA / BDA-IEO.
+          , database aperto rilasciato con licenza ODbL, da cui arriva anche la
+          tassonomia delle categorie usata per gli alimenti generici. I valori
+          nutrizionali degli alimenti generici (crudi e cotti) provengono dalle
+          tabelle di composizione CREA / BDA-IEO e dalla tabella{' '}
+          <a
+            href="https://ciqual.anses.fr"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground underline"
+          >
+            ANSES-CIQUAL 2020
+          </a>
+          .
         </p>
       </Panel>
 

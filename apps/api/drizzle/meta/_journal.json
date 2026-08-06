@@ -50,6 +50,13 @@
       "when": 1786021322476,
       "tag": "0006_reminders_and_push",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786047845518,
+      "tag": "0007_food_aliases",
+      "breakpoints": true
     }
   ]
 }

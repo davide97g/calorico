@@ -1,4 +1,4 @@
-import { eq, sql as raw } from 'drizzle-orm'
+import { and, eq, sql as raw } from 'drizzle-orm'
 import { db, sql } from '../db/index.js'
 import {
   diaryEntries,
@@ -8,7 +8,7 @@ import {
   users,
   weightLogs,
 } from '../db/schema.js'
-import { genericFoods } from '../data/generic-foods.js'
+import { allGenericFoods } from '../data/generic-catalogue.js'
 import { hashPassword } from '../lib/password.js'
 import { dailyTargets, scaleNutriments } from '../lib/nutrition.js'
 import { searchOff } from '../lib/off.js'
@@ -47,15 +47,33 @@ function dayOffset(days: number) {
 async function seedGenericFoods() {
   // Generic foods have no barcode, so dedupe on the name instead.
   const existing = await db
-    .select({ name: foods.name })
+    .select({ name: foods.name, aliases: foods.aliases })
     .from(foods)
     .where(eq(foods.source, 'generic'))
-  const known = new Set(existing.map((r) => r.name))
-  const missing = genericFoods.filter((f) => !known.has(f.name))
-  if (missing.length > 0) {
-    await db.insert(foods).values(missing)
+  const known = new Map(existing.map((r) => [r.name, r]))
+  const missing = allGenericFoods.filter((f) => !known.has(f.name))
+
+  // A few thousand rows: one statement per chunk keeps the parameter count
+  // inside what the driver will bind.
+  for (let i = 0; i < missing.length; i += 500) {
+    await db.insert(foods).values(missing.slice(i, i + 500))
   }
-  console.log(`generic foods: ${known.size} existing, ${missing.length} inserted`)
+
+  // Rows seeded before the catalogue existed have no search aliases. Backfill
+  // rather than reinsert: a diary entry may already point at them.
+  const stale = allGenericFoods.filter(
+    (f) => (known.get(f.name)?.aliases ?? null) === null && f.aliases?.length,
+  )
+  for (const food of stale) {
+    await db
+      .update(foods)
+      .set({ aliases: food.aliases })
+      .where(and(eq(foods.source, 'generic'), eq(foods.name, food.name)))
+  }
+
+  console.log(
+    `generic foods: ${known.size} existing, ${missing.length} inserted, ${stale.length} given aliases`,
+  )
 }
 
 async function seedOffProducts() {

@@ -12,7 +12,10 @@ import {
 import { fetchByBarcode, searchOff } from '../lib/off.js'
 import { recordScan } from '../lib/scan-log.js'
 import { cacheFoods } from '../lib/food-cache.js'
-import { searchLocalFoods } from '../lib/food-search.js'
+import {
+  hasConfidentGenericMatch,
+  searchLocalFoods,
+} from '../lib/food-search.js'
 import { listFoodImages, syncOffImages } from '../lib/food-images.js'
 
 const searchQuery = z.object({
@@ -51,8 +54,9 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
     let results = await searchLocalFoods(term, limit)
 
     // Thin local mirror? Ask Open Food Facts once, cache, then re-query so the
-    // ranking rules apply to the newcomers too.
-    if (!local && results.length < 8) {
+    // ranking rules apply to the newcomers too. Unless the catalogue already
+    // has the plain food that was asked for — see hasConfidentGenericMatch.
+    if (!local && results.length < 8 && !hasConfidentGenericMatch(results, term)) {
       try {
         const remote = await searchOff(term, limit)
         if (remote.length > 0) {
@@ -64,8 +68,11 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
-    // `score` is a ranking detail; the client has never seen it.
-    const items = results.map(({ score: _score, ...food }) => food)
+    // `score` is a ranking detail and `aliases` are search fodder: neither is
+    // shown, and a generic food carries up to eight of the latter.
+    const items = results.map(
+      ({ score: _score, aliases: _aliases, ...food }) => food,
+    )
     return { items, source: items.length ? 'db' : 'empty' }
   })
 

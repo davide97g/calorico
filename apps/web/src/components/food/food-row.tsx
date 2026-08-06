@@ -14,7 +14,14 @@ export function FoodRow({ food, to }: { food: Food; to: string }) {
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">{food.name}</span>
         <span className="text-muted-foreground block truncate text-xs">
-          {food.brand ? `${food.brand} · ` : ''}
+          {/* Unpackaged food has no brand to show, and saying so is the point:
+              it tells someone hunting for a peach that this row is the fruit
+              and not a peach-flavoured product. */}
+          {food.brand
+            ? `${food.brand} · `
+            : food.source === 'generic'
+              ? 'Generico · '
+              : ''}
           {kcal(food.kcal100)} kcal / 100 {food.unit}
         </span>
       </span>
