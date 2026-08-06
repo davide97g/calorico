@@ -8,7 +8,6 @@ import { AddFoodAction } from '@/components/dashboard/add-food-action'
 import { DaySwitcher } from '@/components/dashboard/day-switcher'
 import { DiaryPanel } from '@/components/dashboard/diary-panel'
 import { IntakeHero } from '@/components/dashboard/intake-hero'
-import { QuickAddStrip } from '@/components/dashboard/quick-add-strip'
 import { MacroTriple } from '@/components/charts/macro-bars'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -21,7 +20,7 @@ import {
 } from '@/hooks/use-diary'
 import { useAuth } from '@/hooks/use-auth'
 import { addDaysISO, todayISO } from '@/lib/date'
-import { currentMeal, signed } from '@/lib/format'
+import { signed } from '@/lib/format'
 import type { DiaryEntry, Goal, WeightResponse } from '@/lib/types'
 
 export default function TodayPage() {
@@ -105,8 +104,6 @@ export default function TodayPage() {
               onCopyYesterday={handleCopyYesterday}
               copying={copyDay.isPending}
             />
-
-            <QuickAddStrip day={day} meal={currentMeal()} />
 
             <Panel>
               <PanelHeader
