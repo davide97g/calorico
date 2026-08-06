@@ -43,6 +43,13 @@
       "when": 1786011094383,
       "tag": "0005_security_and_premium",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786021322476,
+      "tag": "0006_reminders_and_push",
+      "breakpoints": true
     }
   ]
 }

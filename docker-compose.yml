@@ -51,6 +51,14 @@ services:
       VISION_BASE_URL: ${VISION_BASE_URL:-}
       VISION_MAX_IMAGE_BYTES: ${VISION_MAX_IMAGE_BYTES:-1048576}
       VISION_TIMEOUT_MS: ${VISION_TIMEOUT_MS:-30000}
+      # Push reminders. Both keys and the contact are needed together; without
+      # them the scheduler never starts and the app says notifications are off.
+      # Generate a pair with `npm run vapid`.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      MAX_REMINDERS_PER_USER: ${MAX_REMINDERS_PER_USER:-12}
+      REMINDER_GRACE_MINUTES: ${REMINDER_GRACE_MINUTES:-10}
     expose:
       - '3001'
     # /api/ready, not /api/health: a container that cannot reach Postgres must

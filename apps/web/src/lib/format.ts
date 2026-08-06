@@ -70,6 +70,50 @@ export function progress(value: number, target: number) {
   return Math.max(0, Math.min(999, (value / target) * 100))
 }
 
+/**
+ * Reminder times are stored as minutes since local midnight; "HH:MM" is what an
+ * `<input type="time">` reads and writes.
+ */
+export function clockTime(minutes: number) {
+  const m = Math.max(0, Math.min(1439, Math.round(minutes)))
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+}
+
+/** Null for anything an empty or half-typed time field can hand us. */
+export function parseClockTime(value: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim())
+  if (!match) return null
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (hours > 23 || minutes > 59) return null
+  return hours * 60 + minutes
+}
+
+/** Index is the weekday number the API uses: 0 = Sunday. */
+export const WEEKDAY_INITIALS = ['D', 'L', 'M', 'M', 'G', 'V', 'S']
+export const WEEKDAY_NAMES = [
+  'Domenica',
+  'Lunedì',
+  'Martedì',
+  'Mercoledì',
+  'Giovedì',
+  'Venerdì',
+  'Sabato',
+]
+const WEEKDAY_SHORT = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab']
+
+export function weekdaysLabel(days: number[]) {
+  const set = new Set(days)
+  if (set.size === 7) return 'Tutti i giorni'
+  if (set.size === 5 && ![0, 6].some((d) => set.has(d))) return 'Da lunedì a venerdì'
+  if (set.size === 2 && set.has(0) && set.has(6)) return 'Sabato e domenica'
+  // Monday first, the way an Italian week reads.
+  return [1, 2, 3, 4, 5, 6, 0]
+    .filter((d) => set.has(d))
+    .map((d) => WEEKDAY_SHORT[d])
+    .join(', ')
+}
+
 export function truncate(text: string, max = 42) {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }

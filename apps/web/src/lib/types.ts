@@ -333,6 +333,53 @@ export type BatchEntryInput =
   | { foodId: string; quantityG: number }
   | { newFood: NewFoodInput; quantityG: number }
 
+export type ReminderKind = 'meal' | 'review' | 'weight' | 'custom'
+
+export interface Reminder {
+  id: string
+  kind: ReminderKind
+  /** Set only for meal reminders; it is the meal the skip check looks at. */
+  meal: Meal | null
+  label: string
+  /** Minutes since local midnight. 13:00 is 780. */
+  atMinutes: number
+  /** Days it fires on, 0 = Sunday. */
+  weekdays: number[]
+  skipIfLogged: boolean
+  enabled: boolean
+  lastSentOn: string | null
+  lastSentAt: string | null
+  createdAt: string
+}
+
+/** A suggested reminder. Sent by the API so labels match what gets delivered. */
+export interface ReminderPreset {
+  key: string
+  kind: ReminderKind
+  meal: Meal | null
+  label: string
+  atMinutes: number
+  weekdays: number[]
+  skipIfLogged: boolean
+  description: string
+}
+
+export interface NotificationSettings {
+  push: {
+    /** False when the server has no VAPID keys: nothing can be delivered. */
+    supported: boolean
+    publicKey: string | null
+  }
+  enabled: boolean
+  /** IANA zone the reminder times are read in. */
+  timezone: string
+  /** Browsers registered for this account. Zero means nothing arrives. */
+  devices: number
+  maxReminders: number
+  presets: ReminderPreset[]
+  reminders: Reminder[]
+}
+
 export interface AuthResponse {
   token: string
   user: User

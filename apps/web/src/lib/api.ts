@@ -87,6 +87,10 @@ const MESSAGES: Record<string, string> = {
   photo_quota_exceeded:
     'Hai finito le foto gratuite delle ultime 24 ore. Passa a Premium per continuare.',
   invite_not_found: 'Invito non valido o scaduto.',
+  push_disabled: 'Le notifiche non sono configurate su questo server.',
+  too_many_reminders: 'Hai raggiunto il numero massimo di promemoria.',
+  reminder_not_found: 'Promemoria non trovato.',
+  no_devices: 'Nessun dispositivo registrato per le notifiche.',
   not_a_member: 'Non fai parte di questa famiglia.',
   internal_error: 'Qualcosa è andato storto. Riprova.',
 }

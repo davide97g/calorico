@@ -26,6 +26,9 @@ Food data comes from two sources:
   product photos appear only on the detail pages, under **Foto** — packshot,
   ingredients and nutrition-label shots (see [Photos](#photos))
 - Weight log with trend chart and BMI
+- Push reminders at fixed times — meals, an evening check, the weekly weigh-in —
+  as many as you want, each able to stay quiet when the thing is already done;
+  see [Reminders](#reminders)
 - Targets computed with Mifflin-St Jeor + activity factor, then editable
 - Revocable sessions, rate-limited sign-in and account deletion — see
   [Accounts and sessions](#accounts-and-sessions)
@@ -81,6 +84,7 @@ talks to one origin — same as in production.
 | `npm run db:migrate`   | Apply migrations (also creates the extensions)      |
 | `npm run db:studio`    | Drizzle Studio                                      |
 | `npm run seed`         | Idempotent seed; `SEED_SKIP_OFF=true` to stay local |
+| `npm run vapid`        | Prints a VAPID key pair for the push reminders       |
 | `npm run typecheck`    | Typecheck both workspaces                           |
 | `npm run lint`         | oxlint on the web app                               |
 | `npm test`             | Tests in both workspaces — see [Tests](#tests)      |
@@ -247,6 +251,88 @@ gamed by changing it. The UI says *ultime 24 ore*.
 `DELETE /api/premium` drops back to the free tier — the only way to see the
 paywall twice — and is also a button on the profile page.
 
+## Reminders
+
+Reminders are real Web Push notifications, delivered with the app closed, and
+they live on **Profilo → Promemoria**. A user can keep as many as
+`MAX_REMINDERS_PER_USER` (12); the screen offers a suggested set to start from —
+the four meals, an evening check of the day, and a Monday-morning weigh-in — and
+every one of them is editable: time, weekdays, name, and whether it may stay
+quiet.
+
+Set the two keys plus a contact address and the feature switches on; leave any of
+them unset and it switches itself off in both directions — the scheduler never
+starts, and the client is told notifications are unavailable rather than letting
+someone arm a reminder that could never arrive.
+
+```bash
+npm run vapid          # prints the three lines below, ready to paste
+```
+
+```env
+VAPID_PUBLIC_KEY=<generated>
+VAPID_PRIVATE_KEY=<generated>
+VAPID_SUBJECT=mailto:you@yourdomain.com
+```
+
+Rotating the pair invalidates every subscription already on a phone: browsers
+hold the public key inside the subscription itself. They re-register on their next
+visit to the reminders screen, and until then they get nothing.
+
+### How a reminder goes out
+
+1. **One pass a minute**, started in `index.ts` rather than `app.ts` so the test
+   suite never ends up with a timer sending real pushes.
+2. **Postgres decides what is due.** A reminder is a wall-clock time, so the
+   query compares it against `now() at time zone profiles.timezone` — the zone
+   the browser reported when notifications were switched on, which is the only
+   moment it can be learned. No timezone arithmetic happens in Node, and the
+   process never has to agree with the database about what day it is.
+3. **A reminder may skip itself.** With *skipIfLogged* on, a meal reminder looks
+   for entries in that meal, the weigh-in reminder for today's weight, and the
+   evening check for a day already inside its calorie band. A `custom` reminder
+   always fires: nothing in the database can tell us it was handled, which is why
+   the API forces the flag off for that kind.
+4. **Then it is claimed, and only then sent.** The claim is a conditional write
+   of today's local date into `reminders.last_sent_on`, so a restart mid-window —
+   or a second API container — cannot double-notify. If nothing could be
+   delivered the claim is given back and the next pass retries.
+5. **Late is dropped.** `REMINDER_GRACE_MINUTES` (10) is how long after its time a
+   reminder may still go out, covering a deploy or a stalled pass; past that it is
+   skipped for the day, because a nudge to log lunch arriving at 17:00 is worse
+   than silence.
+
+### Devices
+
+`push_subscriptions` holds one row per browser, keyed on the endpoint — the push
+service's own name for that browser. That is what makes a re-subscribe an update
+instead of a pile of dead rows, and what moves a phone that changed account. A
+push service answering **404 or 410** is the only signal that a subscription is
+gone for good, and it deletes the row on the spot.
+
+A browser can also drop its subscription on its own, and the only symptom is
+silence. So the reminders screen shows how many devices are registered, and
+re-registers this one if the account wants reminders and has none.
+
+### iOS
+
+Safari exposes `PushManager` in a normal tab but **only delivers to a PWA added to
+the home screen**, and asking for permission in a tab burns the prompt for
+nothing. The screen detects that case and says to install first — see [PWA and
+updates](#pwa-and-updates) for the install itself.
+
+### What is in a notification
+
+The title, one line of body, and a path to open. No food names, no calories,
+nothing from the diary: the payload is encrypted end-to-end, but a notification
+also sits on a lock screen, and a reminder needs none of that to be useful.
+
+The `push` and `notificationclick` handlers live in `apps/web/public/push-sw.js`
+and are pulled into the generated worker with `workbox.importScripts`. Keeping
+them in a separate plain-JS file is what leaves the update policy in
+`src/lib/pwa.ts` untouched; nginx serves that file `no-store`, like `sw.js`
+itself, so a deploy can never leave stale handlers behind.
+
 ## Accounts and sessions
 
 Tokens are 30-day JWTs in `localStorage`. Three things keep that from being a
@@ -321,6 +407,15 @@ each other; a stranger cannot read, rotate or leave someone else's family; a
 member who left stops receiving), token revocation, the login rate limit, account
 deletion and its cascades, and the photo quota including the fake checkout.
 
+The reminder scheduler is in there too, and it needs the database for the same
+reason: "is it 13:00 for this user?" is a `now() at time zone profiles.timezone`
+comparison, and a fake would only be testing the fake. Those tests set a reminder
+to whatever time it currently is *in the user's zone*, so they pass at any hour in
+any CI region, and they pass their own sender — nothing is ever pushed. What they
+cover: the claim (a due reminder is delivered once, never twice), every skip rule,
+the grace window, the weekday filter, a released claim after a failed delivery, a
+dead subscription being dropped, and a zone that is not the server's.
+
 `.github/workflows/ci.yml` runs typecheck, lint, tests and a production build on
 every push and pull request, with Postgres as a service container. Since Dokploy
 deploys from `main`, that workflow is the only gate in front of production.
@@ -342,6 +437,8 @@ The web app installs as a standalone app. Assets live in `apps/web/public/icons`
   portrait. A device without a match just launches on the background colour.
 - The status bar follows `theme-color` (light and dark variants), and the layout
   already pads with `env(safe-area-inset-*)`.
+- Installing is also what unlocks push: Safari delivers notifications to the
+  installed app and never to a tab — see [Reminders](#reminders).
 
 ### How a deploy reaches an installed app
 
@@ -349,7 +446,7 @@ Getting a new build onto a phone takes two things: a server that never serves a
 stale worker, and a client that keeps asking.
 
 1. **Server** — `apps/web/nginx.conf` sends `Cache-Control: no-store` for
-   `/index.html`, `/sw.js` and `/manifest.webmanifest`, and
+   `/index.html`, `/sw.js`, `/push-sw.js` and `/manifest.webmanifest`, and
    `max-age=31536000, immutable` only for content-hashed files under `/assets/`
    and `workbox-*.js`. A cached `sw.js` is the one failure mode that makes a
    deploy invisible, so nothing is allowed to hold on to it.
@@ -370,7 +467,8 @@ Worth knowing:
 - `/api` is never cached by the worker — the diary always reads live data. Offline
   gets you the app shell, not the food database.
 - If you ever put a CDN in front of Dokploy (Cloudflare and friends), exclude
-  `/sw.js`, `/index.html` and `/manifest.webmanifest` from its cache too.
+  `/sw.js`, `/push-sw.js`, `/index.html` and `/manifest.webmanifest` from its
+  cache too.
 
 ### Environment variables
 
@@ -390,6 +488,11 @@ Worth knowing:
 | `VISION_TIMEOUT_MS` | `30000`                      | Vision calls are slow                        |
 | `VISION_MAX_PER_MINUTE` | `10`                     | Per-IP burst limit on the analyse route      |
 | `FREE_DAILY_PHOTO_SCANS` | `3`                     | Photos a free account may analyse per rolling 24 h |
+| `VAPID_PUBLIC_KEY` | —                            | With the private key and a subject, enables push reminders (`npm run vapid`) |
+| `VAPID_PRIVATE_KEY` | —                           | Required together with the public key         |
+| `VAPID_SUBJECT`   | —                              | Contact for the push services: `mailto:` or an https URL |
+| `MAX_REMINDERS_PER_USER` | `12`                    | Reminders one account may keep                |
+| `REMINDER_GRACE_MINUTES` | `10`                    | How late a reminder may still be delivered    |
 | `SENTRY_DSN`      | —                              | Unset: the SDK is never initialised          |
 | `SENTRY_ENVIRONMENT` | `NODE_ENV`                  | Tag on every event                           |
 | `SENTRY_TRACES_SAMPLE_RATE` | `0`                  | `0` sends errors only                        |
@@ -410,6 +513,14 @@ Worth knowing:
 - Diary days are plain `date` columns and always derived from **local** time. Using
   `toISOString()` would file "today" under yesterday for anyone east of Greenwich
   after midnight UTC.
+- `reminders.at_minutes` is minutes since local midnight, not a `time` column:
+  the scheduler compares it against a minute-of-day that Postgres computes from
+  `profiles.timezone`, and integer minutes is what that comparison wants on both
+  sides. `reminders.last_sent_on` is a local `date` for the same reason — it is
+  the once-a-day lock, and it has to mean the user's day.
+- `push_subscriptions.endpoint` is the natural key, not `user_id`: it is the push
+  service's own name for one browser, so a re-subscribe updates the row and a
+  phone that changed account moves with it.
 
 ## Data quality
 

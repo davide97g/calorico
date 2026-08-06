@@ -25,6 +25,7 @@ import { groceryRoutes } from './routes/grocery.js'
 import { visionRoutes } from './routes/vision.js'
 import { familyRoutes } from './routes/families.js'
 import { scanRoutes } from './routes/scans.js'
+import { notificationRoutes } from './routes/notifications.js'
 
 declare module '@fastify/jwt' {
   /** `ver` is the users.token_version the token was signed with. */
@@ -164,6 +165,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(groceryRoutes, { prefix: '/api/grocery' })
   await app.register(familyRoutes, { prefix: '/api/families' })
   await app.register(scanRoutes, { prefix: '/api/scans' })
+  await app.register(notificationRoutes, { prefix: '/api/notifications' })
   await app.register(visionRoutes, { prefix: '/api/vision' })
   await app.register(premiumRoutes, { prefix: '/api/premium' })
 

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { currentMeal, progress, signed, truncate } from './format'
+import {
+  clockTime,
+  currentMeal,
+  parseClockTime,
+  progress,
+  signed,
+  truncate,
+  weekdaysLabel,
+} from './format'
 
 describe('currentMeal', () => {
   it('picks the meal from the hour', () => {
@@ -50,5 +58,46 @@ describe('truncate', () => {
     const short = truncate(long, 10)
     expect(short.length).toBeLessThanOrEqual(11)
     expect(short).not.toBe(long)
+  })
+})
+
+describe('clockTime', () => {
+  it('renders minutes since midnight the way a time input wants', () => {
+    expect(clockTime(0)).toBe('00:00')
+    expect(clockTime(780)).toBe('13:00')
+    expect(clockTime(1290)).toBe('21:30')
+  })
+
+  it('clamps instead of rolling over into the next day', () => {
+    expect(clockTime(-5)).toBe('00:00')
+    expect(clockTime(2000)).toBe('23:59')
+  })
+})
+
+describe('parseClockTime', () => {
+  it('reads a time field', () => {
+    expect(parseClockTime('07:30')).toBe(450)
+    expect(parseClockTime('23:59')).toBe(1439)
+  })
+
+  /** A half-typed or cleared field must not become minute zero. */
+  it('rejects anything that is not a real time', () => {
+    expect(parseClockTime('')).toBeNull()
+    expect(parseClockTime('7')).toBeNull()
+    expect(parseClockTime('24:00')).toBeNull()
+    expect(parseClockTime('12:60')).toBeNull()
+  })
+})
+
+describe('weekdaysLabel', () => {
+  it('names the sets worth naming', () => {
+    expect(weekdaysLabel([0, 1, 2, 3, 4, 5, 6])).toBe('Tutti i giorni')
+    expect(weekdaysLabel([1, 2, 3, 4, 5])).toBe('Da lunedì a venerdì')
+    expect(weekdaysLabel([0, 6])).toBe('Sabato e domenica')
+  })
+
+  /** Otherwise the list reads Monday first, not Sunday first like the numbers. */
+  it('lists the rest starting from Monday', () => {
+    expect(weekdaysLabel([0, 1, 3])).toBe('lun, mer, dom')
   })
 })

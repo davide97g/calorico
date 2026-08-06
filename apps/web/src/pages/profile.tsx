@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
 import {
   ArrowLeft,
+  BellRing,
   LogOut,
   Monitor,
   Moon,
@@ -33,6 +34,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useFamilies } from '@/hooks/use-family'
 import { useSuggestedTargets, useUpdateProfile } from '@/hooks/use-diary'
 import { useCancelPremium, usePremium } from '@/hooks/use-premium'
+import { useNotificationSettings } from '@/hooks/use-notifications'
 import { api } from '@/lib/api'
 import {
   ACTIVITY_HINTS,
@@ -53,6 +55,7 @@ export default function ProfilePage() {
   const families = useFamilies()
   const premium = usePremium()
   const cancelPremium = useCancelPremium()
+  const notifications = useNotificationSettings()
   const [saving, setSaving] = useState(false)
   const [paywall, setPaywall] = useState(false)
   const [signingOutAll, setSigningOutAll] = useState(false)
@@ -143,6 +146,8 @@ export default function ProfilePage() {
   }
 
   const quota = premium.data?.photoQuota
+  const activeReminders =
+    notifications.data?.reminders.filter((r) => r.enabled).length ?? 0
 
   return (
     <AppShell>
@@ -210,6 +215,15 @@ export default function ProfilePage() {
             diario e il peso restano solo tuoi.
           </p>
         )}
+      </Panel>
+
+      <Panel className="mt-3">
+        <PanelHeader icon={<BellRing />} title="Promemoria" to="/notifications" />
+        <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
+          {notifications.data?.enabled
+            ? `${activeReminders} ${activeReminders === 1 ? 'promemoria attivo' : 'promemoria attivi'}: pasti, controllo serale, pesata.`
+            : 'Avvisi a orari fissi per registrare i pasti, controllare la giornata e pesarti.'}
+        </p>
       </Panel>
 
       <Panel className="mt-3">

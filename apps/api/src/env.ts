@@ -88,6 +88,38 @@ const schema = z.object({
     .default(1024 * 1024),
   /** Vision calls are slow; well above the 8s we allow Open Food Facts. */
   VISION_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+
+  /**
+   * Web Push. The two keys and the contact subject are required together: with
+   * any of them missing the reminder scheduler never starts and the client is
+   * told notifications are unavailable, rather than letting users arm reminders
+   * that could never be delivered. Generate a pair with `npm run vapid`.
+   *
+   * The private key signs every push; rotating it invalidates nothing stored
+   * here, but browsers hold the public key inside their subscription, so a
+   * rotation means every subscription has to be created again.
+   */
+  VAPID_PUBLIC_KEY: blankToUndefined(z.string().optional()),
+  VAPID_PRIVATE_KEY: blankToUndefined(z.string().optional()),
+  /** Contact for the push services, `mailto:` or an https URL. */
+  VAPID_SUBJECT: blankToUndefined(
+    z
+      .string()
+      .regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT must be mailto: or https://')
+      .optional(),
+  ),
+  /**
+   * How many reminders one account may keep. The scheduler walks every enabled
+   * reminder every minute, so this is the bound on that walk — generous for a
+   * person, closed for a script.
+   */
+  MAX_REMINDERS_PER_USER: z.coerce.number().int().min(1).max(50).default(12),
+  /**
+   * How late a reminder may still go out. It covers a restart, a deploy or a
+   * clock that drifted across the minute the reminder was due; past it the
+   * notification is stale enough to be noise and is dropped for the day.
+   */
+  REMINDER_GRACE_MINUTES: z.coerce.number().int().min(1).max(120).default(10),
 })
 
 const parsed = schema.safeParse(process.env)
@@ -124,6 +156,16 @@ const vision =
       }
     : null
 
+/** Present only when both keys and a contact subject are configured. */
+const push =
+  d.VAPID_PUBLIC_KEY && d.VAPID_PRIVATE_KEY && d.VAPID_SUBJECT
+    ? {
+        publicKey: d.VAPID_PUBLIC_KEY,
+        privateKey: d.VAPID_PRIVATE_KEY,
+        subject: d.VAPID_SUBJECT,
+      }
+    : null
+
 export const env = {
   ...d,
   corsOrigins: d.CORS_ORIGINS.split(',')
@@ -133,4 +175,5 @@ export const env = {
   isTest: d.NODE_ENV === 'test',
   sentry,
   vision,
+  push,
 }

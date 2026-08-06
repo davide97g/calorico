@@ -28,6 +28,7 @@ const PhotoReviewPage = lazy(() => import('@/pages/photo-review'))
 const FamilyPage = lazy(() => import('@/pages/family'))
 const JoinPage = lazy(() => import('@/pages/join'))
 const ScansPage = lazy(() => import('@/pages/scans'))
+const NotificationsPage = lazy(() => import('@/pages/notifications'))
 
 function FullScreenLoader() {
   return (
@@ -176,6 +177,14 @@ export default function App() {
           element={
             <RequireAuth>
               <ProfilePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <RequireAuth>
+              <NotificationsPage />
             </RequireAuth>
           }
         />

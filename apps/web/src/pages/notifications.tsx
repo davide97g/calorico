@@ -1,0 +1,482 @@
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  ArrowLeft,
+  BellRing,
+  Clock,
+  Globe2,
+  Plus,
+  Send,
+  Smartphone,
+  TriangleAlert,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { AppShell } from '@/components/layout/app-shell'
+import { ReminderRow } from '@/components/notifications/reminder-row'
+import { Panel, PanelHeader } from '@/components/ui/panel'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  browserTimezone,
+  pushErrorMessage,
+  useApplyDefaultReminders,
+  useCreateReminder,
+  useDeleteReminder,
+  useDisableNotifications,
+  useEnableNotifications,
+  useNotificationSettings,
+  useRepairSubscription,
+  useTestNotification,
+  useUpdateNotificationSettings,
+  useUpdateReminder,
+} from '@/hooks/use-notifications'
+import { ApiError } from '@/lib/api'
+import { needsInstallFirst, pushPermission, pushSupported } from '@/lib/push'
+import { clockTime, parseClockTime, weekdaysLabel } from '@/lib/format'
+import type { ReminderPreset } from '@/lib/types'
+
+/**
+ * Reminder settings.
+ *
+ * The screen has to be honest about a stack of things that can silently stop a
+ * notification from ever arriving — no VAPID keys on the server, a browser that
+ * has no push at all, an iPhone that never installed the app, a permission the
+ * user denied months ago, an account whose only device unsubscribed itself. Each
+ * one gets said out loud, because the alternative is a switch that looks on and
+ * a phone that stays quiet.
+ */
+export default function NotificationsPage() {
+  const navigate = useNavigate()
+  const settings = useNotificationSettings()
+  const enable = useEnableNotifications()
+  const disable = useDisableNotifications()
+  const repair = useRepairSubscription()
+  const updateSettings = useUpdateNotificationSettings()
+  const createReminder = useCreateReminder()
+  const updateReminder = useUpdateReminder()
+  const deleteReminder = useDeleteReminder()
+  const applyDefaults = useApplyDefaultReminders()
+  const test = useTestNotification()
+
+  const data = settings.data
+  const publicKey = data?.push.publicKey ?? null
+  const repaired = useRef(false)
+
+  /**
+   * A browser can drop its push subscription on its own, and the account keeps
+   * looking armed. Opening this screen is the natural moment to notice and fix
+   * it, once per visit.
+   */
+  useEffect(() => {
+    if (repaired.current) return
+    if (!data?.enabled || !publicKey || data.devices > 0) return
+    repaired.current = true
+    repair.mutate(publicKey)
+  }, [data?.enabled, data?.devices, publicKey, repair])
+
+  const handleToggle = (next: boolean) => {
+    if (!next) {
+      disable.mutate(undefined, {
+        onSuccess: () => toast.success('Promemoria disattivati'),
+        onError: () => toast.error('Operazione non riuscita'),
+      })
+      return
+    }
+    if (!publicKey) {
+      toast.error('Le notifiche non sono configurate su questo server.')
+      return
+    }
+    enable.mutate(publicKey, {
+      onSuccess: () => {
+        toast.success('Notifiche attive su questo dispositivo')
+        // A first-time user with no reminders would arm notifications and get
+        // nothing, so the suggested set is offered right here.
+        if ((data?.reminders.length ?? 0) === 0) {
+          applyDefaults.mutate(undefined, {
+            onSuccess: ({ created }) => {
+              if (created > 0) toast.success('Aggiunti i promemoria consigliati')
+            },
+          })
+        }
+      },
+      onError: (error) => toast.error(pushErrorMessage(error)),
+    })
+  }
+
+  const handleAddPreset = (preset: ReminderPreset) => {
+    createReminder.mutate(
+      {
+        kind: preset.kind,
+        meal: preset.meal,
+        label: preset.label,
+        atMinutes: preset.atMinutes,
+        weekdays: preset.weekdays,
+        skipIfLogged: preset.skipIfLogged,
+      },
+      {
+        onSuccess: () => toast.success(`${preset.label} aggiunto`),
+        onError: (error) =>
+          toast.error(
+            error instanceof ApiError && error.code === 'too_many_reminders'
+              ? 'Hai raggiunto il numero massimo di promemoria.'
+              : 'Aggiunta non riuscita',
+          ),
+      },
+    )
+  }
+
+  if (settings.isLoading || !data) {
+    return (
+      <AppShell>
+        <header className="mb-3 flex items-center gap-2">
+          <BackButton onClick={() => navigate(-1)} />
+          <h1 className="text-[17px] font-bold">Promemoria</h1>
+        </header>
+        <Skeleton className="h-28 rounded-[28px]" />
+        <Skeleton className="mt-3 h-40 rounded-[28px]" />
+      </AppShell>
+    )
+  }
+
+  const serverReady = data.push.supported
+  const browserReady = pushSupported()
+  const permission = browserReady ? pushPermission() : 'denied'
+  const installFirst = browserReady && needsInstallFirst()
+  const canArm = serverReady && browserReady && !installFirst
+  const savedTimezone = data.timezone
+  const localTimezone = browserTimezone()
+  const usedPresetKeys = new Set(
+    data.reminders.map((r) => `${r.kind}:${r.meal ?? ''}`),
+  )
+  const suggestions = data.presets.filter(
+    (preset) => !usedPresetKeys.has(`${preset.kind}:${preset.meal ?? ''}`),
+  )
+  const full = data.reminders.length >= data.maxReminders
+
+  return (
+    <AppShell>
+      <header className="mb-3 flex items-center gap-2">
+        <BackButton onClick={() => navigate(-1)} />
+        <h1 className="text-[17px] font-bold">Promemoria</h1>
+      </header>
+
+      <Panel>
+        <PanelHeader
+          icon={<BellRing />}
+          title="Notifiche"
+          action={
+            <Switch
+              checked={data.enabled}
+              disabled={!canArm || enable.isPending || disable.isPending}
+              onCheckedChange={handleToggle}
+              aria-label="Attiva le notifiche"
+            />
+          }
+        />
+        <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
+          Promemoria a orari fissi, inviati anche ad app chiusa. Niente cibo né
+          numeri nel testo: solo il nome del promemoria.
+        </p>
+
+        {!serverReady ? (
+          <Notice>
+            Questo server non ha le chiavi push configurate, quindi le notifiche
+            non possono essere inviate.
+          </Notice>
+        ) : !browserReady ? (
+          <Notice>Questo browser non supporta le notifiche push.</Notice>
+        ) : installFirst ? (
+          <Notice>
+            Su iPhone e iPad aggiungi Calorico alla schermata Home (Condividi →
+            Aggiungi a Home): Safari consegna le notifiche solo all’app
+            installata.
+          </Notice>
+        ) : permission === 'denied' ? (
+          <Notice>
+            Le notifiche sono bloccate per questo sito. Riattivale dalle
+            impostazioni del browser, poi torna qui.
+          </Notice>
+        ) : null}
+
+        {data.enabled ? (
+          <>
+            <div className="bg-muted mt-3 flex items-center gap-2.5 rounded-2xl p-3">
+              <Smartphone className="text-muted-foreground size-4 shrink-0" />
+              <p className="min-w-0 flex-1 text-[11px] leading-relaxed">
+                {data.devices === 0
+                  ? 'Nessun dispositivo registrato: i promemoria non possono arrivare.'
+                  : `${data.devices} ${data.devices === 1 ? 'dispositivo registrato' : 'dispositivi registrati'}.`}
+              </p>
+              {data.devices === 0 && publicKey ? (
+                <Button
+                  variant="secondary"
+                  className="bg-card h-9 shrink-0 rounded-full px-3 text-xs"
+                  onClick={() =>
+                    enable.mutate(publicKey, {
+                      onSuccess: () => toast.success('Dispositivo registrato'),
+                      onError: (error) => toast.error(pushErrorMessage(error)),
+                    })
+                  }
+                  disabled={enable.isPending}
+                >
+                  Registra
+                </Button>
+              ) : null}
+            </div>
+
+            {savedTimezone !== localTimezone ? (
+              <div className="bg-muted mt-2 flex items-center gap-2.5 rounded-2xl p-3">
+                <Globe2 className="text-muted-foreground size-4 shrink-0" />
+                <p className="min-w-0 flex-1 text-[11px] leading-relaxed">
+                  Gli orari sono letti su <strong>{savedTimezone}</strong>, ma
+                  questo dispositivo è su <strong>{localTimezone}</strong>.
+                </p>
+                <Button
+                  variant="secondary"
+                  className="bg-card h-9 shrink-0 rounded-full px-3 text-xs"
+                  onClick={() =>
+                    updateSettings.mutate(
+                      { timezone: localTimezone },
+                      {
+                        onSuccess: () => toast.success('Fuso orario aggiornato'),
+                        onError: () => toast.error('Aggiornamento non riuscito'),
+                      },
+                    )
+                  }
+                  disabled={updateSettings.isPending}
+                >
+                  Usa questo
+                </Button>
+              </div>
+            ) : null}
+
+            <Button
+              variant="secondary"
+              className="mt-3 w-full rounded-full"
+              onClick={() =>
+                test.mutate(undefined, {
+                  onSuccess: () => toast.success('Notifica di prova inviata'),
+                  onError: (error) =>
+                    toast.error(
+                      error instanceof ApiError && error.code === 'no_devices'
+                        ? 'Nessun dispositivo registrato per questo account.'
+                        : 'Invio non riuscito',
+                    ),
+                })
+              }
+              disabled={test.isPending}
+            >
+              <Send className="size-4" />
+              Invia una notifica di prova
+            </Button>
+          </>
+        ) : null}
+      </Panel>
+
+      {suggestions.length > 0 && !full ? (
+        <Panel className="mt-3">
+          <PanelHeader
+            title="Consigliati"
+            action={
+              data.reminders.length === 0 ? (
+                <Button
+                  variant="secondary"
+                  className="bg-muted h-9 rounded-full px-3 text-xs"
+                  onClick={() =>
+                    applyDefaults.mutate(undefined, {
+                      onSuccess: ({ created }) =>
+                        toast.success(
+                          created > 0
+                            ? `${created} promemoria aggiunti`
+                            : 'Li hai già tutti',
+                        ),
+                      onError: () => toast.error('Aggiunta non riuscita'),
+                    })
+                  }
+                  disabled={applyDefaults.isPending}
+                >
+                  Aggiungi tutti
+                </Button>
+              ) : undefined
+            }
+          />
+          <ul className="mt-3 flex flex-col gap-2">
+            {suggestions.map((preset) => (
+              <li
+                key={preset.key}
+                className="bg-muted flex items-center gap-3 rounded-2xl p-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold">
+                    {preset.label} · {clockTime(preset.atMinutes)}
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
+                    {weekdaysLabel(preset.weekdays)}. {preset.description}
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="bg-card size-9 shrink-0 rounded-full"
+                  onClick={() => handleAddPreset(preset)}
+                  disabled={createReminder.isPending}
+                  aria-label={`Aggiungi ${preset.label}`}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      ) : null}
+
+      <Panel className="mt-3">
+        <PanelHeader
+          icon={<Clock />}
+          title="I tuoi promemoria"
+          action={
+            <span className="text-muted-foreground text-[11px]">
+              {data.reminders.length}/{data.maxReminders}
+            </span>
+          }
+        />
+        {data.reminders.length === 0 ? (
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+            Nessun promemoria. Parti dai consigliati qui sopra, oppure creane uno
+            tuo.
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-col">
+            {data.reminders.map((reminder) => (
+              <ReminderRow
+                key={reminder.id}
+                reminder={reminder}
+                onChange={(patch) =>
+                  updateReminder.mutate(
+                    { id: reminder.id, ...patch },
+                    { onError: () => toast.error('Modifica non riuscita') },
+                  )
+                }
+                onDelete={() =>
+                  deleteReminder.mutate(reminder.id, {
+                    onSuccess: () => toast.success('Promemoria eliminato'),
+                    onError: () => toast.error('Eliminazione non riuscita'),
+                  })
+                }
+              />
+            ))}
+          </ul>
+        )}
+        {!data.enabled && data.reminders.length > 0 ? (
+          <p className="text-muted-foreground mt-3 text-[11px] leading-relaxed">
+            Le notifiche sono spente: questi promemoria restano salvati ma non
+            vengono inviati.
+          </p>
+        ) : null}
+      </Panel>
+
+      <CustomReminderForm
+        disabled={full || createReminder.isPending}
+        full={full}
+        onCreate={(label, atMinutes) =>
+          createReminder.mutate(
+            { kind: 'custom', label, atMinutes },
+            {
+              onSuccess: () => toast.success('Promemoria creato'),
+              onError: () => toast.error('Creazione non riuscita'),
+            },
+          )
+        }
+      />
+    </AppShell>
+  )
+}
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button
+      variant="secondary"
+      size="icon"
+      className="bg-card shadow-soft size-10 shrink-0 rounded-full"
+      onClick={onClick}
+      aria-label="Torna indietro"
+    >
+      <ArrowLeft className="size-4" />
+    </Button>
+  )
+}
+
+function Notice({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="bg-muted mt-3 flex items-start gap-2.5 rounded-2xl p-3">
+      <TriangleAlert className="text-muted-foreground mt-px size-4 shrink-0" />
+      <p className="text-[11px] leading-relaxed">{children}</p>
+    </div>
+  )
+}
+
+/**
+ * A reminder in the user's own words. Always fires: unlike a meal or a weigh-in,
+ * nothing in the database can tell us the thing was done.
+ */
+function CustomReminderForm({
+  onCreate,
+  disabled,
+  full,
+}: {
+  onCreate: (label: string, atMinutes: number) => void
+  disabled: boolean
+  full: boolean
+}) {
+  const [label, setLabel] = useState('')
+  const [time, setTime] = useState('12:00')
+
+  const minutes = parseClockTime(time)
+  const canSubmit = label.trim().length > 0 && minutes !== null && !disabled
+
+  return (
+    <Panel className="mt-3">
+      <PanelHeader title="Promemoria personale" />
+      {full ? (
+        <p className="text-muted-foreground mt-2 text-sm">
+          Hai raggiunto il numero massimo di promemoria. Eliminane uno per
+          aggiungerne un altro.
+        </p>
+      ) : (
+        <form
+          className="mt-3 flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!canSubmit || minutes === null) return
+            onCreate(label.trim(), minutes)
+            setLabel('')
+          }}
+        >
+          <div className="flex gap-2">
+            <Input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              aria-label="Ora"
+              className="tabular h-11 w-[108px] shrink-0 rounded-2xl font-semibold"
+            />
+            <Input
+              value={label}
+              maxLength={60}
+              placeholder="Bevi un bicchiere d'acqua"
+              onChange={(e) => setLabel(e.target.value)}
+              aria-label="Testo del promemoria"
+              className="h-11 min-w-0 flex-1 rounded-2xl"
+            />
+          </div>
+          <Button type="submit" className="w-full rounded-full" disabled={!canSubmit}>
+            <Plus className="size-4" />
+            Aggiungi promemoria
+          </Button>
+        </form>
+      )}
+    </Panel>
+  )
+}

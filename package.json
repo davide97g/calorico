@@ -18,6 +18,7 @@
     "db:migrate": "npm run db:migrate -w @calorico/api",
     "db:studio": "npm run db:studio -w @calorico/api",
     "seed": "npm run seed -w @calorico/api",
+    "vapid": "npm run vapid -w @calorico/api",
     "import:off": "npm run import:off -w @calorico/api",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:down": "docker compose -f docker-compose.dev.yml down"

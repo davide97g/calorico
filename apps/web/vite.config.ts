@@ -88,10 +88,16 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Push and notification-click handlers, appended to the generated
+        // worker. Kept as a public/ file so the workbox build stays generateSW —
+        // see public/push-sw.js.
+        importScripts: ['/push-sw.js'],
         // The splash screens are big and only ever read by iOS at launch time,
         // so they stay out of the precache.
         globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2}'],
-        globIgnores: ['**/splash/**'],
+        // push-sw.js is fetched by importScripts, not by the page: precaching it
+        // would only keep a second, staler copy of the same file.
+        globIgnores: ['**/splash/**', 'push-sw.js'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,

@@ -21,3 +21,13 @@ process.env.VISION_MODEL = 'test'
 // what they are testing, and every request here comes from the same address.
 process.env.VISION_MAX_PER_MINUTE = '10000'
 process.env.SENTRY_DSN = ''
+/**
+ * A throwaway VAPID pair, so the notification routes are switched on. Valid
+ * keys are needed because web-push validates their shape, but nothing is ever
+ * sent: the scheduler tests pass their own sender, and the routes that would
+ * deliver are only exercised with no device registered.
+ */
+process.env.VAPID_PUBLIC_KEY =
+  'BKDKWmDhb6V_8Ura9KCL-sgYFXv9YsFGyRd4dOwnW2VzY4TRkxy--JZ2o-dAJmVmLOjNjT3xuB1t8-UCkmRREVg'
+process.env.VAPID_PRIVATE_KEY = '35F5-YcVigqPmNmg1eZKr3b41lCB4N6tpYhJezbxgAo'
+process.env.VAPID_SUBJECT = 'mailto:test@calorico.test'

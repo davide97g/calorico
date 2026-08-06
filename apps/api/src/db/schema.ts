@@ -42,6 +42,21 @@ export const scanKindEnum = pgEnum('scan_kind', [
   'barcode', // product scanned from its EAN/UPC
   'photo', // meal photo sent to the vision provider
 ])
+/**
+ * What a reminder is about. The kind is what decides whether the reminder can
+ * skip itself — see lib/reminders/due.ts — and which copy it sends:
+ *
+ *  - `meal`   pairs with the `meal` column and looks at that meal's entries
+ *  - `review` looks at the day's total against the lower end of the target band
+ *  - `weight` looks for a weigh-in on that day
+ *  - `custom` is a user's own text and never skips: nothing tells us it is done
+ */
+export const reminderKindEnum = pgEnum('reminder_kind', [
+  'meal',
+  'review',
+  'weight',
+  'custom',
+])
 
 export const users = pgTable(
   'users',
@@ -90,6 +105,20 @@ export const profiles = pgTable('profiles', {
   targetKcalMin: integer('target_kcal_min').notNull().default(1900),
   targetKcalMax: integer('target_kcal_max').notNull().default(2100),
   locale: text('locale').notNull().default('it'),
+  /**
+   * IANA zone the reminders are read in, sent by the browser when notifications
+   * are switched on. A reminder is a wall-clock time ("13:00"), so without this
+   * the server has no way to know when 13:00 is — the photo quota gets away with
+   * a rolling window precisely because it never has to.
+   */
+  timezone: text('timezone').notNull().default('Europe/Rome'),
+  /**
+   * Master switch. Off means the scheduler skips this user entirely, and their
+   * reminders keep their own settings instead of having to be deleted.
+   */
+  notificationsEnabled: boolean('notifications_enabled')
+    .notNull()
+    .default(false),
   /**
    * Where new shared rows (grocery items, scans) are written. Reads are merged
    * across every family the user belongs to, but a write needs one target.
@@ -390,6 +419,96 @@ export const scanEvents = pgTable(
   ],
 )
 
+/**
+ * One row per browser that accepted notifications. The endpoint is the push
+ * service's own URL for that browser and is globally unique, which is what makes
+ * it the natural key: the same browser re-subscribing must update the row rather
+ * than pile up dead ones, and a phone handed to another account has to move.
+ *
+ * Rows are deleted, not flagged, the moment a push service answers 404/410 —
+ * that is the only signal we get that a subscription is gone for good.
+ */
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull(),
+    /** Client public key and auth secret; both required to encrypt a payload. */
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    /** Only to tell devices apart in the UI. Never parsed. */
+    userAgent: text('user_agent'),
+    lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('push_subscriptions_endpoint_unique').on(t.endpoint),
+    index('push_subscriptions_user_idx').on(t.userId),
+  ],
+)
+
+/**
+ * A wall-clock reminder, as many per user as they want (capped by
+ * MAX_REMINDERS_PER_USER so one account cannot make the scheduler unbounded).
+ *
+ * The time is stored as minutes since local midnight rather than a `time`
+ * column: the scheduler compares it against the user's local clock, computed by
+ * Postgres from `profiles.timezone`, and integer minutes is what that comparison
+ * wants on both sides.
+ */
+export const reminders = pgTable(
+  'reminders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    kind: reminderKindEnum('kind').notNull().default('custom'),
+    /** Set only for `kind = 'meal'`; it is the meal the skip check looks at. */
+    meal: mealEnum('meal'),
+    /** Shown in the notification and in the list. Editable, preset-seeded. */
+    label: text('label').notNull(),
+    /** Minutes since local midnight, 0–1439. 13:00 is 780. */
+    atMinutes: integer('at_minutes').notNull(),
+    /** Days it fires on, Postgres `extract(dow)` convention: 0 = Sunday. */
+    weekdays: integer('weekdays')
+      .array()
+      .notNull()
+      .default([0, 1, 2, 3, 4, 5, 6]),
+    /**
+     * Stay quiet when the thing being nudged is already done — lunch logged,
+     * the day already at target, today's weight on file. Meaningless for
+     * `custom`, which is why the routes force it false there.
+     */
+    skipIfLogged: boolean('skip_if_logged').notNull().default(true),
+    enabled: boolean('enabled').notNull().default(true),
+    /**
+     * The local day this reminder last went out. It is the once-a-day lock: the
+     * scheduler claims a reminder by writing today's date here, so a restart
+     * inside the grace window cannot send twice.
+     */
+    lastSentOn: date('last_sent_on'),
+    lastSentAt: timestamp('last_sent_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('reminders_user_idx').on(t.userId),
+    // The scheduler's own lookup: enabled rows, ordered by nothing in
+    // particular, filtered on the day they last fired.
+    index('reminders_enabled_idx').on(t.enabled, t.atMinutes),
+  ],
+)
+
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(profiles, {
     fields: [users.id],
@@ -400,7 +519,26 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   groceryItems: many(groceryItems),
   memberships: many(familyMembers),
   scans: many(scanEvents),
+  reminders: many(reminders),
+  pushSubscriptions: many(pushSubscriptions),
 }))
+
+export const remindersRelations = relations(reminders, ({ one }) => ({
+  user: one(users, {
+    fields: [reminders.userId],
+    references: [users.id],
+  }),
+}))
+
+export const pushSubscriptionsRelations = relations(
+  pushSubscriptions,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [pushSubscriptions.userId],
+      references: [users.id],
+    }),
+  }),
+)
 
 export const familiesRelations = relations(families, ({ many }) => ({
   members: many(familyMembers),
@@ -475,3 +613,6 @@ export type FamilyMember = typeof familyMembers.$inferSelect
 export type FamilyInvite = typeof familyInvites.$inferSelect
 export type ScanEvent = typeof scanEvents.$inferSelect
 export type NewScanEvent = typeof scanEvents.$inferInsert
+export type Reminder = typeof reminders.$inferSelect
+export type NewReminder = typeof reminders.$inferInsert
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect
