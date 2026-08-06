@@ -4,6 +4,8 @@ import {
   bmr,
   dailyTargets,
   deriveKcal,
+  leanBodyMassKg,
+  proteinRecommendation,
   scaleNutriments,
   tdee,
 } from './nutrition.js'
@@ -65,8 +67,8 @@ describe('dailyTargets', () => {
     expect(t.targetKcal - t.targetKcalMin).toBe(150)
   })
 
-  it('anchors protein to bodyweight, higher when cutting', () => {
-    expect(dailyTargets({ ...base, goal: 'maintain' }).targetProteinG).toBe(136)
+  it('anchors protein to lean mass, higher when cutting', () => {
+    expect(dailyTargets({ ...base, goal: 'maintain' }).targetProteinG).toBe(135)
     expect(dailyTargets({ ...base, goal: 'lose' }).targetProteinG).toBe(160)
   })
 
@@ -76,26 +78,105 @@ describe('dailyTargets', () => {
   })
 
   /**
-   * The regression this guards: protein is per kilo and fat is a share of
-   * calories, so a heavy person on a deep cut can have both eat the whole
-   * budget. Carbs must not go negative.
+   * The regression this guards: protein is per kilo of lean mass and fat is a
+   * share of calories, so a heavy person on a deep cut can have both eat most
+   * of the budget. Carbs must not go negative.
    */
-  it('floors carbs at 50 g when protein and fat use up the budget', () => {
-    const t = dailyTargets({
-      sex: 'female',
-      weightKg: 120,
-      heightCm: 150,
-      age: 70,
-      activityLevel: 'sedentary',
-      goal: 'lose',
-    })
-    expect(t.targetCarbsG).toBe(50)
+  it('never lets protein and fat push carbs below the 50 g floor', () => {
+    const extremes = [
+      { sex: 'female' as const, weightKg: 120, heightCm: 150, age: 70 },
+      { sex: 'male' as const, weightKg: 150, heightCm: 160, age: 25 },
+      { sex: 'female' as const, weightKg: 45, heightCm: 150, age: 20 },
+    ]
+    for (const body of extremes) {
+      const t = dailyTargets({
+        ...body,
+        activityLevel: 'sedentary',
+        goal: 'lose',
+      })
+      expect(t.targetCarbsG).toBeGreaterThanOrEqual(50)
+    }
   })
 
   it('never hands back a macro that is not a whole number', () => {
     const t = dailyTargets({ ...base, goal: 'lose' })
     for (const value of [t.targetProteinG, t.targetCarbsG, t.targetFatG]) {
       expect(Number.isInteger(value)).toBe(true)
+    }
+  })
+})
+
+describe('proteinRecommendation', () => {
+  const base = {
+    weightKg: 70,
+    heightCm: 170,
+    age: 30,
+    activityLevel: 'moderate' as const,
+    goal: 'maintain' as const,
+  }
+
+  it('asks less of a woman than of a man at the same size', () => {
+    const male = proteinRecommendation({ ...base, sex: 'male' })
+    const female = proteinRecommendation({ ...base, sex: 'female' })
+    expect(female.proteinG).toBeLessThan(male.proteinG)
+  })
+
+  it('stays inside the 1.2–2.4 g/kg bodyweight band', () => {
+    for (const sex of ['male', 'female'] as const) {
+      for (const goal of ['lose', 'maintain', 'gain'] as const) {
+        for (const activityLevel of [
+          'sedentary',
+          'light',
+          'moderate',
+          'active',
+          'very_active',
+        ] as const) {
+          const r = proteinRecommendation({ ...base, sex, goal, activityLevel })
+          expect(r.perKg).toBeGreaterThanOrEqual(1.2)
+          expect(r.perKg).toBeLessThanOrEqual(2.4)
+        }
+      }
+    }
+  })
+
+  it('raises the floor to 1.2 g/kg from 65', () => {
+    const sedentary = {
+      ...base,
+      sex: 'female' as const,
+      weightKg: 90,
+      heightCm: 158,
+      activityLevel: 'sedentary' as const,
+    }
+    const older = proteinRecommendation({ ...sedentary, age: 70 })
+    expect(older.proteinG).toBe(Math.round(90 * 1.2))
+    expect(
+      proteinRecommendation({ ...sedentary, age: 40 }).proteinG,
+    ).toBeLessThan(older.proteinG)
+  })
+
+  it('asks more when cutting and when training hard', () => {
+    const maintain = proteinRecommendation({ ...base, sex: 'male' })
+    const cutting = proteinRecommendation({ ...base, sex: 'male', goal: 'lose' })
+    const training = proteinRecommendation({
+      ...base,
+      sex: 'male',
+      activityLevel: 'very_active',
+    })
+    expect(cutting.proteinG).toBeGreaterThan(maintain.proteinG)
+    expect(training.proteinG).toBeGreaterThan(maintain.proteinG)
+  })
+})
+
+describe('leanBodyMassKg', () => {
+  it('never leaves the plausible share of bodyweight', () => {
+    for (const sex of ['male', 'female'] as const) {
+      for (const weightKg of [40, 70, 120, 200]) {
+        for (const heightCm of [145, 170, 200]) {
+          const lbm = leanBodyMassKg({ sex, weightKg, heightCm })
+          expect(lbm).toBeGreaterThanOrEqual(weightKg * 0.4)
+          expect(lbm).toBeLessThanOrEqual(weightKg * 0.85)
+        }
+      }
     }
   })
 })

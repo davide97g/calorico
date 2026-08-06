@@ -15,6 +15,7 @@ import {
   ACTIVITY_HINTS,
   ACTIVITY_LABELS,
   GOAL_LABELS,
+  SEX_LABELS,
   kcal,
 } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -105,7 +106,7 @@ export default function OnboardingPage() {
         <PanelHeader title="Chi sei" />
         <div className="mt-3 flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2">
-            {(['male', 'female'] as const).map((s) => (
+            {(Object.keys(SEX_LABELS) as Sex[]).map((s) => (
               <button
                 key={s}
                 type="button"
@@ -117,7 +118,7 @@ export default function OnboardingPage() {
                     : 'bg-secondary text-secondary-foreground',
                 )}
               >
-                {s === 'male' ? 'Uomo' : 'Donna'}
+                {SEX_LABELS[s]}
               </button>
             ))}
           </div>

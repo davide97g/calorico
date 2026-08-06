@@ -40,9 +40,81 @@ const GOAL_DELTA: Record<Goal, number> = {
 }
 
 /**
- * Daily targets. Protein is anchored to bodyweight (a percentage split gives
- * absurd protein numbers at low calorie targets), fat gets a floor of 25% of
- * calories for hormonal health, carbs take the remainder.
+ * Boer lean body mass. Sex enters the protein target here rather than through a
+ * made-up multiplier: the guidelines are stated per kg of bodyweight and assume
+ * an average composition, which is exactly what differs between a man and a
+ * woman of the same weight and height.
+ *
+ * The clamp keeps the formula honest outside the range it was fitted on — it
+ * drifts high for short light bodies and low for very heavy ones.
+ */
+export function leanBodyMassKg(input: {
+  sex: Sex
+  weightKg: number
+  heightCm: number
+}): number {
+  const raw =
+    input.sex === 'male'
+      ? 0.407 * input.weightKg + 0.267 * input.heightCm - 19.2
+      : 0.252 * input.weightKg + 0.473 * input.heightCm - 48.3
+  return Math.min(Math.max(raw, input.weightKg * 0.4), input.weightKg * 0.85)
+}
+
+/** Grams of protein per kg of lean mass. ~2.2 maintaining, more on a cut. */
+const PROTEIN_PER_KG_LBM: Record<Goal, number> = {
+  lose: 2.6,
+  maintain: 2.2,
+  gain: 2.4,
+}
+
+/** Training volume moves the target inside the 1.2–2.0 g/kg bodyweight band. */
+const ACTIVITY_PROTEIN_DELTA: Record<ActivityLevel, number> = {
+  sedentary: -0.3,
+  light: -0.15,
+  moderate: 0,
+  active: 0.15,
+  very_active: 0.3,
+}
+
+/**
+ * Standard protein recommendation for one person.
+ *
+ * Anchored to lean mass (so sex, height and weight all count), then bracketed
+ * by the per-bodyweight guidance: a 1.0 g/kg floor — well over the 0.8 g/kg
+ * RDA, raised to 1.2 g/kg from 65 as PROT-AGE/ESPEN advise against sarcopenia —
+ * and a 2.4 g/kg ceiling, the top of the ISSN range for athletes cutting.
+ */
+export function proteinRecommendation(input: {
+  sex: Sex
+  weightKg: number
+  heightCm: number
+  age: number
+  activityLevel: ActivityLevel
+  goal: Goal
+}) {
+  const lbmKg = leanBodyMassKg(input)
+  const perKgLbm =
+    PROTEIN_PER_KG_LBM[input.goal] + ACTIVITY_PROTEIN_DELTA[input.activityLevel]
+
+  const floorPerKg = input.age >= 65 ? 1.2 : 1.0
+  const grams = Math.min(
+    Math.max(lbmKg * perKgLbm, input.weightKg * floorPerKg),
+    input.weightKg * 2.4,
+  )
+  const proteinG = Math.round(grams)
+
+  return {
+    proteinG,
+    lbmKg: Math.round(lbmKg * 10) / 10,
+    /** For the UI: what the target works out to per kg of bodyweight. */
+    perKg: Math.round((proteinG / input.weightKg) * 100) / 100,
+  }
+}
+
+/**
+ * Daily targets. Protein comes from proteinRecommendation (a percentage split
+ * gives absurd protein numbers at low calorie targets), fat gets a floor of 25%
+ * of calories for hormonal health, carbs take the remainder.
  */
 export function dailyTargets(input: {
   sex: Sex
@@ -55,8 +127,7 @@ export function dailyTargets(input: {
   const maintenance = tdee(input)
   const kcal = Math.round((maintenance * (1 + GOAL_DELTA[input.goal])) / 10) * 10
 
-  const proteinPerKg = input.goal === 'lose' ? 2.0 : 1.7
-  const proteinG = Math.round(input.weightKg * proteinPerKg)
+  const { proteinG } = proteinRecommendation(input)
   const fatG = Math.round((kcal * 0.27) / KCAL_PER_G.fat)
   const remaining =
     kcal - proteinG * KCAL_PER_G.protein - fatG * KCAL_PER_G.fat

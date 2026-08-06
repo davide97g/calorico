@@ -2,10 +2,14 @@
 <html lang="it">
   <head>
     <meta charset="UTF-8" />
-    <!-- No maximum-scale: pinch-zoom has to stay available. -->
+    <!-- Zoom is locked: this is an app shell, not a document. Without it iOS
+         zooms in on every focused field and never zooms back out, and a stray
+         double-tap on the diary leaves the layout half off-screen. Legibility is
+         handled by the type scale and the OS text-size setting instead.
+         interactive-widget keeps the keyboard from resizing the layout. -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <title>Calorico</title>
     <meta

@@ -53,6 +53,11 @@ export const ACTIVITY_HINTS = {
   very_active: 'Lavoro fisico o doppi allenamenti',
 } as const
 
+export const SEX_LABELS = {
+  male: 'Uomo',
+  female: 'Donna',
+} as const
+
 export const GOAL_LABELS = {
   lose: 'Perdere peso',
   maintain: 'Mantenere',

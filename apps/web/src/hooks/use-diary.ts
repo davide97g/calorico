@@ -15,6 +15,7 @@ import type {
   MealAnalysis,
   Profile,
   StatsResponse,
+  SuggestedTargets,
   TargetEstimate,
   VisionStatus,
   WeightResponse,
@@ -28,6 +29,7 @@ export const queryKeys = {
   food: (id: string) => ['foods', id] as const,
   recent: () => ['foods', 'recent'] as const,
   favorites: () => ['foods', 'favorites'] as const,
+  suggestedTargets: () => ['profile', 'suggested'] as const,
 }
 
 export function useDiary(day: string) {
@@ -282,7 +284,23 @@ export function useUpdateProfile() {
       void queryClient.invalidateQueries({ queryKey: ['me'] })
       void queryClient.invalidateQueries({ queryKey: ['diary'] })
       void queryClient.invalidateQueries({ queryKey: ['stats'] })
+      // Sex, birth date, activity and goal all move the suggestion.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.suggestedTargets(),
+      })
     },
+  })
+}
+
+/**
+ * What the formulas suggest for the stored metrics. 400s while onboarding is
+ * incomplete, which is a normal state — no retry, and the UI just hides the hint.
+ */
+export function useSuggestedTargets() {
+  return useQuery({
+    queryKey: queryKeys.suggestedTargets(),
+    queryFn: () => api<SuggestedTargets>('/profile/suggested'),
+    retry: false,
   })
 }
 

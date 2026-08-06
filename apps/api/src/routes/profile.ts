@@ -10,7 +10,11 @@ import {
   users,
   weightLogs,
 } from '../db/schema.js'
-import { ageFromBirthDate, dailyTargets } from '../lib/nutrition.js'
+import {
+  ageFromBirthDate,
+  dailyTargets,
+  proteinRecommendation,
+} from '../lib/nutrition.js'
 import { verifyPassword } from '../lib/password.js'
 
 const bodyMetrics = z.object({
@@ -54,6 +58,45 @@ const patchBody = z.object({
   targetKcalMax: z.number().int().min(500).max(9000).optional(),
   locale: z.string().max(8).optional(),
 })
+
+/**
+ * Everything a target calculation needs: the stored metrics plus the most
+ * recent weigh-in, which is what the user actually weighs today. Returns an
+ * error code instead of throwing so both callers can map it to a 400.
+ */
+async function targetInputs(userId: string) {
+  const [profile] = await db
+    .select()
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1)
+  if (!profile?.heightCm || !profile.birthDate) {
+    return { error: 'incomplete_profile' as const }
+  }
+
+  const [latest] = await db
+    .select({ weightKg: weightLogs.weightKg })
+    .from(weightLogs)
+    .where(eq(weightLogs.userId, userId))
+    .orderBy(desc(weightLogs.day))
+    .limit(1)
+
+  const weightKg = latest?.weightKg ?? profile.startWeightKg
+  if (!weightKg) return { error: 'no_weight_logged' as const }
+
+  return {
+    error: null,
+    weightKg,
+    input: {
+      sex: profile.sex,
+      weightKg,
+      heightCm: profile.heightCm,
+      age: ageFromBirthDate(profile.birthDate),
+      activityLevel: profile.activityLevel,
+      goal: profile.goal,
+    },
+  }
+}
 
 export const profileRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('onRequest', app.authenticate)
@@ -224,36 +267,31 @@ export const profileRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(204).send()
   })
 
+  /**
+   * What the standard formulas would give this profile right now, without
+   * touching the stored targets — the settings screen shows it next to the
+   * fields the user has edited by hand.
+   */
+  app.get('/suggested', async (request, reply) => {
+    const ctx = await targetInputs(request.user.sub)
+    if (ctx.error) return reply.code(400).send({ error: ctx.error })
+
+    const protein = proteinRecommendation(ctx.input)
+    return {
+      weightKg: ctx.weightKg,
+      targets: dailyTargets(ctx.input),
+      proteinPerKg: protein.perKg,
+      leanBodyMassKg: protein.lbmKg,
+    }
+  })
+
   /** Recomputes targets from the stored metrics and the latest weigh-in. */
   app.post('/recalculate', async (request, reply) => {
     const userId = request.user.sub
-    const [profile] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, userId))
-      .limit(1)
-    if (!profile?.heightCm || !profile.birthDate) {
-      return reply.code(400).send({ error: 'incomplete_profile' })
-    }
+    const ctx = await targetInputs(userId)
+    if (ctx.error) return reply.code(400).send({ error: ctx.error })
 
-    const [latest] = await db
-      .select({ weightKg: weightLogs.weightKg })
-      .from(weightLogs)
-      .where(eq(weightLogs.userId, userId))
-      .orderBy(desc(weightLogs.day))
-      .limit(1)
-
-    const weightKg = latest?.weightKg ?? profile.startWeightKg
-    if (!weightKg) return reply.code(400).send({ error: 'no_weight_logged' })
-
-    const { maintenanceKcal, ...targets } = dailyTargets({
-      sex: profile.sex,
-      weightKg,
-      heightCm: profile.heightCm,
-      age: ageFromBirthDate(profile.birthDate),
-      activityLevel: profile.activityLevel,
-      goal: profile.goal,
-    })
+    const { maintenanceKcal, ...targets } = dailyTargets(ctx.input)
 
     const [updated] = await db
       .update(profiles)

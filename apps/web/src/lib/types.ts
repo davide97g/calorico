@@ -274,6 +274,16 @@ export interface TargetEstimate {
   targetKcalMax: number
 }
 
+/** GET /profile/suggested — the formulas' answer for the stored metrics. */
+export interface SuggestedTargets {
+  /** The weigh-in the numbers were computed from. */
+  weightKg: number
+  targets: TargetEstimate
+  /** Suggested protein per kg of bodyweight, for the hint text. */
+  proteinPerKg: number
+  leanBodyMassKg: number
+}
+
 export type Confidence = 'low' | 'medium' | 'high'
 
 /** Per 100 g/ml, the model's own estimate. */

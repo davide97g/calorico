@@ -31,22 +31,25 @@ import { DeleteAccountDialog } from '@/components/profile/delete-account-dialog'
 import { PremiumSheet } from '@/components/premium/premium-sheet'
 import { useAuth } from '@/hooks/use-auth'
 import { useFamilies } from '@/hooks/use-family'
-import { useUpdateProfile } from '@/hooks/use-diary'
+import { useSuggestedTargets, useUpdateProfile } from '@/hooks/use-diary'
 import { useCancelPremium, usePremium } from '@/hooks/use-premium'
 import { api } from '@/lib/api'
 import {
   ACTIVITY_HINTS,
   ACTIVITY_LABELS,
   GOAL_LABELS,
+  SEX_LABELS,
+  grams,
   kcal,
 } from '@/lib/format'
-import type { ActivityLevel, Goal } from '@/lib/types'
+import type { ActivityLevel, Goal, Sex } from '@/lib/types'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
   const { user, profile, logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const updateProfile = useUpdateProfile()
+  const suggested = useSuggestedTargets()
   const families = useFamilies()
   const premium = usePremium()
   const cancelPremium = useCancelPremium()
@@ -85,6 +88,24 @@ export default function ProfilePage() {
         onSuccess: () => {
           toast.success('Obiettivi aggiornati')
           setTargets({ kcal: '', protein: '', carbs: '', fat: '' })
+        },
+        onError: () => toast.error('Aggiornamento non riuscito'),
+      },
+    )
+  }
+
+  /**
+   * Takes only the protein figure from the suggestion: calories and the other
+   * macros may well be hand-tuned, and overwriting them is a bigger decision
+   * than "give me the standard protein amount" (that is Ricalcola's job).
+   */
+  const handleUseSuggestedProtein = (proteinG: number) => {
+    updateProfile.mutate(
+      { targetProteinG: proteinG },
+      {
+        onSuccess: () => {
+          toast.success(`Proteine impostate a ${proteinG} g`)
+          setTargets((t) => ({ ...t, protein: '' }))
         },
         onError: () => toast.error('Aggiornamento non riuscito'),
       },
@@ -264,6 +285,18 @@ export default function ProfilePage() {
             onChange={(v) => setTargets((t) => ({ ...t, fat: v }))}
           />
         </div>
+        {suggested.data ? (
+          <ProteinSuggestion
+            proteinG={suggested.data.targets.targetProteinG}
+            perKg={suggested.data.proteinPerKg}
+            weightKg={suggested.data.weightKg}
+            goal={profile.goal}
+            current={profile.targetProteinG}
+            onApply={handleUseSuggestedProtein}
+            applying={updateProfile.isPending}
+          />
+        ) : null}
+
         <p className="text-muted-foreground mt-3 text-xs">
           Intervallo accettato: {kcal(profile.targetKcalMin)}–
           {kcal(profile.targetKcalMax)} kcal
@@ -280,6 +313,45 @@ export default function ProfilePage() {
       <Panel className="mt-3">
         <PanelHeader title="Corpo e attività" />
         <div className="mt-3 flex flex-col gap-3">
+          <fieldset>
+            <legend className="text-muted-foreground mb-1.5 text-xs font-medium">
+              Sesso
+            </legend>
+            <div className="bg-muted grid grid-cols-2 gap-1 rounded-2xl p-1">
+              {(Object.keys(SEX_LABELS) as Sex[]).map((sex) => (
+                <SegmentOption
+                  key={sex}
+                  label={SEX_LABELS[sex]}
+                  selected={profile.sex === sex}
+                  onSelect={() => {
+                    if (profile.sex !== sex) updateProfile.mutate({ sex })
+                  }}
+                />
+              ))}
+            </div>
+            <p className="text-muted-foreground mt-1.5 text-[11px] leading-relaxed">
+              Entra nel calcolo di calorie e proteine consigliate.
+            </p>
+          </fieldset>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-muted-foreground text-xs font-medium">
+              Data di nascita
+            </span>
+            <Input
+              type="date"
+              defaultValue={profile.birthDate ?? ''}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => {
+                const v = e.target.value
+                if (/^\d{4}-\d{2}-\d{2}$/.test(v) && v !== profile.birthDate) {
+                  updateProfile.mutate({ birthDate: v })
+                }
+              }}
+              className="h-11 rounded-2xl"
+            />
+          </label>
+
           <label className="flex flex-col gap-1.5">
             <span className="text-muted-foreground text-xs font-medium">
               Livello di attività
@@ -382,19 +454,19 @@ export default function ProfilePage() {
             Tema dell'app
           </legend>
           <div className="bg-muted grid grid-cols-3 gap-1 rounded-2xl p-1">
-            <ThemeOption
+            <SegmentOption
               label="Chiaro"
               icon={<Sun className="size-4" />}
               selected={theme === 'light'}
               onSelect={() => setTheme('light')}
             />
-            <ThemeOption
+            <SegmentOption
               label="Scuro"
               icon={<Moon className="size-4" />}
               selected={theme === 'dark'}
               onSelect={() => setTheme('dark')}
             />
-            <ThemeOption
+            <SegmentOption
               label="Sistema"
               icon={<Monitor className="size-4" />}
               selected={theme === 'system'}
@@ -471,14 +543,15 @@ export default function ProfilePage() {
   )
 }
 
-function ThemeOption({
+/** One cell of a pill switch: theme, sex, anything with two or three choices. */
+function SegmentOption({
   label,
   icon,
   selected,
   onSelect,
 }: {
   label: string
-  icon: React.ReactNode
+  icon?: React.ReactNode
   selected: boolean
   onSelect: () => void
 }) {
@@ -496,6 +569,59 @@ function ThemeOption({
       {icon}
       {label}
     </button>
+  )
+}
+
+/**
+ * The standard protein amount for this body and this goal, next to whatever the
+ * user currently has stored. Tolerates a few grams of drift before offering the
+ * button: the suggestion moves with every weigh-in.
+ */
+function ProteinSuggestion({
+  proteinG,
+  perKg,
+  weightKg,
+  goal,
+  current,
+  onApply,
+  applying,
+}: {
+  proteinG: number
+  perKg: number
+  weightKg: number
+  goal: Goal
+  current: number
+  onApply: (proteinG: number) => void
+  applying: boolean
+}) {
+  const aligned = Math.abs(current - proteinG) <= 3
+
+  return (
+    <div className="bg-muted mt-3 flex items-center gap-3 rounded-2xl p-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold">
+          Proteine consigliate: {proteinG} g
+        </p>
+        <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
+          {grams(perKg)} g per kg su {grams(weightKg)} kg —{' '}
+          {GOAL_LABELS[goal].toLowerCase()}, con la tua età, sesso e attività.
+        </p>
+      </div>
+      {aligned ? (
+        <span className="text-primary-strong shrink-0 text-[11px] font-semibold">
+          Allineato
+        </span>
+      ) : (
+        <Button
+          variant="secondary"
+          className="bg-card h-9 shrink-0 rounded-full px-3 text-xs"
+          onClick={() => onApply(proteinG)}
+          disabled={applying}
+        >
+          Usa
+        </Button>
+      )}
+    </div>
   )
 }
 

@@ -7,11 +7,13 @@ import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/hooks/use-auth'
 import { initPwa } from '@/lib/pwa'
 import { initSentry } from '@/lib/sentry'
+import { lockZoom } from '@/lib/zoom'
 import App from './App'
 import './index.css'
 
 // Before the tree renders, so a crash on first paint is still reported.
 initSentry()
+lockZoom()
 
 const queryClient = new QueryClient({
   defaultOptions: {

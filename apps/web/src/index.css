@@ -152,6 +152,9 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
+    /* Landscape on iOS otherwise inflates every font on its own. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
@@ -159,6 +162,18 @@
     font-feature-settings: 'ss01', 'cv11';
     text-rendering: optimizeLegibility;
     overscroll-behavior-y: none;
+    /* Pan and scroll, no double-tap zoom. See lib/zoom.ts for the pinch half. */
+    touch-action: manipulation;
+  }
+
+  /* Safari zooms to any focused control whose text is under 16px, and never
+     zooms back. Every field in the app therefore stays at 16px on touch. */
+  @media (hover: none) and (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
   }
 
   /* Every transition and keyframe in the app is decorative; honour the OS
