@@ -186,11 +186,12 @@ export default function ProfilePage() {
               </SelectTrigger>
               <SelectContent className="rounded-2xl">
                 {Object.entries(ACTIVITY_LABELS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
+                  <SelectItem
+                    key={key}
+                    value={key}
+                    hint={ACTIVITY_HINTS[key as ActivityLevel]}
+                  >
                     {label}
-                    <span className="text-muted-foreground ml-2 text-xs">
-                      {ACTIVITY_HINTS[key as ActivityLevel]}
-                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
