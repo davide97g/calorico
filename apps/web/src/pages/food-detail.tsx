@@ -260,12 +260,7 @@ export default function FoodDetailPage() {
         </dl>
       </Panel>
 
-      <FoodGallery
-        foodId={food.id}
-        name={food.name}
-        images={food.images ?? []}
-        uploadEnabled={food.imageUploadEnabled}
-      />
+      <FoodGallery foodId={food.id} name={food.name} images={food.images ?? []} />
 
       <div className="sticky bottom-0 z-10 -mx-4 mt-4 bg-gradient-to-t from-background via-background to-transparent px-4 pt-7 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <Button

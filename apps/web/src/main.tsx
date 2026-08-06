@@ -6,8 +6,12 @@ import { ThemeProvider } from 'next-themes'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/hooks/use-auth'
 import { initPwa } from '@/lib/pwa'
+import { initSentry } from '@/lib/sentry'
 import App from './App'
 import './index.css'
+
+// Before the tree renders, so a crash on first paint is still reported.
+initSentry()
 
 const queryClient = new QueryClient({
   defaultOptions: {

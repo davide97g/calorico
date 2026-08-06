@@ -68,8 +68,10 @@ export function stubProvider(): VisionProvider {
     name: 'stub',
     async analyzeMeal(_photo: MealPhoto): Promise<RawAnalysis> {
       // A beat of latency so the loading state is actually visible while
-      // developing against it.
-      await new Promise((resolve) => setTimeout(resolve, 600))
+      // developing against it. Not under test, where it is only dead time.
+      if (process.env.NODE_ENV !== 'test') {
+        await new Promise((resolve) => setTimeout(resolve, 600))
+      }
       return parseAnalysis(FIXTURE)
     },
   }

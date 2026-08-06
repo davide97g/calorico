@@ -4,6 +4,7 @@ import { env } from '../env.js'
 import { getVisionProvider } from '../lib/vision/index.js'
 import { matchAnalysis } from '../lib/vision/match.js'
 import { recordScan } from '../lib/scan-log.js'
+import { photoQuota } from '../lib/premium.js'
 
 const ACCEPTED = new Set(['image/webp', 'image/jpeg', 'image/png'])
 
@@ -32,8 +33,14 @@ const BODY_LIMIT = Math.ceil(maxImageBytes * (4 / 3)) + 4096
 export const visionRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('onRequest', app.authenticate)
 
-  /** Lets the client hide the camera button instead of offering a dead end. */
-  app.get('/status', async () => ({ enabled: getVisionProvider() !== null }))
+  /**
+   * Lets the client hide the camera button instead of offering a dead end, and
+   * show what is left of the free allowance before the photo is taken.
+   */
+  app.get('/status', async (request) => ({
+    enabled: getVisionProvider() !== null,
+    quota: await photoQuota(request.user.sub),
+  }))
 
   app.post(
     '/meal',
@@ -43,7 +50,9 @@ export const visionRoutes: FastifyPluginAsync = async (app) => {
       bodyLimit: BODY_LIMIT,
       // Every call costs money. The global 300/min is a denial-of-service
       // guard, not a spend control.
-      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+      config: {
+        rateLimit: { max: env.VISION_MAX_PER_MINUTE, timeWindow: '1 minute' },
+      },
     },
     async (request, reply) => {
       const provider = getVisionProvider()
@@ -56,6 +65,17 @@ export const visionRoutes: FastifyPluginAsync = async (app) => {
 
       if (decodedBytes(body.image) > maxImageBytes)
         return reply.code(413).send({ error: 'image_too_large' })
+
+      // Checked after the cheap validation, before the provider is paid: the
+      // rate limit above bounds bursts, this bounds the bill.
+      const quota = await photoQuota(request.user.sub)
+      if (quota.remaining !== null && quota.remaining <= 0) {
+        return reply.code(402).send({
+          error: 'photo_quota_exceeded',
+          used: quota.used,
+          limit: quota.limit,
+        })
+      }
 
       let analysis
       try {

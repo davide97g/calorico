@@ -37,13 +37,12 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-https://calorico.example.com}
       OFF_USER_AGENT: '${OFF_USER_AGENT:-Calorico/0.1 (personal; contact you@example.com)}'
       OFF_ENABLED: ${OFF_ENABLED:-true}
-      # Photo upload. Leave unset to switch the feature off.
-      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
-      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
-      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
-      R2_BUCKET: ${R2_BUCKET:-}
-      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL:-}
-      R2_MAX_UPLOAD_BYTES: ${R2_MAX_UPLOAD_BYTES:-3145728}
+      # Error tracking. Leave unset and Sentry is never initialised.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+      # Meal photos a free account may analyse per rolling 24 hours.
+      FREE_DAILY_PHOTO_SCANS: ${FREE_DAILY_PHOTO_SCANS:-3}
       # Meal photo analysis. Provider, key and model are needed together;
       # leave them unset and the feature switches itself off.
       VISION_PROVIDER: ${VISION_PROVIDER:-}
@@ -54,13 +53,15 @@ services:
       VISION_TIMEOUT_MS: ${VISION_TIMEOUT_MS:-30000}
     expose:
       - '3001'
+    # /api/ready, not /api/health: a container that cannot reach Postgres must
+    # fail its check instead of staying green and erroring on every request.
     healthcheck:
       test:
         [
           'CMD',
           'node',
           '-e',
-          "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3001/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 15s
       timeout: 5s
@@ -71,6 +72,10 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        # Browser DSN, baked into the bundle at build time. Empty = no SDK.
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
     restart: unless-stopped
     depends_on:
       - api

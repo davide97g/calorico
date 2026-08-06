@@ -5,6 +5,7 @@ import {
   keepPreviousData,
 } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { premiumKeys } from '@/hooks/use-premium'
 import type {
   BatchEntryInput,
   DiaryDay,
@@ -15,6 +16,7 @@ import type {
   Profile,
   StatsResponse,
   TargetEstimate,
+  VisionStatus,
   WeightResponse,
 } from '@/lib/types'
 
@@ -136,19 +138,28 @@ export function useAddEntries() {
   })
 }
 
-/** Whether the server has a vision provider configured at all. */
+/**
+ * Whether the server has a vision provider configured, and what is left of the
+ * free allowance. The quota moves, so this one is not cached forever.
+ */
 export function useVisionStatus() {
   return useQuery({
     queryKey: ['vision', 'status'],
-    queryFn: () => api<{ enabled: boolean }>('/vision/status'),
-    staleTime: Infinity,
+    queryFn: () => api<VisionStatus>('/vision/status'),
+    staleTime: 30_000,
   })
 }
 
 export function useAnalyzeMealPhoto() {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: { image: string; contentType: string }) =>
       api<MealAnalysis>('/vision/meal', { method: 'POST', body: input }),
+    // One fewer photo left, whether the analysis found food or not.
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['vision', 'status'] })
+      void queryClient.invalidateQueries({ queryKey: premiumKeys.status })
+    },
   })
 }
 

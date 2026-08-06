@@ -19,14 +19,16 @@ Food data comes from two sources:
   Open Food Facts fallback that caches into Postgres
 - Barcode lookup, with native camera scanning where the browser supports it
 - Meal photos: one shot becomes food + estimated quantity per item, reviewed and
-  corrected before it reaches the diary — see [Meal photos](#meal-photos)
+  corrected before it reaches the diary — capped per account, see
+  [Meal photos](#meal-photos) and [Premium](#premium)
 - Custom foods, favourites, recent foods, copy-a-previous-day
 - One emoji per food in every list and grouped view, guessed from the name; real
   product photos appear only on the detail pages, under **Foto** — packshot,
-  ingredients and nutrition-label shots, plus your own photos on Cloudflare R2
-  (see [Photos](#photos))
+  ingredients and nutrition-label shots (see [Photos](#photos))
 - Weight log with trend chart and BMI
 - Targets computed with Mifflin-St Jeor + activity factor, then editable
+- Revocable sessions, rate-limited sign-in and account deletion — see
+  [Accounts and sessions](#accounts-and-sessions)
 - Installable PWA (iOS included): standalone window, launch images, offline shell,
   and a deploy that reaches installed apps within a minute — see [PWA and
   updates](#pwa-and-updates)
@@ -80,6 +82,8 @@ talks to one origin — same as in production.
 | `npm run db:studio`    | Drizzle Studio                                      |
 | `npm run seed`         | Idempotent seed; `SEED_SKIP_OFF=true` to stay local |
 | `npm run typecheck`    | Typecheck both workspaces                           |
+| `npm run lint`         | oxlint on the web app                               |
+| `npm test`             | Tests in both workspaces — see [Tests](#tests)      |
 | `npm run import:off`   | Bulk import from the Open Food Facts dump           |
 
 ## Filling the product database
@@ -121,7 +125,9 @@ experiments the Parquet dump + DuckDB is faster to pre-filter with; point
    terminates TLS; nginx inside the container serves the SPA and proxies `/api`
    to the API container, so there is no second domain and no CORS to configure.
 4. Deploy. The API container runs migrations on every boot before starting, so a
-   fresh volume ends up with the right schema on its own.
+   fresh volume ends up with the right schema on its own. Its healthcheck hits
+   `/api/ready`, which touches Postgres — see
+   [Health, headers and errors](#health-headers-and-errors).
 5. Seed the food database once, from the Dokploy terminal for the api service:
 
    ```bash
@@ -134,49 +140,19 @@ add it to Dokploy's backup schedule.
 ## Photos
 
 Lists and grouped views only ever show emoji. Real photos live on the two detail
-pages, in the **Foto** panel: the Open Food Facts packshot, its ingredients and
-nutrition-label shots, and any photo you add yourself — the jar on your shelf,
-the label of the loaf you actually buy — so the food is recognisable next time.
+pages, in the **Foto** panel: the Open Food Facts packshot plus its ingredients
+and nutrition-label shots.
 
-Rows live in `food_images`. `user_id` is null for the shots that came with the
-product and everyone sees; it is set for a photo you took, and those come back
-only to their author. Only your own photos can be deleted.
+Rows live in `food_images`, and every one of them comes from Open Food Facts.
+Users used to be able to attach their own photos, hosted on Cloudflare R2; that
+was removed, along with the bucket, the `R2_*` variables and the `aws4fetch`
+dependency. Migration `0005` deletes the rows and drops the columns that held
+them. **Objects already in the bucket are not touched — empty it by hand.**
 
 Open Food Facts publishes the label shots under separate fields, and the bulk
 importer deliberately writes one row per product, so they are fetched the first
 time a food's detail page is opened and the attempt is stamped in
 `foods.images_synced_at` — a product without photos never re-asks.
-
-### Uploads (Cloudflare R2)
-
-Set the five `R2_*` variables from `.env.example` and the camera button appears;
-leave them unset and photo upload switches itself off — the API answers
-`uploads_disabled` and the UI hides the button.
-
-1. Create an R2 bucket and an API token scoped to it with **Object Read & Write**.
-2. Give the bucket a public URL (the r2.dev domain is fine, a custom domain is
-   nicer) and put it in `R2_PUBLIC_BASE_URL`.
-3. Set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`.
-
-How an upload goes:
-
-1. **The browser compresses first** (`apps/web/src/lib/image-compress.ts`): the
-   photo is scaled to a 1400 px long edge and re-encoded as WebP, dropping
-   quality in steps until it is under ~320 KB. A 3024×4032 camera shot lands at
-   around 50 KB. The canvas round-trip also throws away every metadata block, so
-   no GPS coordinates leave the phone.
-2. The API signs a `PUT` for `foods/<foodId>/<userId>/<uuid>.<ext>` and the
-   browser uploads **straight to R2** — the photo never passes through the VPS,
-   which is why Fastify's body limit stays at 512 KB.
-3. The browser asks the API to record the image. The key is re-checked against
-   the caller and the food, and the object is `HEAD`ed before a row is written,
-   so a signed URL cannot be turned into a row for someone else's photo or a file
-   that was never uploaded.
-4. `R2_MAX_UPLOAD_BYTES` (3 MB by default) is the backstop for a client that
-   skipped step 1. Eight photos per food per user.
-
-Deleting a photo removes the object and then the row; if R2 says no, the row goes
-anyway — an orphaned object is cheaper than a broken gallery.
 
 ## Meal photos
 
@@ -186,8 +162,8 @@ the food database, and nothing is written until you have corrected it on a
 review screen.
 
 Set three variables and the **Fotografa il pasto** button appears; leave any of
-them unset and the feature switches itself off, the same way photo upload does
-without R2.
+them unset and the feature switches itself off — the API answers
+`vision_disabled` and the UI hides the button rather than offering a dead end.
 
 ```env
 VISION_PROVIDER=openai        # openai | mistral | stub
@@ -211,9 +187,11 @@ How a photo goes:
    off the same image. The canvas round-trip strips EXIF, so no GPS leaves the
    phone.
 2. It is posted inline to `POST /api/vision/meal` and forwarded to the provider.
-   **The photo is never stored** — not on the VPS, not on R2, not in the logs.
-   That route carries its own 1 MB body limit (the app-wide one is 512 KB) and
-   its own 10/min rate limit, because each call costs money.
+   **The photo is never stored** — not on the VPS, not in a bucket, not in the
+   logs. That route carries its own 1 MB body limit (the app-wide one is 512 KB),
+   its own per-IP burst limit (`VISION_MAX_PER_MINUTE`, 10 by default) and a
+   per-account daily allowance — see [Premium](#premium) — because each call
+   costs money.
 3. Every detected item is searched against the local catalogue with the same
    trigram ranking the search screen uses; packaged products additionally fall
    back to Open Food Facts. The three best candidates ride along so swapping a
@@ -246,6 +224,106 @@ rather than hiding it: low-confidence rows say what the estimate was anchored
 on, and every number is editable before save. Cooked-versus-dry weight is the
 biggest systematic trap — 80 g of dry pasta is ~200 g cooked — and the prompt
 addresses it explicitly.
+
+## Premium
+
+**There is no payment provider wired up.** `POST /api/premium/checkout` sets
+`users.is_premium` and answers; the sheet in front of it is shaped like a
+checkout, and says in plain Italian that nothing is being charged. It exists so
+the paywall can be built and walked through before any billing decision, and so
+the quota has something to switch on. Whatever eventually takes money replaces the
+body of that one route — everything else already reads the flag.
+
+What is behind it: **meal-photo analysis only**. A free account gets
+`FREE_DAILY_PHOTO_SCANS` (3) photos per **rolling 24 hours**, counted off the
+`scan_events` rows the analyse route already writes. Past that the API answers
+`402 photo_quota_exceeded` and the client opens the paywall, holding the photo so
+that "paying" analyses it straight away instead of asking for another shot.
+
+A rolling window rather than a calendar day, on purpose: the server does not know
+the user's timezone, and a window nobody has to agree on midnight for cannot be
+gamed by changing it. The UI says *ultime 24 ore*.
+
+`DELETE /api/premium` drops back to the free tier — the only way to see the
+paywall twice — and is also a button on the profile page.
+
+## Accounts and sessions
+
+Tokens are 30-day JWTs in `localStorage`. Three things keep that from being a
+one-way door:
+
+- **`users.token_version`** rides in the token and is compared on every
+  authenticated request. Bump it and every token issued so far is dead. That costs
+  one indexed lookup per request, which is the price of being able to revoke at
+  all.
+- **`POST /api/auth/password`** bumps it, so changing the password signs out every
+  device — including the one that changed it, which gets a fresh token back in the
+  response.
+- **`POST /api/auth/logout-all`** bumps it on demand, for a lost phone.
+
+`POST /api/auth/login` and `/register` carry their own rate limit — 10 per 15
+minutes, keyed on *route + IP + email*. The app-wide 300/min is a
+denial-of-service guard; at that rate a short password is guessable. The limiter
+runs at `preHandler` rather than `onRequest` because the key needs the parsed
+body. Route in the key, so registering does not eat the login allowance; email in
+the key, so one address cannot lock a household out and one attacker cannot
+spread guesses across accounts.
+
+`DELETE /api/profile` deletes the account. It asks for the password again (a
+stolen token must not be able to do this) and for the word `ELIMINA` in the
+dialog. Most of the work is `on delete cascade`; three things are done by hand —
+custom foods the user authored, families left with no members, and nothing else:
+Open Food Facts and generic foods are not the user's data, and other people's
+diary entries keep working because they carry a name snapshot.
+
+## Health, headers and errors
+
+- **`/api/health`** is liveness — the process is up. **`/api/ready`** runs
+  `select 1`, and it is the one Docker and Dokploy watch: a container that cannot
+  reach Postgres has to fail its check instead of staying green and erroring on
+  every request.
+- **Security headers.** `@fastify/helmet` covers the API. The SPA's own headers —
+  CSP, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS —
+  live in `apps/web/security-headers.conf`, which every `location` block in
+  `nginx.conf` includes. The include is not tidiness: nginx does not merge
+  `add_header` across levels, so a location that sets one of its own drops
+  everything inherited, and every location here sets `Cache-Control`.
+- **Sentry** is optional on both sides and off by default. `SENTRY_DSN` for the
+  API, initialised in `instrument.ts` before anything else so its instrumentation
+  can patch what it needs; 5xx only, since 4xx are the client's problem.
+  `VITE_SENTRY_DSN` for the browser, imported dynamically — with no DSN the build
+  drops the SDK entirely, so nobody downloads 28 KB gzipped of error tracking that
+  is switched off.
+
+## Tests
+
+```bash
+npm test                 # both workspaces
+npm test -w @calorico/api
+```
+
+Pure logic — Mifflin-St Jeor and the macro split, scrypt hashing, the Open Food
+Facts parsers, date handling, the emoji guesser — runs anywhere.
+
+The route tests need a real Postgres, because what they check is cascades,
+generated columns, partial unique indexes and `pg_trgm`, none of which a fake
+has. They skip themselves unless `TEST_DATABASE_URL` is set, and they only ever
+read that variable — never `DATABASE_URL` — because they truncate every table and
+pointing them at the development database would wipe a real diary.
+
+```bash
+docker exec calorico-db-dev psql -U calorico -d postgres -c 'create database calorico_test'
+TEST_DATABASE_URL=postgres://calorico:calorico@127.0.0.1:5432/calorico_test npm test -w @calorico/api
+```
+
+What they cover: family sharing in both directions (two households cannot see
+each other; a stranger cannot read, rotate or leave someone else's family; a
+member who left stops receiving), token revocation, the login rate limit, account
+deletion and its cascades, and the photo quota including the fake checkout.
+
+`.github/workflows/ci.yml` runs typecheck, lint, tests and a production build on
+every push and pull request, with Postgres as a service container. Since Dokploy
+deploys from `main`, that workflow is the only gate in front of production.
 
 ## PWA and updates
 
@@ -310,6 +388,13 @@ Worth knowing:
 | `VISION_BASE_URL` | —                              | `openai` only: any compatible host (Groq, OpenRouter, Ollama) |
 | `VISION_MAX_IMAGE_BYTES` | `1048576`               | Backstop for a client that skipped compression |
 | `VISION_TIMEOUT_MS` | `30000`                      | Vision calls are slow                        |
+| `VISION_MAX_PER_MINUTE` | `10`                     | Per-IP burst limit on the analyse route      |
+| `FREE_DAILY_PHOTO_SCANS` | `3`                     | Photos a free account may analyse per rolling 24 h |
+| `SENTRY_DSN`      | —                              | Unset: the SDK is never initialised          |
+| `SENTRY_ENVIRONMENT` | `NODE_ENV`                  | Tag on every event                           |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0`                  | `0` sends errors only                        |
+| `VITE_SENTRY_DSN` | —                              | Browser DSN, baked in at build time (public by design); unset drops the SDK from the bundle |
+| `TEST_DATABASE_URL` | —                            | Only read by the test run; unset skips the database suites |
 | `OFF_BASE_URL`    | `https://world.openfoodfacts.org` | Barcode lookups                           |
 | `OFF_SEARCH_URL`  | `https://search.openfoodfacts.org` | Text search (the v2 search endpoint is mostly 503) |
 

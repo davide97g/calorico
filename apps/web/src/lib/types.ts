@@ -14,6 +14,8 @@ export interface User {
   email: string
   name: string
   avatarUrl?: string | null
+  /** Lifts the cap on meal-photo analysis. See hooks/use-premium.ts. */
+  isPremium?: boolean
 }
 
 export interface Profile {
@@ -34,7 +36,29 @@ export interface Profile {
   locale: string
 }
 
-export type FoodImageKind = 'front' | 'ingredients' | 'nutrition' | 'user'
+export interface PhotoQuota {
+  isPremium: boolean
+  /** Photos analysed in the last 24 hours. */
+  used: number
+  /** null when premium, which is uncapped. */
+  limit: number | null
+  remaining: number | null
+}
+
+export interface PremiumStatus {
+  isPremium: boolean
+  since: string | null
+  photoQuota: PhotoQuota
+}
+
+export interface VisionStatus {
+  /** False when the server has no vision provider configured. */
+  enabled: boolean
+  quota: PhotoQuota
+}
+
+/** Every shot comes from Open Food Facts; users cannot add their own. */
+export type FoodImageKind = 'front' | 'ingredients' | 'nutrition'
 
 export interface FoodImage {
   id: string
@@ -42,8 +66,6 @@ export interface FoodImage {
   kind: FoodImageKind
   width: number | null
   height: number | null
-  /** Uploaded by the signed-in user, so it can also be deleted by them. */
-  mine: boolean
 }
 
 export interface Food {
@@ -72,7 +94,6 @@ export interface Food {
   isFavorite?: boolean
   /** Only returned by the single-food endpoint; lists never carry photos. */
   images?: FoodImage[]
-  imageUploadEnabled?: boolean
 }
 
 export interface DiaryEntry {

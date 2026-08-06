@@ -35,26 +35,27 @@ const schema = z.object({
     .transform((v) => v !== 'false'),
 
   /**
-   * Cloudflare R2, for the photos users take of their own foods. All five are
-   * required together; leave them unset and photo upload switches itself off.
+   * Error tracking. Unset means Sentry is never initialised and nothing leaves
+   * the box — the same all-or-nothing gate the features below use.
    */
-  R2_ACCOUNT_ID: z.string().optional(),
-  R2_ACCESS_KEY_ID: z.string().optional(),
-  R2_SECRET_ACCESS_KEY: z.string().optional(),
-  R2_BUCKET: z.string().optional(),
-  /** Public base URL of the bucket: an r2.dev domain or your own. */
-  R2_PUBLIC_BASE_URL: z.string().optional(),
-  /** Defaults to the account's S3 endpoint; override for a custom jurisdiction. */
-  R2_ENDPOINT: z.string().optional(),
+  SENTRY_DSN: blankToUndefined(z.string().optional()),
+  /** Fraction of requests traced, 0 disables performance data entirely. */
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+  /** Tags events so staging noise is separable from the real thing. */
+  SENTRY_ENVIRONMENT: blankToUndefined(z.string().optional()),
+
   /**
-   * Hard ceiling per upload. The browser compresses to a few hundred KB, so
-   * this only catches clients that skip or fail that step.
+   * Meal photos a free account may analyse per rolling 24 hours. Every call
+   * costs money upstream, so the free tier is capped and premium is not.
    */
-  R2_MAX_UPLOAD_BYTES: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(3 * 1024 * 1024),
+  FREE_DAILY_PHOTO_SCANS: z.coerce.number().int().min(0).default(3),
+  /**
+   * Burst guard on the analyse route, independent of the daily allowance above:
+   * it is per IP rather than per account, and it is what stops one client
+   * hammering the provider. Raised by the test suite, which runs dozens of
+   * stubbed analyses in a row.
+   */
+  VISION_MAX_PER_MINUTE: z.coerce.number().int().positive().default(10),
 
   /**
    * Meal photo analysis. Provider, key and model are required together; leave
@@ -101,25 +102,14 @@ if (!parsed.success) {
 
 const d = parsed.data
 
-/** Present only when the bucket is fully configured. */
-const r2 =
-  d.R2_ACCOUNT_ID &&
-  d.R2_ACCESS_KEY_ID &&
-  d.R2_SECRET_ACCESS_KEY &&
-  d.R2_BUCKET &&
-  d.R2_PUBLIC_BASE_URL
-    ? {
-        accountId: d.R2_ACCOUNT_ID,
-        accessKeyId: d.R2_ACCESS_KEY_ID,
-        secretAccessKey: d.R2_SECRET_ACCESS_KEY,
-        bucket: d.R2_BUCKET,
-        publicBaseUrl: d.R2_PUBLIC_BASE_URL.replace(/\/$/, ''),
-        endpoint: (
-          d.R2_ENDPOINT ?? `https://${d.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-        ).replace(/\/$/, ''),
-        maxUploadBytes: d.R2_MAX_UPLOAD_BYTES,
-      }
-    : null
+/** Present only when a DSN is configured. */
+const sentry = d.SENTRY_DSN
+  ? {
+      dsn: d.SENTRY_DSN,
+      tracesSampleRate: d.SENTRY_TRACES_SAMPLE_RATE,
+      environment: d.SENTRY_ENVIRONMENT ?? d.NODE_ENV,
+    }
+  : null
 
 /** Present only when a provider, a key and a model are all configured. */
 const vision =
@@ -140,6 +130,7 @@ export const env = {
     .map((o) => o.trim())
     .filter(Boolean),
   isProd: d.NODE_ENV === 'production',
-  r2,
+  isTest: d.NODE_ENV === 'test',
+  sentry,
   vision,
 }

@@ -36,6 +36,13 @@
       "when": 1786004338956,
       "tag": "0004_faithful_centennial",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786011094383,
+      "tag": "0005_security_and_premium",
+      "breakpoints": true
     }
   ]
 }

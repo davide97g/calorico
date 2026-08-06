@@ -1,0 +1,53 @@
+name: CI
+
+# Dokploy deploys straight from main, so this is the only gate between a push and
+# production. It has to be the same checks a developer runs locally, no more.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      # The route tests need a real Postgres: they exercise cascades, generated
+      # columns, partial unique indexes and pg_trgm, none of which a fake has.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: calorico
+          POSTGRES_PASSWORD: calorico
+          POSTGRES_DB: calorico_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U calorico -d calorico_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # Set, so the database-backed suites run instead of skipping themselves.
+      TEST_DATABASE_URL: postgres://calorico:calorico@127.0.0.1:5432/calorico_test
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run lint
+
+      - run: npm test
+
+      # Catches a build that only breaks in production mode — a bad import in a
+      # Vite plugin, a type-only export that survives tsc but not the bundler.
+      - run: npm run build

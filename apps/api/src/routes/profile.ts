@@ -1,9 +1,17 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/index.js'
-import { profiles, users, weightLogs } from '../db/schema.js'
+import {
+  families as familiesTable,
+  familyMembers,
+  foods,
+  profiles,
+  users,
+  weightLogs,
+} from '../db/schema.js'
 import { ageFromBirthDate, dailyTargets } from '../lib/nutrition.js'
+import { verifyPassword } from '../lib/password.js'
 
 const bodyMetrics = z.object({
   sex: z.enum(['male', 'female']),
@@ -19,6 +27,10 @@ const bodyMetrics = z.object({
   ]),
   goal: z.enum(['lose', 'maintain', 'gain']),
   targetWeightKg: z.number().min(25).max(400).optional(),
+})
+
+const deleteBody = z.object({
+  password: z.string().min(1).max(200),
 })
 
 const patchBody = z.object({
@@ -143,6 +155,73 @@ export const profileRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(profiles.userId, userId))
       .returning()
     return profile
+  })
+
+  /**
+   * Deletes the account and everything attached to it. Irreversible, and asks
+   * for the password because a stolen token must not be able to do this.
+   *
+   * Most of the work is done by `on delete cascade`: profile, diary, weights,
+   * favourites, grocery rows, family memberships and the scan feed all go with
+   * the user row. Three things need doing by hand:
+   *
+   *  - custom foods the user authored, which the schema would only orphan
+   *    (`created_by` set null). Other people's diary entries keep working: they
+   *    carry a name snapshot and their `food_id` goes null.
+   *  - families left without a single member, which nobody could ever reach.
+   *  - Open Food Facts and generic foods stay: they are not the user's data.
+   */
+  app.delete('/', async (request, reply) => {
+    const { password } = deleteBody.parse(request.body)
+    const userId = request.user.sub
+
+    const [user] = await db
+      .select({ passwordHash: users.passwordHash })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+    if (!user) return reply.code(404).send({ error: 'not_found' })
+
+    if (!(await verifyPassword(password, user.passwordHash))) {
+      return reply.code(401).send({ error: 'invalid_credentials' })
+    }
+
+    await db.transaction(async (tx) => {
+      const authored = await tx
+        .select({ id: foods.id })
+        .from(foods)
+        .where(and(eq(foods.createdBy, userId), eq(foods.source, 'custom')))
+
+      const families = await tx
+        .select({ familyId: familyMembers.familyId })
+        .from(familyMembers)
+        .where(eq(familyMembers.userId, userId))
+
+      await tx.delete(users).where(eq(users.id, userId))
+
+      if (authored.length > 0) {
+        await tx.delete(foods).where(
+          inArray(
+            foods.id,
+            authored.map((f) => f.id),
+          ),
+        )
+      }
+
+      for (const { familyId } of families) {
+        const [remaining] = await tx
+          .select({ userId: familyMembers.userId })
+          .from(familyMembers)
+          .where(eq(familyMembers.familyId, familyId))
+          .limit(1)
+        if (!remaining) {
+          await tx.delete(familiesTable).where(eq(familiesTable.id, familyId))
+        }
+      }
+    })
+
+    request.log.info({ userId }, 'account deleted')
+    return reply.code(204).send()
   })
 
   /** Recomputes targets from the stored metrics and the latest weigh-in. */

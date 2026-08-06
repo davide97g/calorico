@@ -1,16 +1,12 @@
 /**
- * Shrinks a photo in the browser before it is uploaded.
+ * Shrinks a photo in the browser before it is sent anywhere.
  *
- * A phone camera hands us 3-6 MB of 4000 px JPEG for something that will be
- * displayed at most a few hundred pixels wide. Re-encoding here keeps R2 cheap,
- * the upload quick on mobile data, and — because a canvas round-trip drops
- * every metadata block — strips the GPS coordinates out of the file too.
- */
-
-/**
- * Defaults, sized for a stored gallery photo: twice the widest slot in the UI,
- * for retina. Meal analysis overrides both — a model reading a nutrition label
- * wants the pixels more than the bucket wants the bytes.
+ * A phone camera hands us 3-6 MB of 4000 px JPEG for something a vision model
+ * reads at ~1500 px. Re-encoding here keeps the request quick on mobile data
+ * and — because a canvas round-trip drops every metadata block — strips the GPS
+ * coordinates out of the file too.
+ *
+ * The one caller left is the meal-photo sheet, which overrides both defaults.
  */
 const MAX_EDGE = 1400
 /** Anything under this is small enough; the loop stops early. */

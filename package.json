@@ -12,6 +12,8 @@
     "dev:web": "npm run dev -w @calorico/web",
     "build": "npm run build -w @calorico/api && npm run build -w @calorico/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
     "db:generate": "npm run db:generate -w @calorico/api",
     "db:migrate": "npm run db:migrate -w @calorico/api",
     "db:studio": "npm run db:studio -w @calorico/api",

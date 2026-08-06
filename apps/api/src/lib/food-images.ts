@@ -1,14 +1,13 @@
-import { and, asc, eq, isNull, or } from 'drizzle-orm'
+import { asc, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { foodImages, foods, type Food, type FoodImage } from '../db/schema.js'
 import { fetchOffImages, type OffImageKind } from './off.js'
 
-/** Product shots first, in label order, then the user's own photos. */
-const SORT: Record<OffImageKind | 'user', number> = {
+/** Product shots in label order: packshot, ingredients, nutrition table. */
+const SORT: Record<OffImageKind, number> = {
   front: 0,
   ingredients: 1,
   nutrition: 2,
-  user: 10,
 }
 
 export interface FoodImageDto {
@@ -17,38 +16,27 @@ export interface FoodImageDto {
   kind: FoodImage['kind']
   width: number | null
   height: number | null
-  /** True when the signed-in user uploaded it, and may therefore delete it. */
-  mine: boolean
 }
 
-export function toDto(row: FoodImage, userId: string): FoodImageDto {
+export function toDto(row: FoodImage): FoodImageDto {
   return {
     id: row.id,
     url: row.url,
     kind: row.kind,
     width: row.width,
     height: row.height,
-    mine: row.userId === userId,
   }
 }
 
-/** Shared product shots plus the caller's own uploads. Never someone else's. */
-export async function listFoodImages(
-  foodId: string,
-  userId: string,
-): Promise<FoodImageDto[]> {
+/** Every shot for a food. All of them come from Open Food Facts. */
+export async function listFoodImages(foodId: string): Promise<FoodImageDto[]> {
   const rows = await db
     .select()
     .from(foodImages)
-    .where(
-      and(
-        eq(foodImages.foodId, foodId),
-        or(isNull(foodImages.userId), eq(foodImages.userId, userId)),
-      ),
-    )
+    .where(eq(foodImages.foodId, foodId))
     .orderBy(asc(foodImages.sort), asc(foodImages.createdAt))
 
-  return rows.map((row) => toDto(row, userId))
+  return rows.map(toDto)
 }
 
 /**
@@ -68,7 +56,6 @@ export async function syncOffImages(food: Food): Promise<void> {
 
   const rows = found.map((image) => ({
     foodId: food.id,
-    userId: null,
     kind: image.kind,
     url: image.url,
     sort: SORT[image.kind],
@@ -78,7 +65,6 @@ export async function syncOffImages(food: Food): Promise<void> {
   if (rows.length === 0 && food.imageUrl) {
     rows.push({
       foodId: food.id,
-      userId: null,
       kind: 'front' as const,
       url: food.imageUrl,
       sort: SORT.front,
@@ -93,5 +79,3 @@ export async function syncOffImages(food: Food): Promise<void> {
     .set({ imagesSyncedAt: new Date() })
     .where(eq(foods.id, food.id))
 }
-
-export const userImageSort = SORT.user

@@ -7,6 +7,8 @@ import {
   Monitor,
   Moon,
   RefreshCw,
+  ShieldOff,
+  Sparkles,
   Sun,
   Target,
   Users,
@@ -25,9 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { DeleteAccountDialog } from '@/components/profile/delete-account-dialog'
+import { PremiumSheet } from '@/components/premium/premium-sheet'
 import { useAuth } from '@/hooks/use-auth'
 import { useFamilies } from '@/hooks/use-family'
 import { useUpdateProfile } from '@/hooks/use-diary'
+import { useCancelPremium, usePremium } from '@/hooks/use-premium'
 import { api } from '@/lib/api'
 import {
   ACTIVITY_HINTS,
@@ -43,7 +48,11 @@ export default function ProfilePage() {
   const { theme, setTheme } = useTheme()
   const updateProfile = useUpdateProfile()
   const families = useFamilies()
+  const premium = usePremium()
+  const cancelPremium = useCancelPremium()
   const [saving, setSaving] = useState(false)
+  const [paywall, setPaywall] = useState(false)
+  const [signingOutAll, setSigningOutAll] = useState(false)
 
   const [targets, setTargets] = useState({
     kcal: '',
@@ -94,6 +103,25 @@ export default function ProfilePage() {
       setSaving(false)
     }
   }
+
+  /**
+   * Every token issued to this account stops working, this one included — the
+   * point of the button. So the local session goes too.
+   */
+  const handleSignOutEverywhere = async () => {
+    setSigningOutAll(true)
+    try {
+      await api('/auth/logout-all', { method: 'POST' })
+      logout()
+      navigate('/login', { replace: true })
+    } catch {
+      toast.error('Operazione non riuscita. Riprova.')
+    } finally {
+      setSigningOutAll(false)
+    }
+  }
+
+  const quota = premium.data?.photoQuota
 
   return (
     <AppShell>
@@ -160,6 +188,47 @@ export default function ProfilePage() {
             Condividi lista della spesa e scansioni con chi vive con te. Il
             diario e il peso restano solo tuoi.
           </p>
+        )}
+      </Panel>
+
+      <Panel className="mt-3">
+        <PanelHeader icon={<Sparkles />} title="Premium" />
+        {premium.data?.isPremium ? (
+          <>
+            <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
+              Attivo: foto dei pasti senza limiti. Non è stato addebitato nulla —
+              i pagamenti non sono ancora collegati.
+            </p>
+            <Button
+              variant="secondary"
+              className="mt-3 w-full rounded-full"
+              onClick={() =>
+                cancelPremium.mutate(undefined, {
+                  onSuccess: () => toast.success('Premium disattivato'),
+                  onError: () => toast.error('Operazione non riuscita'),
+                })
+              }
+              disabled={cancelPremium.isPending}
+            >
+              Disattiva Premium
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
+              {quota
+                ? `Hai usato ${quota.used} foto su ${quota.limit} nelle ultime 24 ore.`
+                : 'Le foto dei pasti gratuite sono limitate.'}{' '}
+              Con Premium l&apos;analisi delle foto non ha limiti.
+            </p>
+            <Button
+              className="mt-3 w-full rounded-full"
+              onClick={() => setPaywall(true)}
+            >
+              <Sparkles className="size-4" />
+              Passa a Premium
+            </Button>
+          </>
         )}
       </Panel>
 
@@ -353,17 +422,51 @@ export default function ProfilePage() {
         </p>
       </Panel>
 
-      <Button
-        variant="ghost"
-        className="text-destructive mt-3 w-full rounded-full"
-        onClick={() => {
-          logout()
-          navigate('/login', { replace: true })
-        }}
-      >
-        <LogOut className="size-4" />
-        Esci
-      </Button>
+      <Panel className="mt-3">
+        <PanelHeader title="Account" />
+        <div className="mt-2 flex flex-col gap-1">
+          <Button
+            variant="ghost"
+            className="w-full rounded-full"
+            onClick={() => {
+              logout()
+              navigate('/login', { replace: true })
+            }}
+          >
+            <LogOut className="size-4" />
+            Esci
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="w-full rounded-full"
+            onClick={() => void handleSignOutEverywhere()}
+            disabled={signingOutAll}
+          >
+            <ShieldOff className="size-4" />
+            Esci da tutti i dispositivi
+          </Button>
+
+          <DeleteAccountDialog
+            onDeleted={() => {
+              toast.success('Account eliminato')
+              logout()
+              navigate('/login', { replace: true })
+            }}
+          />
+        </div>
+        <p className="text-muted-foreground mt-2 text-[11px] leading-relaxed">
+          Uscire da tutti i dispositivi invalida ogni accesso già fatto, utile se
+          hai perso il telefono.
+        </p>
+      </Panel>
+
+      <PremiumSheet
+        open={paywall}
+        onOpenChange={setPaywall}
+        used={quota?.used}
+        limit={quota?.limit}
+      />
     </AppShell>
   )
 }

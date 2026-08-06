@@ -14,7 +14,6 @@ import { recordScan } from '../lib/scan-log.js'
 import { cacheFoods } from '../lib/food-cache.js'
 import { searchLocalFoods } from '../lib/food-search.js'
 import { listFoodImages, syncOffImages } from '../lib/food-images.js'
-import { r2Enabled } from '../lib/r2.js'
 
 const searchQuery = z.object({
   q: z.string().min(1).max(120),
@@ -181,8 +180,7 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
     return {
       ...food,
       isFavorite: Boolean(fav),
-      images: await listFoodImages(id, request.user.sub),
-      imageUploadEnabled: r2Enabled(),
+      images: await listFoodImages(id),
     }
   })
 

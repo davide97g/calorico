@@ -10,7 +10,7 @@ let cached: VisionProvider | null | undefined
 
 /**
  * Null when the feature is not configured — the route answers 503 and the UI
- * hides the button, the same way photo upload disappears without R2.
+ * hides the button rather than offering a dead end.
  *
  * Memoised because the Mistral client holds a connection pool; building one per
  * request would be wasteful and would defeat keep-alive.

@@ -29,11 +29,14 @@ export const foodSourceEnum = pgEnum('food_source', [
   'generic', // composition tables (raw & cooked foods)
   'custom', // created by a user
 ])
+/**
+ * Every shot comes from Open Food Facts. Users used to be able to add their own,
+ * hosted on R2; that was removed, along with the bucket.
+ */
 export const foodImageKindEnum = pgEnum('food_image_kind', [
   'front', // packshot from Open Food Facts
   'ingredients', // ingredients list shot
   'nutrition', // nutrition table shot
-  'user', // photo taken by a user, hosted by us on R2
 ])
 export const scanKindEnum = pgEnum('scan_kind', [
   'barcode', // product scanned from its EAN/UPC
@@ -48,6 +51,18 @@ export const users = pgTable(
     passwordHash: text('password_hash').notNull(),
     name: text('name').notNull(),
     avatarUrl: text('avatar_url'),
+    /**
+     * Bumped to invalidate every token already issued to this user. Tokens carry
+     * the value they were signed with, so a mismatch means "signed before the
+     * last password change or sign-out-everywhere" and fails verification.
+     */
+    tokenVersion: integer('token_version').notNull().default(0),
+    /**
+     * Lifts the daily cap on meal-photo analysis. Set by the fake checkout — no
+     * payment provider is wired up yet, see routes/premium.ts.
+     */
+    isPremium: boolean('is_premium').notNull().default(false),
+    premiumSince: timestamp('premium_since', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -214,19 +229,10 @@ export const foodImages = pgTable(
     foodId: uuid('food_id')
       .notNull()
       .references(() => foods.id, { onDelete: 'cascade' }),
-    /**
-     * Null for the shots that came with the product (Open Food Facts), which
-     * everyone sees. Set for a photo a user took: only its author gets it back,
-     * because "the jar on my shelf" is a private landmark, not product data.
-     */
-    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
-    kind: foodImageKindEnum('kind').notNull().default('user'),
+    kind: foodImageKindEnum('kind').notNull().default('front'),
     url: text('url').notNull(),
-    /** R2 object key — only set for images we host, so we can delete them. */
-    storageKey: text('storage_key'),
     width: integer('width'),
     height: integer('height'),
-    bytes: integer('bytes'),
     /** Ascending display order; the OFF front shot sorts first. */
     sort: integer('sort').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -235,7 +241,6 @@ export const foodImages = pgTable(
   },
   (t) => [
     index('food_images_food_idx').on(t.foodId, t.sort),
-    index('food_images_user_idx').on(t.userId),
     uniqueIndex('food_images_food_url_unique').on(t.foodId, t.url),
   ],
 )
