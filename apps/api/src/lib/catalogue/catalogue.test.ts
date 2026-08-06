@@ -1,6 +1,12 @@
 import { deflateRawSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
-import { buildFood, isLoggable, pruneCollidingAliases } from './build.js'
+import {
+  buildFood,
+  dedupeByName,
+  isLoggable,
+  pruneCollidingAliases,
+  tidyName,
+} from './build.js'
 import { parseCiqualAlim, parseCiqualCompo, parseTeneur } from './ciqual.js'
 import { searchAliases, shelfFor } from './italian.js'
 import { collectCandidates, type Taxonomy } from './taxonomy.js'
@@ -223,6 +229,38 @@ describe('buildFood', () => {
     expect(isLoggable({ protein: 1.08, carbs: 9 })).toBe(true)
     expect(isLoggable({})).toBe(false)
     expect(isLoggable(undefined)).toBe(false)
+  })
+})
+
+describe('tidyName', () => {
+  it('fixes the uneven casing the taxonomy ships', () => {
+    expect(tidyName('melone di cantalupo')).toBe('Melone di cantalupo')
+  })
+
+  it('cuts a long name at a word boundary, not mid-word', () => {
+    const long =
+      'Bevanda al cioccolato con latte parzialmente scremato arricchito'
+    expect(tidyName(long)).toBe(
+      'Bevanda al cioccolato con latte parzialmente scremato',
+    )
+  })
+
+  it('does not leave the cut hanging on a connective', () => {
+    expect(
+      tidyName('Panino con pane in cassetta integrale, prosciutto, verdure e maionese'),
+    ).toBe('Panino con pane in cassetta integrale, prosciutto, verdure')
+  })
+})
+
+describe('dedupeByName', () => {
+  it('keeps the better-evidenced row when two codes share a name', () => {
+    const foods = [
+      { ciqual: '1', name: 'Chorizo', proxy: true, translated: true },
+      { ciqual: '2', name: 'chorizo', proxy: false, translated: false },
+      { ciqual: '3', name: 'Dentice', proxy: false, translated: true },
+    ] as Parameters<typeof dedupeByName>[0]
+
+    expect(dedupeByName(foods).map((f) => f.ciqual)).toEqual(['2', '3'])
   })
 })
 

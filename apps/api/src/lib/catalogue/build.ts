@@ -78,6 +78,27 @@ function energy(n: CiqualNutrients): number | null {
  * food can outrank the one the user typed; everything else the ranking in
  * food-search.ts already settles.
  */
+/**
+ * One row per name.
+ *
+ * Distinct CIQUAL codes land on the same Italian word often enough to matter —
+ * two chorizos, two dentici, two kinds of rusk — and the search screen has no
+ * way to tell them apart: same name, no brand, only a kcal figure a few points
+ * off. Keep the better-evidenced row (measured composition over a proxy, a
+ * taxonomy name over a translated one) and drop the rest.
+ */
+export function dedupeByName(foods: CatalogueFood[]): CatalogueFood[] {
+  const rank = (f: CatalogueFood) => (f.proxy ? 2 : 0) + (f.translated ? 1 : 0)
+  const best = new Map<string, CatalogueFood>()
+
+  for (const food of foods) {
+    const key = food.name.toLowerCase()
+    const current = best.get(key)
+    if (!current || rank(food) < rank(current)) best.set(key, food)
+  }
+  return [...best.values()]
+}
+
 export function pruneCollidingAliases(foods: CatalogueFood[]): CatalogueFood[] {
   const names = new Map(foods.map((f) => [f.name.toLowerCase(), f.ciqual]))
   for (const food of foods) {
@@ -100,10 +121,27 @@ export function isLoggable(nutrients: CiqualNutrients | undefined): boolean {
   return kcal != null && kcal > 0 && kcal <= MAX_KCAL_100
 }
 
-/** "melone di cantalupo" -> "Melone di cantalupo". Taxonomy casing is uneven. */
+/** Longer than this is a CIQUAL sentence, not a name someone scans in a list. */
+const MAX_NAME = 60
+
+/**
+ * "melone di cantalupo" -> "Melone di cantalupo". Taxonomy casing is uneven,
+ * and CIQUAL names run long enough to need cutting — at a word boundary, since
+ * a hard slice produced "…latte parzialmente scremato arricc".
+ */
 export function tidyName(name: string): string {
   const cleaned = name.replace(/\s+/g, ' ').trim()
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+  const capped =
+    cleaned.length <= MAX_NAME
+      ? cleaned
+      : cleaned.slice(0, cleaned.lastIndexOf(' ', MAX_NAME) + 1 || MAX_NAME)
+  // A cut at the last space still lands on "…prosciutto, verdure e", so the
+  // dangling connective goes too.
+  const trimmed = capped
+    .trim()
+    .replace(/[\s,;]+(e|ed|con|di|del|della|dei|al|alla|ai|in|a|per|da|il|la|lo|le|gli|i)$/i, '')
+    .replace(/[,;]$/, '')
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
 }
 
 export interface BuildInput {

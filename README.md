@@ -133,8 +133,11 @@ Two sources cover it, joined on the CIQUAL food code:
 About 3 000 of the taxonomy's 14 600 categories carry a CIQUAL code, and roughly
 700 of those are already named in Italian. The rest are named once, at build
 time, by an LLM reading the English and French names — never at request time.
-The output is committed to `apps/api/src/data/generic-catalogue.json`, so the
-diff is the review, and `npm run seed` loads it alongside the curated list.
+The same pass collects search synonyms for every row, named or not: the
+taxonomy has no `synonyms.it` at all, so without it the salad the taxonomy calls
+"Ruchetta" cannot be found by typing "rucola". The result — 2 623 foods — is
+committed to `apps/api/src/data/generic-catalogue.json`, so the diff is the
+review, and `npm run seed` loads it alongside the curated list.
 
 ```bash
 npm run build:catalogue              # full rebuild, translations included
@@ -142,9 +145,16 @@ npm run build:catalogue -- --no-llm  # taxonomy names only, no API key needed
 ```
 
 Downloads (4 MB taxonomy, 3 MB CIQUAL archive) are cached in
-`apps/api/.cache/catalogue`; delete it to pull fresh sources. Translation reads
-`CATALOGUE_LLM_API_KEY` / `_MODEL` / `_BASE_URL`, falling back to the `VISION_*`
-credentials the photo feature already uses.
+`apps/api/.cache/catalogue`, and so are the names themselves, written after
+every batch — a run costs money and the first attempt lost 1 500 names to
+timeouts with nothing to resume from. Delete the cache to rebuild from scratch.
+
+Translation reads `CATALOGUE_LLM_API_KEY` / `_MODEL` / `_BASE_URL`, falling back
+to the `VISION_*` credentials the photo feature already uses.
+`CATALOGUE_LLM_EFFORT` defaults to `low` — naming a food is recall, not thought,
+and at the default budget a batch spends more tokens reasoning than answering
+and runs past the client timeout. Set it to `none` for a provider that rejects
+the parameter.
 
 Notes on the join:
 

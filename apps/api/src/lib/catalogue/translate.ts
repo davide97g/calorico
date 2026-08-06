@@ -19,6 +19,12 @@ export interface TranslationRequest {
   nameEn: string
   /** French CIQUAL name: often the more precise of the two. */
   nameFr?: string | undefined
+  /**
+   * Set when the taxonomy already named the food. The call then only collects
+   * search terms — the taxonomy's "Ruchetta" is a fine name, but nobody finds
+   * rocket by typing it, and the word they do type is "rucola".
+   */
+  nameIt?: string | undefined
 }
 
 export interface Translation {
@@ -32,7 +38,9 @@ Per ogni alimento restituisci:
 - "name": il nome italiano comune, come lo scriverebbe un supermercato o una tabella di composizione (es. "Pesca", "Filetto di merluzzo", "Purè di patate"). Minuscolo tranne la prima lettera e i nomi propri. Niente marchi, niente testo tra parentesi, massimo 60 caratteri.
 - "aliases": da 1 a 4 forme alternative in minuscolo che un italiano potrebbe digitare per cercarlo (singolare/plurale, sinonimi regionali, nome più corto). Niente ripetizioni del nome.
 
-Se l'alimento non ha un nome italiano sensato, usa la traduzione più letterale possibile.`
+Se l'alimento non ha un nome italiano sensato, usa la traduzione più letterale possibile.
+
+Quando l'input contiene già il campo "it", quello è il nome definitivo: ripetilo identico in "name" e limitati a fornire gli "aliases".`
 
 const SCHEMA = {
   type: 'object',
@@ -121,6 +129,7 @@ export function createTranslator(options: TranslatorOptions) {
               code: item.code,
               en: item.nameEn,
               ...(item.nameFr ? { fr: item.nameFr } : {}),
+              ...(item.nameIt ? { it: item.nameIt } : {}),
             })),
           ),
         },
@@ -149,7 +158,10 @@ export function createTranslator(options: TranslatorOptions) {
       const name = item.name?.trim()
       if (!code || !name || !wanted.has(code)) continue
       out.set(code, {
-        name: name.slice(0, 60),
+        // Stored whole. Shortening belongs to tidyName in build.ts, which cuts
+        // at a word boundary; a hard slice here produced names ending "arricc"
+        // and the cache made them permanent.
+        name: name.slice(0, 120),
         aliases: (item.aliases ?? [])
           .map((a) => a.trim().toLowerCase())
           .filter((a) => a.length > 2)

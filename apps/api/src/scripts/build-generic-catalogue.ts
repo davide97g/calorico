@@ -12,6 +12,7 @@ import {
 } from '../lib/catalogue/ciqual.js'
 import {
   buildFood,
+  dedupeByName,
   isLoggable,
   pruneCollidingAliases,
   type CatalogueFood,
@@ -88,19 +89,51 @@ async function download(url: string, filename: string): Promise<Buffer> {
   return buf
 }
 
+const translationCache = () => join(cacheDir, 'translations.json')
+
+/**
+ * Names already paid for, keyed by CIQUAL code.
+ *
+ * Kept next to the downloads because a run costs real money and real minutes:
+ * the first attempt at this lost 1 500 names to client timeouts and had
+ * nothing to resume from. Delete the file to re-translate from scratch.
+ */
+async function loadTranslations(): Promise<Map<string, Translation>> {
+  try {
+    const raw = await readFile(translationCache(), 'utf8')
+    return new Map(Object.entries(JSON.parse(raw) as Record<string, Translation>))
+  } catch {
+    return new Map()
+  }
+}
+
+async function saveTranslations(translations: Map<string, Translation>) {
+  await writeFile(
+    translationCache(),
+    `${JSON.stringify(Object.fromEntries(translations), null, 2)}\n`,
+    'utf8',
+  )
+}
+
 /** Runs the batches a few at a time: the provider rate-limits, and this is not
  *  a job anyone waits on interactively. */
 async function translateAll(
   requests: TranslationRequest[],
   translate: (batch: TranslationRequest[]) => Promise<Map<string, Translation>>,
+  known: Map<string, Translation>,
 ): Promise<Map<string, Translation>> {
-  const batches: TranslationRequest[][] = []
-  for (let i = 0; i < requests.length; i += batchSize) {
-    batches.push(requests.slice(i, i + batchSize))
+  const missing = requests.filter((r) => !known.has(r.code))
+  if (missing.length < requests.length) {
+    console.log(`  ${requests.length - missing.length} already cached`)
   }
 
-  const out = new Map<string, Translation>()
+  const batches: TranslationRequest[][] = []
+  for (let i = 0; i < missing.length; i += batchSize) {
+    batches.push(missing.slice(i, i + batchSize))
+  }
+
   let done = 0
+  let failed = 0
   const concurrency = 4
   const workers = Array.from({ length: concurrency }, async () => {
     for (;;) {
@@ -108,19 +141,25 @@ async function translateAll(
       if (!batch) return
       try {
         for (const [code, translation] of await translate(batch)) {
-          out.set(code, translation)
+          known.set(code, translation)
         }
+        // Written every batch, not at the end: an interrupted run keeps
+        // everything it has already paid for.
+        await saveTranslations(known)
       } catch (err) {
         // A lost batch costs a few foods, not the run: the codes it covered
-        // simply stay unnamed and are dropped downstream.
+        // stay unnamed and are dropped downstream, and a rerun retries them.
+        failed += batch.length
         console.warn(`  batch failed: ${(err as Error).message}`)
       }
       done += batch.length
-      console.log(`  translated ${out.size}/${done} of ${requests.length}`)
+      console.log(
+        `  ${known.size} names, ${done}/${missing.length} attempted${failed ? `, ${failed} lost` : ''}`,
+      )
     }
   })
   await Promise.all(workers)
-  return out
+  return known
 }
 
 async function main() {
@@ -146,15 +185,21 @@ async function main() {
   )
   console.log(`ciqual: composition for ${nutrients.size} of ${wanted.size} codes`)
 
-  const untranslated = candidates.filter(
-    (c) => !c.nameIt && isLoggable(nutrients.get(c.ciqualCode)),
-  )
+  /**
+   * Every loggable row goes to the model, but for two different reasons: the
+   * unnamed ones need a name, the named ones need the words people actually
+   * type. The taxonomy calls rocket "Ruchetta" and offers no Italian synonyms
+   * at all, so without this pass a search for "rucola" finds Coca-Cola on a
+   * trigram fluke and the salad three rows down.
+   */
+  const loggable = candidates.filter((c) => isLoggable(nutrients.get(c.ciqualCode)))
+  const unnamed = loggable.filter((c) => !c.nameIt).length
   console.log(
-    `italian names: ${candidates.length - untranslated.length} from the taxonomy, ${untranslated.length} to translate`,
+    `italian names: ${loggable.length - unnamed} from the taxonomy, ${unnamed} to translate, ${loggable.length} to collect aliases for`,
   )
 
-  let translations = new Map<string, Translation>()
-  if (useLlm && untranslated.length > 0) {
+  let translations = await loadTranslations()
+  if (useLlm && loggable.length > 0) {
     const options = translatorFromEnv()
     if (!options) {
       console.warn(
@@ -164,26 +209,33 @@ async function main() {
     }
     console.log(`translating with ${options.model}`)
     translations = await translateAll(
-      untranslated.map((c) => {
+      loggable.map((c) => {
         const ciqual = foods.get(c.ciqualCode)
         return {
           code: c.ciqualCode,
           nameEn: c.nameEn ?? ciqual?.nameEn ?? c.tag.replace(/^\w+:/, ''),
           nameFr: ciqual?.nameFr,
+          nameIt: c.nameIt ?? undefined,
         }
       }),
       createTranslator(options),
+      translations,
     )
   }
 
-  const catalogue: CatalogueFood[] = []
+  const built: CatalogueFood[] = []
   for (const candidate of candidates) {
     const food = buildFood({
       candidate,
       nutrients: nutrients.get(candidate.ciqualCode),
       translation: translations.get(candidate.ciqualCode),
     })
-    if (food) catalogue.push(food)
+    if (food) built.push(food)
+  }
+
+  const catalogue = dedupeByName(built)
+  if (catalogue.length < built.length) {
+    console.log(`dropped ${built.length - catalogue.length} same-name rows`)
   }
   pruneCollidingAliases(catalogue)
   catalogue.sort((a, b) => a.name.localeCompare(b.name, 'it'))

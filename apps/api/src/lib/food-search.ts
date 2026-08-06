@@ -106,6 +106,9 @@ export async function searchLocalFoods(
         end),
         (case when ${deduped.source} = 'generic' then 0 else 1 end),
         ${deduped.score} desc,
+        -- Among equally good matches, the hand-checked row: "pasta" should
+        -- open on semola, not on the shortest name in the generated half.
+        ${deduped.verified} desc,
         length(${deduped.name}) asc
       `,
     )
