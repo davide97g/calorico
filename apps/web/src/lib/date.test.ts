@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   addDaysISO,
   dayOf,
+  daysUntil,
   isFutureDay,
   labelForDay,
   lastNDays,
@@ -47,6 +48,30 @@ describe('addDaysISO', () => {
   })
 })
 
+describe('daysUntil', () => {
+  it('counts whole calendar days in both directions', () => {
+    expect(daysUntil('2026-08-07', '2026-08-06')).toBe(1)
+    expect(daysUntil('2026-08-06', '2026-08-06')).toBe(0)
+    expect(daysUntil('2026-08-03', '2026-08-06')).toBe(-3)
+    expect(daysUntil('2026-09-05', '2026-08-06')).toBe(30)
+  })
+
+  /**
+   * The reason it goes through Date.UTC: the clocks move on 2026-03-29 in
+   * Rome, so a local-time subtraction returns 23 hours and floors to 0.
+   */
+  it('survives a daylight-saving change inside the span', () => {
+    expect(daysUntil('2026-03-29', '2026-03-28')).toBe(1)
+    expect(daysUntil('2026-10-26', '2026-10-25')).toBe(1)
+  })
+
+  it('defaults to counting from today', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 7, 6, 10, 0))
+    expect(daysUntil('2026-08-09')).toBe(3)
+  })
+})
+
 describe('todayISO and isFutureDay', () => {
   it('reads the clock', () => {
     vi.useFakeTimers()
@@ -65,6 +90,7 @@ describe('labelForDay', () => {
     vi.setSystemTime(new Date(2026, 7, 6, 10, 0))
 
     expect(labelForDay('2026-08-06')).toBe('Oggi')
+    expect(labelForDay('2026-08-07')).toBe('Domani')
     expect(labelForDay('2026-08-05')).toBe('Ieri')
     expect(labelForDay('2026-08-01')).toMatch(/ago/)
   })

@@ -10,16 +10,11 @@ import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { WhenBar } from '@/components/food/when-picker'
 import { useAddEntry, useFood, useToggleFavorite } from '@/hooks/use-diary'
-import { todayISO } from '@/lib/date'
-import { MEAL_LABELS, MEAL_ORDER, currentMeal, grams, kcal } from '@/lib/format'
+import { isFutureDay, todayISO } from '@/lib/date'
+import { currentMeal, grams, kcal } from '@/lib/format'
+import { saveActionLabel, savedToastMessage, type When } from '@/lib/when'
 import { cn } from '@/lib/utils'
 import type { Meal } from '@/lib/types'
 
@@ -27,15 +22,15 @@ export default function FoodDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const day = params.get('day') ?? todayISO()
 
   const { data: food, isLoading } = useFood(id)
   const addEntry = useAddEntry()
   const toggleFavorite = useToggleFavorite()
 
-  const [meal, setMeal] = useState<Meal>(
-    (params.get('meal') as Meal | null) ?? currentMeal(),
-  )
+  const [when, setWhen] = useState<When>({
+    day: params.get('day') ?? todayISO(),
+    meal: (params.get('meal') as Meal | null) ?? currentMeal(),
+  })
   // Default portion: the pack's serving size when it has one, else 100 g.
   const defaultQuantity = food?.servingSizeG ?? 100
   const [quantity, setQuantity] = useState<string | null>(null)
@@ -76,11 +71,15 @@ export default function FoodDetailPage() {
   const handleSave = () => {
     if (!food) return
     addEntry.mutate(
-      { foodId: food.id, day, meal, quantityG: grams_ },
+      { foodId: food.id, day: when.day, meal: when.meal, quantityG: grams_ },
       {
         onSuccess: () => {
-          toast.success(`${food.name} aggiunto a ${MEAL_LABELS[meal]}`)
-          navigate('/', { replace: true })
+          toast.success(savedToastMessage(food.name, when))
+          // A planned entry is invisible on today's screen, so the diary opens
+          // on the day it was planned for.
+          navigate(isFutureDay(when.day) ? `/?day=${when.day}` : '/', {
+            replace: true,
+          })
         },
         onError: () => toast.error('Non è stato possibile salvare la voce'),
       },
@@ -209,29 +208,7 @@ export default function FoodDetailPage() {
           </p>
         ) : null}
 
-        <div className="mt-3">
-          <label
-            className="text-muted-foreground mb-1.5 block px-1 text-[11px] font-semibold"
-            htmlFor="meal-select"
-          >
-            Pasto
-          </label>
-          <Select value={meal} onValueChange={(v) => setMeal(v as Meal)}>
-            <SelectTrigger
-              id="meal-select"
-              className="h-13 w-full rounded-2xl font-semibold"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="rounded-2xl">
-              {MEAL_ORDER.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {MEAL_LABELS[m]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <WhenBar value={when} onChange={setWhen} variant="inset" className="mt-3" />
       </Panel>
 
       <Panel className="mt-3">
@@ -269,7 +246,7 @@ export default function FoodDetailPage() {
           disabled={addEntry.isPending || grams_ <= 0}
         >
           <Check className="size-5" />
-          Aggiungi a {MEAL_LABELS[meal]}
+          {saveActionLabel(when)}
         </Button>
       </div>
     </AppShell>

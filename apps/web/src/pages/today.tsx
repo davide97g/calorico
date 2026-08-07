@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { PieChart, Scale, TrendingDown, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
@@ -19,13 +19,17 @@ import {
   useWeight,
 } from '@/hooks/use-diary'
 import { useAuth } from '@/hooks/use-auth'
-import { addDaysISO, todayISO } from '@/lib/date'
+import { addDaysISO, isFutureDay, todayISO } from '@/lib/date'
 import { signed } from '@/lib/format'
 import type { DiaryEntry, Goal, WeightResponse } from '@/lib/types'
 
 export default function TodayPage() {
   const { profile } = useAuth()
-  const [day, setDay] = useState(todayISO())
+  // Saving something for a future day sends the user here with ?day=, so the
+  // plan they just made is the first thing they see.
+  const [params] = useSearchParams()
+  const [day, setDay] = useState(params.get('day') ?? todayISO())
+  const planned = isFutureDay(day)
 
   const { data, isLoading } = useDiary(day)
   const { data: weight } = useWeight()
@@ -94,7 +98,14 @@ export default function TodayPage() {
               consumed={totals.kcal}
               target={targets.kcal}
               max={targets.kcalMax}
-              label={day === todayISO() ? 'Budget di oggi' : 'Budget del giorno'}
+              label={
+                planned
+                  ? 'Piano del giorno'
+                  : day === todayISO()
+                    ? 'Budget di oggi'
+                    : 'Budget del giorno'
+              }
+              planned={planned}
             />
 
             <AddFoodAction day={day} />

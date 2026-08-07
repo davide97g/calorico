@@ -11,12 +11,14 @@ import { Check, ChevronLeft, Plus, Sparkles, Trash2, TriangleAlert } from 'lucid
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
+import { WhenBar } from '@/components/food/when-picker'
 import { useAddEntries } from '@/hooks/use-diary'
 import { ApiError } from '@/lib/api'
-import { todayISO } from '@/lib/date'
+import { isFutureDay, labelForDay, todayISO } from '@/lib/date'
 import { currentMeal, kcal as fmtKcal, MEAL_LABELS } from '@/lib/format'
 import { scalePer100 } from '@/lib/nutrition'
 import { cn } from '@/lib/utils'
+import type { When } from '@/lib/when'
 import type {
   AnalyzedItem,
   BatchEntryInput,
@@ -79,8 +81,10 @@ export default function PhotoReviewPage() {
   const [params] = useSearchParams()
   const addEntries = useAddEntries()
 
-  const day = params.get('day') ?? todayISO()
-  const meal = (params.get('meal') as Meal | null) ?? currentMeal()
+  const [when, setWhen] = useState<When>({
+    day: params.get('day') ?? todayISO(),
+    meal: (params.get('meal') as Meal | null) ?? currentMeal(),
+  })
 
   const analysis = (location.state as { analysis?: MealAnalysis } | null)?.analysis
   const [rows, setRows] = useState<Row[]>(() => toRows(analysis?.items ?? []))
@@ -128,11 +132,17 @@ export default function PhotoReviewPage() {
     })
 
     addEntries.mutate(
-      { day, meal, items },
+      { day: when.day, meal: when.meal, items },
       {
         onSuccess: () => {
-          toast.success(`${items.length} alimenti aggiunti a ${MEAL_LABELS[meal]}`)
-          navigate('/', { replace: true })
+          toast.success(
+            isFutureDay(when.day)
+              ? `${items.length} alimenti pianificati: ${labelForDay(when.day).toLowerCase()} · ${MEAL_LABELS[when.meal]}`
+              : `${items.length} alimenti aggiunti a ${MEAL_LABELS[when.meal]}`,
+          )
+          navigate(isFutureDay(when.day) ? `/?day=${when.day}` : '/', {
+            replace: true,
+          })
         },
         onError: (err) =>
           toast.error(
@@ -156,10 +166,12 @@ export default function PhotoReviewPage() {
         <div className="min-w-0">
           <h1 className="truncate text-[17px] font-bold">Controlla il pasto</h1>
           <p className="text-muted-foreground text-[11px] font-medium">
-            Stime da foto · {MEAL_LABELS[meal]}
+            Stime da foto, da controllare
           </p>
         </div>
       </div>
+
+      <WhenBar value={when} onChange={setWhen} className="mb-3" />
 
       <p className="text-muted-foreground bg-secondary/60 mb-3 flex items-start gap-2 rounded-2xl px-3 py-2.5 text-[11px] font-medium">
         <Sparkles className="text-primary-strong mt-0.5 size-3.5 shrink-0" strokeWidth={2.4} />
@@ -306,7 +318,7 @@ export default function PhotoReviewPage() {
                   )}
 
                   <Link
-                    to={`/add?day=${day}&meal=${meal}`}
+                    to={`/add?day=${when.day}&meal=${when.meal}`}
                     className="text-primary-strong block px-2 py-2 text-xs font-semibold"
                   >
                     Cerca un altro alimento →
@@ -319,7 +331,7 @@ export default function PhotoReviewPage() {
       </ul>
 
       <Link
-        to={`/add?day=${day}&meal=${meal}`}
+        to={`/add?day=${when.day}&meal=${when.meal}`}
         className="text-muted-foreground border-border/70 mt-2 flex min-h-12 items-center justify-center gap-2 rounded-[22px] border border-dashed text-xs font-semibold"
       >
         <Plus className="size-4" strokeWidth={2.5} />
@@ -340,7 +352,8 @@ export default function PhotoReviewPage() {
           disabled={!canSave || addEntries.isPending}
         >
           <Check className="size-5" />
-          Aggiungi {rows.length} a {MEAL_LABELS[meal]} · {fmtKcal(total)} kcal
+          {isFutureDay(when.day) ? 'Pianifica' : 'Aggiungi'} {rows.length} a{' '}
+          {MEAL_LABELS[when.meal]} · {fmtKcal(total)} kcal
         </Button>
       </div>
     </div>

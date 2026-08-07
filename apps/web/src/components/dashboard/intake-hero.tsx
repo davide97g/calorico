@@ -10,6 +10,8 @@ interface IntakeHeroProps {
   max?: number
   /** Says "oggi" only when the diary is actually showing today. */
   label?: string
+  /** A future day holds a plan, not a record: the wording follows. */
+  planned?: boolean
 }
 
 /**
@@ -24,6 +26,7 @@ export function IntakeHero({
   target,
   max,
   label = 'Budget di oggi',
+  planned = false,
 }: IntakeHeroProps) {
   const remaining = target - consumed
   const over = remaining < 0
@@ -58,7 +61,11 @@ export function IntakeHero({
         <span className="pb-1.5 text-sm font-bold">kcal</span>
       </p>
       <p className="text-primary-foreground/80 mt-2 text-[13px] font-semibold">
-        {over ? 'oltre il target' : 'ancora disponibili'}
+        {over
+          ? 'oltre il target'
+          : planned
+            ? 'ancora da pianificare'
+            : 'ancora disponibili'}
       </p>
 
       <div className="mt-5">
@@ -79,7 +86,9 @@ export function IntakeHero({
           />
         </div>
         <div className="text-primary-foreground/75 tabular mt-2 flex justify-between text-[11px] font-semibold">
-          <span>{kcal(consumed)} consumate</span>
+          <span>
+            {kcal(consumed)} {planned ? 'pianificate' : 'consumate'}
+          </span>
           <span>obiettivo {kcal(target)}</span>
         </div>
       </div>

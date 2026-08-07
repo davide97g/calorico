@@ -1,26 +1,12 @@
 import { Link } from 'react-router-dom'
-import {
-  Apple,
-  Moon,
-  Plus,
-  Soup,
-  Sunrise,
-  Trash2,
-  type LucideIcon,
-} from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { Panel } from '@/components/ui/panel'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
+import { MEAL_ICON } from '@/components/food/meal-icon'
 import { MEAL_LABELS, MEAL_ORDER, grams, kcal } from '@/lib/format'
+import { isFutureDay } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import type { DiaryEntry, Meal } from '@/lib/types'
-
-/** Lucide instead of emoji: one icon family, themeable, same on every OS. */
-const MEAL_ICON: Record<Meal, LucideIcon> = {
-  breakfast: Sunrise,
-  lunch: Soup,
-  dinner: Moon,
-  snack: Apple,
-}
 
 interface DiaryPanelProps {
   day: string
@@ -38,9 +24,11 @@ export function DiaryPanel({ day, byMeal, total, onDelete }: DiaryPanelProps) {
   return (
     <section>
       <header className="mb-2 flex items-baseline justify-between px-1">
-        <h2 className="text-[13px] font-bold">Diario</h2>
+        <h2 className="text-[13px] font-bold">
+          {isFutureDay(day) ? 'Piano' : 'Diario'}
+        </h2>
         <span className="tabular text-muted-foreground text-[11px] font-semibold">
-          {kcal(total)} kcal registrate
+          {kcal(total)} kcal {isFutureDay(day) ? 'pianificate' : 'registrate'}
         </span>
       </header>
 

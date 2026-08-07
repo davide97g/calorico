@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { FoodRow } from '@/components/food/food-row'
 import { BarcodeScanner } from '@/components/food/barcode-scanner'
+import { WhenBar } from '@/components/food/when-picker'
 import { Panel } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,13 +21,23 @@ import { useAddGroceryItem } from '@/hooks/use-grocery'
 import { ApiError } from '@/lib/api'
 import { todayISO } from '@/lib/date'
 import { currentMeal } from '@/lib/format'
+import type { When } from '@/lib/when'
 import type { Food, Meal } from '@/lib/types'
 
 export default function AddFoodPage() {
   const navigate = useNavigate()
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const day = params.get('day') ?? todayISO()
   const meal = (params.get('meal') as Meal | null) ?? currentMeal()
+
+  // The target lives in the URL so every link out of this screen — the food
+  // page, the new-food form, the scanner — carries it without extra plumbing.
+  const setWhen = (next: When) => {
+    const updated = new URLSearchParams(params)
+    updated.set('day', next.day)
+    updated.set('meal', next.meal)
+    setParams(updated, { replace: true })
+  }
 
   const [term, setTerm] = useState('')
   const [debounced, setDebounced] = useState('')
@@ -89,6 +100,8 @@ export default function AddFoodPage() {
         </Button>
         <h1 className="text-[17px] font-bold">Aggiungi alimento</h1>
       </header>
+
+      <WhenBar value={{ day, meal }} onChange={setWhen} className="mb-3" />
 
       <div className="flex items-center gap-2">
         <div className="relative flex-1">

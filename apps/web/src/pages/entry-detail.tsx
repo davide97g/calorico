@@ -8,18 +8,12 @@ import { FoodGallery } from '@/components/food/food-gallery'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { WhenBar } from '@/components/food/when-picker'
+import type { When } from '@/lib/when'
 import { useDeleteEntry, useDiary, useUpdateEntry } from '@/hooks/use-diary'
 import { todayISO } from '@/lib/date'
-import { MEAL_LABELS, MEAL_ORDER, grams, kcal } from '@/lib/format'
-import type { Meal } from '@/lib/types'
+import { grams, kcal } from '@/lib/format'
 
 export default function EntryDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -34,12 +28,12 @@ export default function EntryDetailPage() {
   const deleteEntry = useDeleteEntry()
 
   const [quantity, setQuantity] = useState('')
-  const [meal, setMeal] = useState<Meal>('snack')
+  const [when, setWhen] = useState<When>({ day, meal: 'snack' })
 
   useEffect(() => {
     if (entry) {
       setQuantity(String(entry.quantityG))
-      setMeal(entry.meal)
+      setWhen({ day: entry.day, meal: entry.meal })
     }
   }, [entry])
 
@@ -68,12 +62,15 @@ export default function EntryDetailPage() {
   const scale = nextGrams / entry.quantityG
 
   const handleSave = () => {
+    const moved = when.day !== entry.day
     updateEntry.mutate(
-      { id: entry.id, quantityG: nextGrams, meal },
+      { id: entry.id, quantityG: nextGrams, meal: when.meal, day: when.day },
       {
         onSuccess: () => {
-          toast.success('Voce aggiornata')
-          navigate(-1)
+          toast.success(moved ? 'Voce spostata' : 'Voce aggiornata')
+          // The screen behind this one is showing the day the entry just left.
+          if (moved) navigate(`/?day=${when.day}`, { replace: true })
+          else navigate(-1)
         },
         onError: () => toast.error('Aggiornamento non riuscito'),
       },
@@ -154,19 +151,14 @@ export default function EntryDetailPage() {
           <span className="text-muted-foreground w-8 text-sm">
             {entry.unit ?? 'g'}
           </span>
-          <Select value={meal} onValueChange={(v) => setMeal(v as Meal)}>
-            <SelectTrigger className="h-12 flex-1 rounded-2xl" aria-label="Pasto">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="rounded-2xl">
-              {MEAL_ORDER.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {MEAL_LABELS[m]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
+
+        <WhenBar
+          value={when}
+          onChange={setWhen}
+          variant="inset"
+          className="mt-2"
+        />
 
         <dl className="mt-4 grid grid-cols-4 gap-2 text-center">
           <Cell label="kcal" value={kcal(entry.kcal * scale)} />
