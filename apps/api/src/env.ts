@@ -95,16 +95,16 @@ const schema = z.object({
    * told notifications are unavailable, rather than letting users arm reminders
    * that could never be delivered. Generate a pair with `npm run vapid`.
    *
-   * The private key signs every push; rotating it invalidates nothing stored
-   * here, but browsers hold the public key inside their subscription, so a
-   * rotation means every subscription has to be created again.
-   */
-  /**
    * Both keys are checked for shape, not just presence. A truncated paste is the
    * one push misconfiguration that looks like working software: the client
    * happily subscribes, `web-push` throws on the first send, and the only
    * symptom is a phone that stays quiet. The lengths are what an uncompressed
    * P-256 point (65 bytes) and its scalar (32 bytes) come to in base64.
+   *
+   * The private key signs every push; rotating it invalidates nothing stored
+   * here, but browsers hold the public key inside their subscription — so after
+   * a rotation the push service refuses every send with 403, which drops the
+   * subscription and has the browser register again.
    */
   VAPID_PUBLIC_KEY: blankToUndefined(
     z
