@@ -8,47 +8,41 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer'
-import { useFakeCheckout } from '@/hooks/use-premium'
+import { useCheckout, usePremium } from '@/hooks/use-premium'
 
 /** Only what premium actually changes — everything else is free and stays free. */
 const PERKS = [
-  'Foto dei pasti senza limiti giornalieri',
-  'Nessuna attesa quando finisci le foto gratuite',
+  'Foto dei pasti senza limiti',
+  'Riconosce piatto, ingredienti e quantità in pochi secondi',
   'Sostieni lo sviluppo dell’app',
 ]
 
 /**
- * The paywall. Nothing behind the button charges anything: it calls
- * /api/premium/checkout, which flips a flag on the account and answers — see
- * routes/premium.ts. The screen is shaped like a checkout so the flow can be
- * walked through end to end before a payment provider is chosen, and the copy
- * says so rather than pretending otherwise.
+ * The paywall. The button opens Stripe Checkout in this same tab; the card is
+ * entered on Stripe's page, never here, and the subscription is switched on by
+ * the webhook that follows. Nothing in this component can unlock anything.
  */
 export function PremiumSheet({
   open,
   onOpenChange,
   used,
   limit,
-  onUnlocked,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Photos already analysed in the window, for the "3 su 3" line. */
+  /** Free photos already analysed, for the "1 su 1" line. */
   used?: number
   limit?: number | null
-  /** Fired once the account is premium, so the caller can retry what it wanted. */
-  onUnlocked?: () => void
 }) {
-  const checkout = useFakeCheckout()
+  const status = usePremium()
+  const checkout = useCheckout()
+  const price = status.data?.priceEur ?? 5
+  const paymentsEnabled = status.data?.paymentsEnabled ?? true
 
   const pay = () => {
     checkout.mutate(undefined, {
-      onSuccess: () => {
-        toast.success('Premium attivo')
-        onOpenChange(false)
-        onUnlocked?.()
-      },
-      onError: () => toast.error('Attivazione non riuscita. Riprova.'),
+      // The success path never runs: the browser has left for Stripe by then.
+      onError: () => toast.error('Non riesco ad aprire il pagamento. Riprova.'),
     })
   }
 
@@ -67,8 +61,8 @@ export function PremiumSheet({
           </DrawerTitle>
           <DrawerDescription>
             {typeof limit === 'number'
-              ? `Hai usato ${used ?? limit} foto su ${limit} nelle ultime 24 ore.`
-              : 'Analisi delle foto senza limiti giornalieri.'}
+              ? `Hai usato ${used ?? limit} foto su ${limit} gratuite.`
+              : 'Analisi delle foto senza limiti.'}
           </DrawerDescription>
         </DrawerHeader>
 
@@ -85,25 +79,36 @@ export function PremiumSheet({
             ))}
           </ul>
 
-          <Button
-            type="button"
-            onClick={pay}
-            disabled={checkout.isPending}
-            className="min-h-14 w-full gap-2 rounded-[20px] text-sm font-bold"
-          >
-            {checkout.isPending ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <Sparkles className="size-5" strokeWidth={2.4} />
-            )}
-            {checkout.isPending ? 'Attivo…' : 'Paga 2,99 €/mese'}
-          </Button>
+          {paymentsEnabled ? (
+            <>
+              <Button
+                type="button"
+                onClick={pay}
+                disabled={checkout.isPending}
+                className="min-h-14 w-full gap-2 rounded-[20px] text-sm font-bold"
+              >
+                {checkout.isPending ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <Sparkles className="size-5" strokeWidth={2.4} />
+                )}
+                {checkout.isPending
+                  ? 'Apro il pagamento…'
+                  : `Abbonati a ${price},00 €/mese`}
+              </Button>
 
-          <p className="text-muted-foreground px-1 text-[11px] font-medium">
-            Nessun pagamento viene richiesto: i pagamenti non sono ancora
-            collegati, quindi questo pulsante attiva Premium gratis. Puoi
-            disattivarlo dal tuo profilo.
-          </p>
+              <p className="text-muted-foreground px-1 text-[11px] font-medium">
+                Pagamento sicuro con Stripe: la carta viene inserita sul loro
+                sito, non qui. Rinnovo mensile, disdici quando vuoi dal tuo
+                profilo.
+              </p>
+            </>
+          ) : (
+            <p className="text-muted-foreground px-1 text-[11px] font-medium">
+              I pagamenti non sono attivi su questo server, quindi Premium non è
+              acquistabile.
+            </p>
+          )}
         </div>
       </DrawerContent>
     </Drawer>

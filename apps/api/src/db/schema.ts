@@ -73,16 +73,41 @@ export const users = pgTable(
      */
     tokenVersion: integer('token_version').notNull().default(0),
     /**
-     * Lifts the daily cap on meal-photo analysis. Set by the fake checkout — no
-     * payment provider is wired up yet, see routes/premium.ts.
+     * Lifts the cap on meal-photo analysis. Written by the Stripe webhook once a
+     * subscription is active — see routes/stripe-webhook.ts. Nothing else in the
+     * app decides who is premium, so a checkout that never reached us leaves the
+     * account free rather than half-paid.
      */
     isPremium: boolean('is_premium').notNull().default(false),
     premiumSince: timestamp('premium_since', { withTimezone: true }),
+    /**
+     * End of the period already paid for. Someone who cancels keeps premium
+     * until this passes, and it is also the safety net for a `deleted` webhook
+     * that never arrived: past this date the account reads as free again.
+     */
+    premiumUntil: timestamp('premium_until', { withTimezone: true }),
+    /** Cancelled but still inside the paid period. Only changes what the UI says. */
+    premiumCancelAtPeriodEnd: boolean('premium_cancel_at_period_end')
+      .notNull()
+      .default(false),
+    /** Stripe's copy of this person. Created on their first checkout, then reused. */
+    stripeCustomerId: text('stripe_customer_id'),
+    stripeSubscriptionId: text('stripe_subscription_id'),
+    /**
+     * Meal photos analysed on the free tier, for the lifetime of the account.
+     * A counter rather than a count over scan_events: that table is a family
+     * feed written best-effort, so a dropped row there would hand out a free
+     * analysis, and rows in it are not what the allowance is about.
+     */
+    freePhotoScansUsed: integer('free_photo_scans_used').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
-  (t) => [uniqueIndex('users_email_unique').on(sql`lower(${t.email})`)],
+  (t) => [
+    uniqueIndex('users_email_unique').on(sql`lower(${t.email})`),
+    uniqueIndex('users_stripe_customer_unique').on(t.stripeCustomerId),
+  ],
 )
 
 export const profiles = pgTable('profiles', {

@@ -1,0 +1,95 @@
+# Calorico
+
+> Calorico è un contacalorie e diario di macronutrienti in lingua italiana,
+> gratuito e open source (AGPL-3.0), costruito attorno ai prodotti venduti nei
+> supermercati italiani. Funziona come applicazione web installabile (PWA), non
+> passa da App Store né da Google Play.
+
+Sito: https://calorico.davideghiotto.it/
+Codice: https://github.com/davide97g/calorico
+Licenza del software: GNU AGPL-3.0
+Lingua dell'interfaccia: italiano
+Autore: Davide Ghiotto (progetto personale, non una società)
+
+## Che problema risolve
+
+I contacalorie diffusi in Italia sono localizzati da archivi anglosassoni: chi
+cerca «fusilli Coop» o «yogurt Esselunga» non trova la voce giusta e finisce per
+inserire i valori a mano. Calorico parte invece dall'archivio dei prodotti
+effettivamente venduti in Italia, private label dei supermercati comprese, e lo
+completa con le tabelle di composizione per gli alimenti sfusi che nessun codice
+a barre copre.
+
+## Funzioni principali
+
+- Diario giornaliero su quattro pasti, con totali e obiettivi di calorie,
+  carboidrati, proteine e grassi.
+- Ricerca prodotti full-text (trigrammi PostgreSQL più ranking per prefisso) con
+  raggruppamento dei duplicati e ripiego su Open Food Facts per ciò che manca.
+- Lettura del codice a barre dalla fotocamera del telefono.
+- Riconoscimento del pasto da una fotografia: restituisce alimenti e quantità
+  stimate, sempre soggetti a revisione manuale prima di entrare nel diario.
+- Obiettivi calorici calcolati con l'equazione di Mifflin-St Jeor più un fattore
+  di attività, poi modificabili a mano.
+- Registro del peso con linea di tendenza e indice di massa corporea.
+- Promemoria push per pasti, controllo serale e pesata settimanale, che restano
+  silenziosi quando l'attività è già stata registrata.
+- Alimenti personalizzati, preferiti, recenti, copia di un giorno precedente,
+  gruppo famiglia con scansioni condivise, lista della spesa.
+- Installabile su iPhone e Android con icona, finestra a schermo intero e guscio
+  offline.
+
+## Prezzi
+
+- Piano gratuito: tutte le funzioni sopra elencate, senza pubblicità. Il
+  riconoscimento da foto ha un tetto giornaliero.
+- Premium: 5 € al mese, toglie il tetto giornaliero sul riconoscimento da foto.
+  Non ancora attivabile — i pagamenti arriveranno più avanti.
+
+## Fonti dei dati nutrizionali
+
+- Prodotti confezionati e private label italiane (Coop, Esselunga, Conad):
+  Open Food Facts, licenza ODbL 1.0.
+- Alimenti non confezionati (carne cruda, pasta cotta, frutta e verdura):
+  tabelle di composizione CREA e BDA-IEO, più ANSES-CIQUAL per il resto del
+  catalogo generico.
+
+## Privacy
+
+- Nessun cookie, nessun banner di consenso, nessuna pubblicità, nessun
+  tracciamento di terze parti. Anche i caratteri tipografici sono serviti dal
+  dominio del sito.
+- Il diario e il peso sono trattati come dati sulla salute (art. 9 GDPR), sulla
+  base del consenso esplicito dell'utente.
+- Le fotografie dei pasti non vengono mai conservate: esistono solo per la
+  durata dell'analisi.
+- L'account e tutto il suo contenuto si cancellano dal profilo, in cascata e
+  senza periodo di ripensamento.
+- Informativa completa: https://calorico.davideghiotto.it/privacy
+
+## Limiti dichiarati
+
+Calorico non è un dispositivo medico, non fornisce diagnosi né consulenza
+nutrizionale, e i valori mostrati sono stime: le banche dati collaborative
+possono essere incomplete o errate, le tabelle di composizione riportano medie, e
+il riconoscimento da foto sbaglia sia alimenti sia quantità. Chi ha patologie,
+è in gravidanza o allattamento, o soffre di disturbi del comportamento
+alimentare dovrebbe rivolgersi a un professionista.
+
+## Stack tecnico
+
+React 19, Vite, TypeScript, Tailwind v4 e shadcn/ui sul frontend; Fastify 5,
+Drizzle ORM e Zod sull'API; PostgreSQL 17 con le estensioni pg_trgm e unaccent;
+autenticazione a token JWT con hash scrypt; distribuito con Docker Compose
+dietro Traefik gestito da Dokploy.
+
+## Pagine
+
+- [Home](https://calorico.davideghiotto.it/): che cos'è, funzioni, fonti dei
+  dati, prezzi e domande frequenti.
+- [Informativa privacy](https://calorico.davideghiotto.it/privacy): dati
+  trattati, basi giuridiche, destinatari, conservazione e diritti GDPR.
+- [Termini di servizio](https://calorico.davideghiotto.it/termini): condizioni
+  d'uso, limiti di responsabilità, licenze di software e dati, Premium e recesso.
+- [Repository](https://github.com/davide97g/calorico): codice sorgente,
+  istruzioni di installazione e Docker Compose di produzione.

@@ -58,24 +58,20 @@ export function PhotoMealSheet({
   const inputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [paywall, setPaywall] = useState(false)
-  // Held so the photo survives the paywall: pay, and it is analysed straight
-  // away instead of asking the user to frame the plate again.
-  const [pending, setPending] = useState<File | null>(null)
 
   const outOfPhotos = quota?.remaining !== null && (quota?.remaining ?? 1) <= 0
 
   /**
-   * `skipQuotaCheck` is for the retry right after the paywall: the quota query
-   * has been invalidated but not necessarily refetched, so the local copy still
-   * says zero left and would bounce the user straight back into the sheet. The
-   * server is the one that decides either way.
+   * The photo is not held back for after the paywall any more: paying leaves
+   * this tab for Stripe, and a File cannot survive that. Whoever comes back
+   * premium frames the plate again — one tap, and better than pretending an
+   * upload is still waiting somewhere.
    */
-  const handleFile = async (file: File, skipQuotaCheck = false) => {
+  const handleFile = async (file: File) => {
     setError(null)
     // The server checks this too — this only saves a wasted round trip with a
     // megabyte of photo attached.
-    if (outOfPhotos && !skipQuotaCheck) {
-      setPending(file)
+    if (outOfPhotos) {
       setPaywall(true)
       return
     }
@@ -96,7 +92,6 @@ export function PhotoMealSheet({
     } catch (err) {
       // The allowance ran out between the status check and the upload.
       if (err instanceof ApiError && err.code === 'photo_quota_exceeded') {
-        setPending(file)
         setPaywall(true)
         return
       }
@@ -158,8 +153,8 @@ export function PhotoMealSheet({
                   >
                     <Sparkles className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.4} />
                     {quota.remaining > 0
-                      ? `${quota.remaining} foto su ${quota.limit} rimaste nelle ultime 24 ore. Passa a Premium per non avere limiti.`
-                      : 'Hai finito le foto gratuite delle ultime 24 ore. Passa a Premium per continuare.'}
+                      ? `Ti resta ${quota.remaining} foto gratuita su ${quota.limit}. Con Premium non ci sono limiti.`
+                      : 'Hai usato la foto gratuita. Passa a Premium per continuare.'}
                   </button>
                 ) : null}
 
@@ -190,17 +185,9 @@ export function PhotoMealSheet({
 
       <PremiumSheet
         open={paywall}
-        onOpenChange={(next) => {
-          setPaywall(next)
-          if (!next) setPending(null)
-        }}
+        onOpenChange={setPaywall}
         used={quota?.used}
         limit={quota?.limit}
-        onUnlocked={() => {
-          const file = pending
-          setPending(null)
-          if (file) void handleFile(file, true)
-        }}
       />
     </>
   )

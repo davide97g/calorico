@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Calorico — contacalorie italiano con i prodotti del supermercato</title>
+    <meta
+      name="description"
+      content="Calorico è un contacalorie gratuito e open source in italiano: cerchi i prodotti dei supermercati italiani per nome o codice a barre, registri i pasti e vedi calorie e macronutrienti del giorno. Nessuna pubblicità, nessuna rivendita dei dati."
+    />
+    <link rel="canonical" href="https://calorico.davideghiotto.it/" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <link rel="alternate" hreflang="it" href="https://calorico.davideghiotto.it/" />
+    <link rel="alternate" hreflang="x-default" href="https://calorico.davideghiotto.it/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Calorico" />
+    <meta property="og:locale" content="it_IT" />
+    <meta property="og:url" content="https://calorico.davideghiotto.it/" />
+    <meta property="og:title" content="Calorico — contacalorie italiano con i prodotti del supermercato" />
+    <meta
+      property="og:description"
+      content="Contacalorie gratuito e open source in italiano. Prodotti Coop, Esselunga, Conad e tabelle CREA, ricerca per nome o codice a barre, calorie e macro del giorno."
+    />
+    <meta property="og:image" content="https://calorico.davideghiotto.it/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Calorico — diario di calorie e macronutrienti" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Calorico — contacalorie italiano con i prodotti del supermercato" />
+    <meta
+      name="twitter:description"
+      content="Contacalorie gratuito e open source in italiano. Prodotti dei supermercati italiani, ricerca per nome o codice a barre, calorie e macro del giorno."
+    />
+    <meta name="twitter:image" content="https://calorico.davideghiotto.it/og.png" />
+
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f5ef" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#333c33" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+
+    <!-- Fonts are served from this origin, so the page makes no third-party
+         request at all: no consent to collect, nothing to put in a banner. -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/bricolage-grotesque-600-800-latin.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/plus-jakarta-sans-400-latin.woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/fonts.css" />
+    <link rel="stylesheet" href="/marketing.css" />
+
+    <!-- Structured data. Editing any of these three blocks changes its SHA-256,
+         which is pinned in nginx security-headers-marketing.conf — regenerate it
+         with `npm run csp:hashes` or the page will be blocked by CSP. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Calorico",
+        "url": "https://calorico.davideghiotto.it/",
+        "applicationCategory": "HealthApplication",
+        "applicationSubCategory": "Contacalorie e diario alimentare",
+        "operatingSystem": "Web, iOS, Android (PWA installabile)",
+        "inLanguage": "it-IT",
+        "description": "Contacalorie e diario di macronutrienti in italiano, costruito attorno ai prodotti dei supermercati italiani. Ricerca per nome o codice a barre, obiettivi calorici calcolati con Mifflin-St Jeor, registro del peso e promemoria.",
+        "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+        "isAccessibleForFree": true,
+        "offers": [
+          {
+            "@type": "Offer",
+            "name": "Gratuito",
+            "price": "0",
+            "priceCurrency": "EUR",
+            "description": "Diario, ricerca prodotti, codice a barre, obiettivi, peso e promemoria."
+          },
+          {
+            "@type": "Offer",
+            "name": "Premium",
+            "price": "5",
+            "priceCurrency": "EUR",
+            "description": "Riconoscimento del pasto dalla foto senza limiti giornalieri.",
+            "availability": "https://schema.org/PreOrder"
+          }
+        ],
+        "author": {
+          "@type": "Person",
+          "name": "Davide Ghiotto",
+          "url": "https://github.com/davide97g"
+        },
+        "codeRepository": "https://github.com/davide97g/calorico"
+      }
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Calorico è gratuito?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sì. Il diario, la ricerca prodotti, il codice a barre, gli obiettivi calorici, il registro del peso e i promemoria sono gratuiti e senza pubblicità. L'unica funzione a pagamento sarà il riconoscimento del pasto dalla foto senza limiti, a 5 € al mese; nella versione gratuita resta disponibile con un tetto giornaliero."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Da dove arrivano i dati nutrizionali?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Da due fonti aperte. I prodotti confezionati e le private label dei supermercati italiani (Coop, Esselunga, Conad) vengono da Open Food Facts, distribuito con licenza ODbL. Gli alimenti sfusi — petto di pollo crudo, pasta cotta, una mela — vengono dalle tabelle di composizione CREA e BDA-IEO e da ANSES-CIQUAL, perché Open Food Facts copre solo ciò che ha una confezione e un codice a barre."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Come si calcola l'obiettivo di calorie?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Con l'equazione di Mifflin-St Jeor sul metabolismo basale, moltiplicata per un fattore di attività e corretta in base all'obiettivo di peso. Il risultato è una proposta: ogni valore, calorie e macronutrienti, resta modificabile a mano dal profilo."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Serve installare un'app dallo store?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Calorico è una PWA: si apre dal browser e si può installare sulla schermata home di iPhone e Android, con finestra a schermo intero, icona e notifiche push. Non passa da App Store né da Google Play."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "I miei dati alimentari vengono venduti o usati per pubblicità?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Non c'è pubblicità, non ci sono cookie di profilazione e i dati del diario non vengono ceduti a terzi. L'account e tutto ciò che contiene si cancellano dal profilo, in modo definitivo."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Posso installare Calorico sul mio server?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sì. Il codice è pubblico su GitHub con licenza AGPL-3.0 e il repository include un Docker Compose completo: Postgres 17, API Fastify e frontend dietro nginx. Chi modifica il codice e lo offre come servizio in rete deve pubblicare le proprie modifiche."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Calorico è un dispositivo medico?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. È uno strumento di auto-monitoraggio. I valori nutrizionali e gli obiettivi calcolati sono stime e non sostituiscono il parere di un medico, di un dietista o di un nutrizionista."
+            }
+          }
+        ]
+      }
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Calorico",
+        "url": "https://calorico.davideghiotto.it/",
+        "inLanguage": "it-IT",
+        "publisher": {
+          "@type": "Person",
+          "name": "Davide Ghiotto",
+          "url": "https://github.com/davide97g"
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    <a class="skip" href="#contenuto">Vai al contenuto</a>
+
+    <header class="site-head">
+      <div class="wrap head-inner">
+        <a class="brand" href="/" aria-label="Calorico, home">
+          <img src="/favicon.svg" alt="" width="28" height="28" />
+          <span>Calorico</span>
+        </a>
+        <nav aria-label="Principale">
+          <a href="#funzioni">Funzioni</a>
+          <a href="#dati">Dati</a>
+          <a href="#prezzi">Prezzi</a>
+          <a href="#faq">Domande</a>
+          <a href="https://github.com/davide97g/calorico" rel="noopener">GitHub</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="/app">Apri l'app</a>
+      </div>
+    </header>
+
+    <main id="contenuto">
+      <section class="hero wrap">
+        <div class="hero-copy">
+          <p class="eyebrow">Open source · Dati aperti · Nessuna pubblicità</p>
+          <h1>Il contacalorie che conosce già la tua spesa.</h1>
+          <p class="lead">
+            Calorico è un diario di calorie e macronutrienti in italiano,
+            costruito attorno ai prodotti che trovi davvero al supermercato.
+            Cerchi <strong>“fusilli Coop”</strong>, inquadri un codice a barre,
+            o fotografi il piatto — e la giornata si chiude da sola.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="/app">Inizia gratis</a>
+            <a class="btn btn-ghost" href="https://github.com/davide97g/calorico" rel="noopener">
+              Guarda il codice
+            </a>
+          </div>
+          <ul class="ticks">
+            <li>Gratis, senza pubblicità</li>
+            <li>Si installa dal browser, non dallo store</li>
+            <li>Account cancellabile in un tap</li>
+          </ul>
+        </div>
+
+        <div class="hero-art" aria-hidden="true">
+          <svg viewBox="0 0 300 480" role="presentation" xmlns="http://www.w3.org/2000/svg">
+            <rect x="8" y="8" width="284" height="464" rx="42" class="phone" />
+            <text x="32" y="66" class="mock-kicker">OGGI</text>
+            <text x="32" y="94" class="mock-date">Giovedì 7</text>
+
+            <g transform="translate(150 190)">
+              <circle r="66" class="ring-track" />
+              <circle
+                r="66"
+                class="ring-fill"
+                transform="rotate(-90)"
+                stroke-dasharray="290 415"
+              />
+              <text y="-2" class="mock-big">1 480</text>
+              <text y="24" class="mock-small">di 2 050 kcal</text>
+            </g>
+
+            <g transform="translate(32 292)">
+              <text y="0" class="mock-small">Carboidrati</text>
+              <rect y="10" width="236" height="10" rx="5" class="bar-track" />
+              <rect y="10" width="164" height="10" rx="5" class="bar-c" />
+              <text y="48" class="mock-small">Proteine</text>
+              <rect y="58" width="236" height="10" rx="5" class="bar-track" />
+              <rect y="58" width="118" height="10" rx="5" class="bar-p" />
+              <text y="96" class="mock-small">Grassi</text>
+              <rect y="106" width="236" height="10" rx="5" class="bar-track" />
+              <rect y="106" width="76" height="10" rx="5" class="bar-f" />
+            </g>
+
+            <g transform="translate(32 430)">
+              <rect width="236" height="26" rx="13" class="chip" />
+              <text x="14" y="18" class="mock-chip">🍝 Fusilli Coop · 80 g · 278 kcal</text>
+            </g>
+          </svg>
+        </div>
+      </section>
+
+      <section class="strip">
+        <div class="wrap strip-inner">
+          <div><strong>Open Food Facts</strong><span>prodotti confezionati italiani, ODbL</span></div>
+          <div><strong>CREA · BDA-IEO · CIQUAL</strong><span>alimenti sfusi e non confezionati</span></div>
+          <div><strong>AGPL-3.0</strong><span>codice pubblico, auto-ospitabile</span></div>
+          <div><strong>GDPR</strong><span>dati in UE, cancellazione definitiva</span></div>
+        </div>
+      </section>
+
+      <section id="funzioni" class="wrap section">
+        <h2>Cosa fa Calorico</h2>
+        <p class="section-lead">
+          Tutto quello che serve a chiudere una giornata alimentare in meno di un
+          minuto, senza compilare tabelle a mano.
+        </p>
+        <div class="grid">
+          <article class="card">
+            <h3>Ricerca che trova la marca giusta</h3>
+            <p>
+              Ricerca full-text con trigrammi e ranking per prefisso sui prodotti
+              venduti in Italia, private label dei supermercati incluse. I
+              duplicati vengono uniti, non elencati tre volte.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Codice a barre</h3>
+            <p>
+              Inquadri la confezione e il prodotto entra nel diario. Se non è in
+              archivio, Calorico lo chiede a Open Food Facts e lo salva per la
+              volta dopo.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Il pasto da una foto</h3>
+            <p>
+              Uno scatto diventa la lista degli alimenti con la quantità stimata.
+              Prima di finire nel diario passi dalla revisione e correggi quello
+              che serve.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Obiettivi calcolati, non indovinati</h3>
+            <p>
+              Metabolismo basale con Mifflin-St Jeor, fattore di attività,
+              correzione sull'obiettivo di peso. Poi ogni numero resta
+              modificabile a mano.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Peso, trend e BMI</h3>
+            <p>
+              Registro del peso con linea di tendenza, così una giornata storta
+              non sembra un fallimento e un mese buono si vede.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Promemoria che sanno tacere</h3>
+            <p>
+              Notifiche push per i pasti, il controllo serale e la pesata
+              settimanale — ognuna resta zitta se la cosa è già stata fatta.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Alimenti tuoi, e giornate copiate</h3>
+            <p>
+              Alimenti personalizzati, preferiti, recenti e la possibilità di
+              ricopiare un giorno intero: chi mangia sempre lo stesso pranzo lo
+              registra una volta sola.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Si installa come un'app</h3>
+            <p>
+              PWA installabile su iPhone e Android: icona in home, finestra a
+              schermo intero, guscio offline e aggiornamenti che arrivano entro
+              un minuto dal deploy.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="dati" class="wrap section">
+        <h2>Da dove arrivano i dati nutrizionali</h2>
+        <p class="section-lead">
+          Un contacalorie vale quanto il suo archivio. Calorico ne mette insieme
+          due, perché nessuno dei due basta da solo.
+        </p>
+        <div class="grid grid-2">
+          <article class="card">
+            <h3>Prodotti confezionati</h3>
+            <p>
+              <strong>Open Food Facts</strong>, filtrato sugli articoli venduti in
+              Italia: marche nazionali e private label Coop, Esselunga e Conad,
+              con codice a barre, foto della confezione, ingredienti ed etichetta
+              nutrizionale. Distribuito con licenza ODbL.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Alimenti sfusi</h3>
+            <p>
+              Le tabelle di composizione <strong>CREA</strong> e
+              <strong>BDA-IEO</strong>, più <strong>ANSES-CIQUAL</strong> per il
+              resto dello scaffale non confezionato. È la metà del diario che
+              Open Food Facts non può coprire: il petto di pollo crudo, la pasta
+              cotta, una mela.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="prezzi" class="wrap section">
+        <h2>Prezzi</h2>
+        <p class="section-lead">
+          Il diario è e resta gratuito. Si paga solo la funzione che ha un costo
+          vero per ogni utilizzo.
+        </p>
+        <div class="grid grid-2 pricing">
+          <article class="card price">
+            <h3>Gratuito</h3>
+            <p class="amount">0 €</p>
+            <ul class="ticks">
+              <li>Diario, calorie e macro</li>
+              <li>Ricerca prodotti e codice a barre</li>
+              <li>Obiettivi, peso, promemoria</li>
+              <li>Alimenti personalizzati e preferiti</li>
+              <li>Riconoscimento foto con limite giornaliero</li>
+            </ul>
+            <a class="btn btn-primary" href="/app">Inizia gratis</a>
+          </article>
+          <article class="card price">
+            <h3>Premium <span class="badge">in arrivo</span></h3>
+            <p class="amount">5 €<span>/mese</span></p>
+            <ul class="ticks">
+              <li>Tutto il piano gratuito</li>
+              <li>Riconoscimento del pasto dalla foto senza limiti</li>
+              <li>Sostiene i costi del modello di visione e del server</li>
+            </ul>
+            <a class="btn btn-ghost" href="/app">Provalo gratis intanto</a>
+          </article>
+        </div>
+        <p class="fineprint">
+          Premium non è ancora attivabile: i pagamenti arriveranno più avanti.
+          Fino ad allora il riconoscimento da foto è disponibile a tutti, con un
+          tetto giornaliero.
+        </p>
+      </section>
+
+      <section class="wrap section">
+        <h2>Open source, sul serio</h2>
+        <div class="grid grid-2">
+          <article class="card">
+            <h3>Tutto il codice è pubblico</h3>
+            <p>
+              Frontend React, API Fastify, schema Postgres, migrazioni, import
+              dei dati e Docker Compose di produzione: è tutto nel repository,
+              con licenza <strong>AGPL-3.0</strong>. Puoi leggerlo, correggerlo,
+              installarlo sul tuo server.
+            </p>
+            <a class="btn btn-ghost btn-sm" href="https://github.com/davide97g/calorico" rel="noopener">
+              github.com/davide97g/calorico
+            </a>
+          </article>
+          <article class="card">
+            <h3>Perché AGPL</h3>
+            <p>
+              Perché il codice resti aperto anche quando gira su un server di
+              qualcun altro: chi lo modifica e lo offre come servizio in rete
+              deve pubblicare le proprie modifiche. Auto-ospitarlo per sé, o per
+              la propria famiglia, non richiede nulla.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="faq" class="wrap section">
+        <h2>Domande frequenti</h2>
+        <div class="faq">
+          <details>
+            <summary>Calorico è gratuito?</summary>
+            <p>
+              Sì. Diario, ricerca prodotti, codice a barre, obiettivi calorici,
+              registro del peso e promemoria sono gratuiti e senza pubblicità.
+              L'unica funzione a pagamento sarà il riconoscimento del pasto dalla
+              foto senza limiti, a 5 € al mese; nel piano gratuito resta
+              disponibile con un tetto giornaliero.
+            </p>
+          </details>
+          <details>
+            <summary>Da dove arrivano i dati nutrizionali?</summary>
+            <p>
+              Da due fonti aperte. I prodotti confezionati e le private label dei
+              supermercati italiani vengono da Open Food Facts (licenza ODbL).
+              Gli alimenti sfusi vengono dalle tabelle di composizione CREA e
+              BDA-IEO e da ANSES-CIQUAL, perché Open Food Facts copre solo ciò
+              che ha una confezione e un codice a barre.
+            </p>
+          </details>
+          <details>
+            <summary>Come si calcola l'obiettivo di calorie?</summary>
+            <p>
+              Con l'equazione di Mifflin-St Jeor sul metabolismo basale,
+              moltiplicata per un fattore di attività e corretta in base
+              all'obiettivo di peso. Il risultato è una proposta: calorie e
+              macronutrienti restano modificabili a mano dal profilo.
+            </p>
+          </details>
+          <details>
+            <summary>Serve installare un'app dallo store?</summary>
+            <p>
+              No. Calorico è una PWA: si apre dal browser e si installa sulla
+              schermata home di iPhone e Android, con finestra a schermo intero,
+              icona e notifiche push. Non passa da App Store né da Google Play.
+            </p>
+          </details>
+          <details>
+            <summary>I miei dati alimentari vengono venduti?</summary>
+            <p>
+              No. Non c'è pubblicità, non ci sono cookie di profilazione e i dati
+              del diario non vengono ceduti a terzi. L'account e tutto ciò che
+              contiene si cancellano dal profilo, in modo definitivo. I dettagli
+              sono nell'<a href="/privacy">informativa privacy</a>.
+            </p>
+          </details>
+          <details>
+            <summary>Posso installare Calorico sul mio server?</summary>
+            <p>
+              Sì. Il codice è pubblico con licenza AGPL-3.0 e il repository
+              include un Docker Compose completo: Postgres 17, API Fastify e
+              frontend dietro nginx. Chi modifica il codice e lo offre come
+              servizio in rete deve pubblicare le proprie modifiche.
+            </p>
+          </details>
+          <details>
+            <summary>Calorico è un dispositivo medico?</summary>
+            <p>
+              No. È uno strumento di auto-monitoraggio. I valori nutrizionali e
+              gli obiettivi calcolati sono stime e non sostituiscono il parere di
+              un medico, di un dietista o di un nutrizionista.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section class="wrap section closer">
+        <h2>Chiudi la giornata in un minuto.</h2>
+        <p class="section-lead">Gratis, senza pubblicità, senza store.</p>
+        <a class="btn btn-primary btn-lg" href="/app">Apri Calorico</a>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <div class="wrap foot-inner">
+        <div>
+          <p class="brand"><img src="/favicon.svg" alt="" width="22" height="22" /><span>Calorico</span></p>
+          <p class="muted">
+            Diario di calorie e macronutrienti con i prodotti dei supermercati
+            italiani. Progetto personale di
+            <a href="https://github.com/davide97g" rel="noopener">Davide Ghiotto</a>.
+          </p>
+        </div>
+        <nav aria-label="Legale e progetto">
+          <a href="/privacy">Privacy</a>
+          <a href="/termini">Termini di servizio</a>
+          <a href="https://github.com/davide97g/calorico" rel="noopener">Codice sorgente</a>
+          <a href="https://github.com/davide97g/calorico/blob/main/LICENSE" rel="noopener">Licenza AGPL-3.0</a>
+        </nav>
+      </div>
+      <div class="wrap attrib">
+        <p>
+          Dati sui prodotti confezionati da
+          <a href="https://world.openfoodfacts.org" rel="noopener">Open Food Facts</a>,
+          licenza <a href="https://opendatacommons.org/licenses/odbl/1-0/" rel="noopener">ODbL 1.0</a>.
+          Composizione degli alimenti non confezionati da CREA, BDA-IEO e
+          <a href="https://ciqual.anses.fr" rel="noopener">ANSES-CIQUAL</a>.
+          Calorico non è un dispositivo medico e non fornisce consulenza sanitaria.
+        </p>
+      </div>
+    </footer>
+
+    <!-- Chi ha già una sessione aperta salta la vetrina e va al diario. -->
+    <script src="/landing-redirect.js" defer></script>
+  </body>
+</html>

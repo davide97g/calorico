@@ -4,6 +4,7 @@ import { useTheme } from 'next-themes'
 import {
   ArrowLeft,
   BellRing,
+  CreditCard,
   LogOut,
   Monitor,
   Moon,
@@ -33,7 +34,11 @@ import { PremiumSheet } from '@/components/premium/premium-sheet'
 import { useAuth } from '@/hooks/use-auth'
 import { useFamilies } from '@/hooks/use-family'
 import { useSuggestedTargets, useUpdateProfile } from '@/hooks/use-diary'
-import { useCancelPremium, usePremium } from '@/hooks/use-premium'
+import {
+  useBillingPortal,
+  useCancelPremium,
+  usePremium,
+} from '@/hooks/use-premium'
 import { useNotificationSettings } from '@/hooks/use-notifications'
 import { api } from '@/lib/api'
 import {
@@ -55,6 +60,7 @@ export default function ProfilePage() {
   const families = useFamilies()
   const premium = usePremium()
   const cancelPremium = useCancelPremium()
+  const billingPortal = useBillingPortal()
   const notifications = useNotificationSettings()
   const [saving, setSaving] = useState(false)
   const [paywall, setPaywall] = useState(false)
@@ -146,6 +152,13 @@ export default function ProfilePage() {
   }
 
   const quota = premium.data?.photoQuota
+  /** The day the subscription next renews, or the day it lapses if disdetto. */
+  const renewal = premium.data?.until
+    ? new Date(premium.data.until).toLocaleDateString('it-IT', {
+        day: 'numeric',
+        month: 'long',
+      })
+    : 'fine periodo'
   const activeReminders =
     notifications.data?.reminders.filter((r) => r.enabled).length ?? 0
 
@@ -231,37 +244,57 @@ export default function ProfilePage() {
         {premium.data?.isPremium ? (
           <>
             <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
-              Attivo: foto dei pasti senza limiti. Non è stato addebitato nulla —
-              i pagamenti non sono ancora collegati.
+              {premium.data.cancelAtPeriodEnd
+                ? `Disdetto: resta attivo fino al ${renewal}, poi torni al piano gratuito.`
+                : `Attivo: foto dei pasti senza limiti. Rinnovo il ${renewal}.`}
             </p>
             <Button
               variant="secondary"
               className="mt-3 w-full rounded-full"
               onClick={() =>
-                cancelPremium.mutate(undefined, {
-                  onSuccess: () => toast.success('Premium disattivato'),
-                  onError: () => toast.error('Operazione non riuscita'),
+                billingPortal.mutate(undefined, {
+                  onError: () => toast.error('Non riesco ad aprire Stripe'),
                 })
               }
-              disabled={cancelPremium.isPending}
+              disabled={billingPortal.isPending}
             >
-              Disattiva Premium
+              <CreditCard className="size-4" />
+              Gestisci l&apos;abbonamento
             </Button>
+            {!premium.data.cancelAtPeriodEnd && (
+              <Button
+                variant="ghost"
+                className="mt-1 w-full rounded-full"
+                onClick={() =>
+                  cancelPremium.mutate(undefined, {
+                    onSuccess: () =>
+                      toast.success('Disdetto. Resta attivo fino a fine periodo.'),
+                    onError: () => toast.error('Operazione non riuscita'),
+                  })
+                }
+                disabled={cancelPremium.isPending}
+              >
+                Disdici il rinnovo
+              </Button>
+            )}
           </>
         ) : (
           <>
             <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
-              {quota
-                ? `Hai usato ${quota.used} foto su ${quota.limit} nelle ultime 24 ore.`
+              {quota && quota.limit !== null
+                ? `Hai usato ${quota.used} foto gratuite su ${quota.limit}.`
                 : 'Le foto dei pasti gratuite sono limitate.'}{' '}
               Con Premium l&apos;analisi delle foto non ha limiti.
             </p>
             <Button
               className="mt-3 w-full rounded-full"
               onClick={() => setPaywall(true)}
+              disabled={premium.data?.paymentsEnabled === false}
             >
               <Sparkles className="size-4" />
-              Passa a Premium
+              {premium.data
+                ? `Passa a Premium — ${premium.data.priceEur},00 €/mese`
+                : 'Passa a Premium'}
             </Button>
           </>
         )}

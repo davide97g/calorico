@@ -29,7 +29,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <BrowserRouter>
+        {/* The app lives under /app. The site root is the static landing page
+            in public/, served by nginx and never touched by the router. */}
+        <BrowserRouter basename="/app">
           <AuthProvider>
             <App />
             <Toaster position="top-center" />

@@ -27,7 +27,13 @@ export default defineConfig({
           'Diario di calorie e macronutrienti con i prodotti dei supermercati italiani.',
         lang: 'it',
         dir: 'ltr',
-        start_url: '/',
+        // The diary is at /app; the site root is the landing page. `id` stays
+        // '/' on purpose — it is the installed app's identity, and changing it
+        // would make browsers treat this as a second, unrelated app for
+        // everyone who already installed the old one.
+        start_url: '/app',
+        // Scope stays the whole origin so a tap on Privacy or Termini opens
+        // inside the standalone window instead of kicking out to the browser.
         scope: '/',
         display: 'standalone',
         display_override: ['standalone', 'minimal-ui'],
@@ -72,7 +78,7 @@ export default defineConfig({
           {
             name: 'Aggiungi alimento',
             short_name: 'Aggiungi',
-            url: '/add',
+            url: '/app/add',
             icons: [
               { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
             ],
@@ -80,7 +86,7 @@ export default defineConfig({
           {
             name: 'Registra peso',
             short_name: 'Peso',
-            url: '/weight',
+            url: '/app/weight',
             icons: [
               { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
             ],
@@ -97,27 +103,33 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2}'],
         // push-sw.js is fetched by importScripts, not by the page: precaching it
         // would only keep a second, staler copy of the same file.
-        globIgnores: ['**/splash/**', 'push-sw.js'],
+        //
+        // The marketing pages are excluded too. They are read once, before there
+        // is an account to install anything for, and shipping them inside the
+        // app's precache would mean a new deploy of the privacy notice forcing
+        // every installed diary to re-download its worker.
+        globIgnores: [
+          '**/splash/**',
+          'push-sw.js',
+          'landing.html',
+          'privacy.html',
+          'termini.html',
+          'marketing.css',
+          'landing-redirect.js',
+          'og.png',
+          'llms.txt',
+        ],
         navigateFallback: '/index.html',
+        // Only /app is the SPA. Without the allowlist the worker would answer
+        // /, /privacy and /termini with the app shell, and an installed app
+        // would never show the landing page again — nor a 404 that is real.
+        navigateFallbackAllowlist: [/^\/app(\/|$)/],
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\//,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'google-fonts-stylesheets' },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\//,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-files',
-              cacheableResponse: { statuses: [0, 200] },
-              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
-          },
-        ],
+        // No runtime caching rules: the fonts used to be the only cross-origin
+        // request and they are served from public/fonts now, so everything the
+        // app loads is already in the precache.
       },
       // A worker in dev only gets in the way of HMR.
       devOptions: { enabled: false },

@@ -134,7 +134,11 @@ export function useAcceptInvite() {
   })
 }
 
-/** The invite link a member shares. Built here so the API stays origin-agnostic. */
+/**
+ * The invite link a member shares. Built here so the API stays origin-agnostic.
+ * The /app prefix is the router's basename: this string leaves the app in a
+ * WhatsApp message, so it cannot rely on anything react-router adds later.
+ */
 export function inviteUrl(token: string) {
-  return `${window.location.origin}/join/${token}`
+  return `${window.location.origin}/app/join/${token}`
 }

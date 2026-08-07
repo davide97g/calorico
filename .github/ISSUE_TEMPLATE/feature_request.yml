@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest something Calorico should do
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Worth knowing before you write: this is maintained by one person in
+        spare time, and the answer to a feature request is often "no, but the
+        code is open". That is not a brush-off — it is what makes a fork or a
+        pull request the faster route for anything big.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: |
+        The situation, not the solution. "I eat the same breakfast every day and
+        re-adding it takes six taps" tells more than "add a templates feature".
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you had in mind
+      description: How you imagine it working, if you have a picture of it.
+    validations:
+      required: false
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What you do today instead
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Would you like to build it?
+      options:
+        - label: I would be willing to open a pull request for this
+          required: false

@@ -85,7 +85,12 @@ const MESSAGES: Record<string, string> = {
   image_too_large: 'La foto è troppo pesante.',
   unsupported_media_type: 'Formato immagine non supportato.',
   photo_quota_exceeded:
-    'Hai finito le foto gratuite delle ultime 24 ore. Passa a Premium per continuare.',
+    'Hai usato la foto gratuita. Passa a Premium per continuare.',
+  payments_disabled: 'I pagamenti non sono attivi su questo server.',
+  already_premium: 'Premium è già attivo su questo account.',
+  no_subscription: 'Non risulta nessun abbonamento da gestire.',
+  checkout_unavailable:
+    'Non riesco ad aprire il pagamento in questo momento. Riprova tra poco.',
   invite_not_found: 'Invito non valido o scaduto.',
   push_disabled: 'Le notifiche non sono configurate su questo server.',
   too_many_reminders: 'Hai raggiunto il numero massimo di promemoria.',

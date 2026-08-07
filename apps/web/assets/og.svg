@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f4f5ef"/>
+  <circle cx="1050" cy="-40" r="300" fill="#dcf58f" opacity="0.55"/>
+  <circle cx="120" cy="640" r="200" fill="#dcf58f" opacity="0.4"/>
+
+  <g transform="translate(80 96)">
+    <rect x="0" y="0" width="52" height="52" rx="16" fill="#dcf58f"/>
+    <circle cx="26" cy="26" r="13" fill="none" stroke="#3f7530" stroke-width="5" stroke-linecap="round" stroke-dasharray="62 20" transform="rotate(-90 26 26)"/>
+    <text x="70" y="38" font-family="Avenir Next, Helvetica Neue, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#1f2a20" letter-spacing="-0.5">Calorico</text>
+  </g>
+
+  <text x="80" y="252" font-family="Avenir Next, Helvetica Neue, Helvetica, sans-serif" font-size="58" font-weight="700" fill="#1f2a20" letter-spacing="-1.8">Il contacalorie che</text>
+  <text x="80" y="322" font-family="Avenir Next, Helvetica Neue, Helvetica, sans-serif" font-size="58" font-weight="700" fill="#1f2a20" letter-spacing="-1.8">conosce la tua spesa.</text>
+
+  <text x="80" y="386" font-family="Avenir Next, Helvetica Neue, Helvetica, sans-serif" font-size="26" font-weight="500" fill="#6c7569">Calorie e macro con i prodotti del supermercato.</text>
+
+  <g transform="translate(80 466)">
+    <rect x="0" y="0" width="196" height="52" rx="26" fill="#ffffff" stroke="#e2e5da" stroke-width="1.5"/>
+    <text x="26" y="34" font-family="Avenir Next, Helvetica Neue, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#3f7530">Open source</text>
+
+    <rect x="214" y="0" width="252" height="52" rx="26" fill="#ffffff" stroke="#e2e5da" stroke-width="1.5"/>
+    <text x="240" y="34" font-family="Avenir Next, Helvetica Neue, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#3f7530">Senza pubblicità</text>
+
+    <rect x="490" y="0" width="228" height="52" rx="26" fill="#ffffff" stroke="#e2e5da" stroke-width="1.5"/>
+    <text x="516" y="34" font-family="Avenir Next, Helvetica Neue, Helvetica, sans-serif" font-size="22" font-weight="600" fill="#3f7530">Gratis, in italiano</text>
+  </g>
+
+  <text x="80" y="580" font-family="Avenir Next, Helvetica Neue, Helvetica, sans-serif" font-size="23" font-weight="500" fill="#8a9184">calorico.davideghiotto.it</text>
+
+  <g transform="translate(985 350)">
+    <circle r="132" fill="#ffffff" stroke="#e2e5da" stroke-width="2"/>
+    <circle r="104" fill="none" stroke="#eef4d8" stroke-width="26"/>
+    <circle r="104" fill="none" stroke="#dcf58f" stroke-width="26" stroke-linecap="round" stroke-dasharray="456 654" transform="rotate(-90)"/>
+    <text y="4" text-anchor="middle" font-family="Avenir Next, Helvetica Neue, Helvetica, sans-serif" font-size="56" font-weight="700" fill="#1f2a20" letter-spacing="-1.5">1 480</text>
+    <text y="42" text-anchor="middle" font-family="Avenir Next, Helvetica Neue, Helvetica, sans-serif" font-size="22" font-weight="500" fill="#6c7569">di 2 050 kcal</text>
+  </g>
+</svg>

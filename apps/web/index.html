@@ -17,6 +17,10 @@
       content="Calorico — diario di calorie e macronutrienti con i prodotti dei supermercati italiani."
     />
     <meta name="format-detection" content="telephone=no" />
+    <!-- The app shell is behind a login wall and renders nothing without JS.
+         The page worth indexing is the landing page at /, not this. -->
+    <meta name="robots" content="noindex, follow" />
+    <link rel="canonical" href="https://calorico.davideghiotto.it/" />
 
     <!-- Status bar colour follows the app background in both schemes. -->
     <meta
@@ -112,14 +116,26 @@
       href="/splash/apple-splash-1536x2048.png"
     />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Bricolage Grotesque sets the big numbers, Plus Jakarta everything else.
-         One request for both so the hero figure is not the last thing to land. -->
+         Both are served from this origin (public/fonts.css): a request to
+         fonts.gstatic.com would hand every visitor's IP to Google, which is a
+         third-party transfer this app has no reason to make. Preloading the two
+         faces the first paint needs keeps the swap from being visible. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/bricolage-grotesque-600-800-latin.woff2"
+      crossorigin
     />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/fonts/plus-jakarta-sans-400-latin.woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/fonts.css" />
   </head>
   <body>
     <div id="root"></div>

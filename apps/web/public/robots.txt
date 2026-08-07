@@ -1,0 +1,51 @@
+# Calorico — https://calorico.davideghiotto.it
+#
+# The public surface is three pages: the landing page, the privacy notice and
+# the terms. Everything under /app is behind a login wall and renders nothing
+# without JavaScript, so there is no reason to spend a crawl budget on it.
+
+User-agent: *
+Allow: /$
+Allow: /privacy
+Allow: /termini
+Disallow: /app
+Disallow: /api/
+
+# AI crawlers are welcome on the public pages: being quoted accurately in an
+# answer is the point. /llms.txt is the short version written for them.
+User-agent: GPTBot
+Allow: /$
+Allow: /privacy
+Allow: /termini
+Disallow: /app
+Disallow: /api/
+
+User-agent: OAI-SearchBot
+Allow: /$
+Allow: /privacy
+Allow: /termini
+Disallow: /app
+Disallow: /api/
+
+User-agent: ClaudeBot
+Allow: /$
+Allow: /privacy
+Allow: /termini
+Disallow: /app
+Disallow: /api/
+
+User-agent: PerplexityBot
+Allow: /$
+Allow: /privacy
+Allow: /termini
+Disallow: /app
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /$
+Allow: /privacy
+Allow: /termini
+Disallow: /app
+Disallow: /api/
+
+Sitemap: https://calorico.davideghiotto.it/sitemap.xml

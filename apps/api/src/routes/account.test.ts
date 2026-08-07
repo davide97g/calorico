@@ -214,20 +214,32 @@ describe.skipIf(!hasDb)('account and premium', () => {
         },
       })
 
-    it('caps the free tier and answers 402 past it', async () => {
+    /**
+     * What the Stripe webhook does, without Stripe: the tests run on a server
+     * with no keys, and every route that talks to Stripe is switched off there.
+     * `until` is the end of the period paid for.
+     */
+    const grantPremium = (user: TestUser, until: Date | null) =>
+      db
+        .update(users)
+        .set({ isPremium: true, premiumSince: new Date(), premiumUntil: until })
+        .where(eq(users.id, user.id))
+
+    const inDays = (days: number) =>
+      new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+
+    it('gives one free analysis, then answers 402', async () => {
       const user = await createUser(app)
 
-      // FREE_DAILY_PHOTO_SCANS defaults to 3.
-      for (let i = 0; i < 3; i += 1) {
-        expect((await analyse(user)).statusCode).toBe(200)
-      }
+      // FREE_PHOTO_SCANS defaults to 1 — one taste, then the paywall.
+      expect((await analyse(user)).statusCode).toBe(200)
 
       const blocked = await analyse(user)
       expect(blocked.statusCode).toBe(402)
       expect(blocked.json()).toMatchObject({
         error: 'photo_quota_exceeded',
-        used: 3,
-        limit: 3,
+        used: 1,
+        limit: 1,
       })
     })
 
@@ -241,7 +253,7 @@ describe.skipIf(!hasDb)('account and premium', () => {
       })
       expect(before.json()).toMatchObject({
         enabled: true,
-        quota: { used: 0, limit: 3, remaining: 3, isPremium: false },
+        quota: { used: 0, limit: 1, remaining: 1, isPremium: false },
       })
 
       await analyse(user)
@@ -251,68 +263,78 @@ describe.skipIf(!hasDb)('account and premium', () => {
         url: '/api/vision/status',
         headers: auth(user),
       })
-      expect(after.json()).toMatchObject({
-        quota: { used: 1, remaining: 2 },
-      })
+      expect(after.json()).toMatchObject({ quota: { used: 1, remaining: 0 } })
     })
 
     it('counts each account separately', async () => {
       const alice = await createUser(app)
       const bob = await createUser(app)
 
-      for (let i = 0; i < 3; i += 1) await analyse(alice)
+      await analyse(alice)
       expect((await analyse(alice)).statusCode).toBe(402)
       expect((await analyse(bob)).statusCode).toBe(200)
     })
 
-    it('lifts the cap once the placeholder checkout runs', async () => {
+    it('lifts the cap for a live subscription', async () => {
       const user = await createUser(app)
-      for (let i = 0; i < 3; i += 1) await analyse(user)
+      await analyse(user)
       expect((await analyse(user)).statusCode).toBe(402)
 
-      const checkout = await app.inject({
-        method: 'POST',
-        url: '/api/premium/checkout',
+      await grantPremium(user, inDays(30))
+
+      const status = await app.inject({
+        method: 'GET',
+        url: '/api/premium',
         headers: auth(user),
       })
-      expect(checkout.statusCode).toBe(200)
-      expect(checkout.json()).toMatchObject({
+      expect(status.json()).toMatchObject({
         isPremium: true,
         photoQuota: { isPremium: true, limit: null, remaining: null },
       })
 
-      expect((await analyse(user)).statusCode).toBe(200)
-    })
-
-    it('puts the cap back when premium is cancelled', async () => {
-      const user = await createUser(app)
-      await app.inject({
-        method: 'POST',
-        url: '/api/premium/checkout',
-        headers: auth(user),
-      })
-      for (let i = 0; i < 4; i += 1) {
+      for (let i = 0; i < 3; i += 1) {
         expect((await analyse(user)).statusCode).toBe(200)
       }
+    })
 
-      const cancelled = await app.inject({
-        method: 'DELETE',
+    /**
+     * The safety net for a `subscription.deleted` webhook that never arrived:
+     * past the period that was paid for the account reads as free again, even
+     * though the flag is still set.
+     */
+    it('puts the cap back once the paid period has ended', async () => {
+      const user = await createUser(app)
+      await grantPremium(user, inDays(-1))
+
+      const status = await app.inject({
+        method: 'GET',
         url: '/api/premium',
         headers: auth(user),
       })
-      expect(cancelled.json()).toMatchObject({ isPremium: false })
+      expect(status.json()).toMatchObject({
+        isPremium: false,
+        photoQuota: { isPremium: false, limit: 1, remaining: 1 },
+      })
 
-      // Four already used against a limit of three.
+      expect((await analyse(user)).statusCode).toBe(200)
       expect((await analyse(user)).statusCode).toBe(402)
+    })
+
+    it('does not spend the free photo on a premium account', async () => {
+      const user = await createUser(app)
+      await grantPremium(user, inDays(30))
+      for (let i = 0; i < 3; i += 1) await analyse(user)
+
+      const [row] = await db
+        .select({ used: users.freePhotoScansUsed })
+        .from(users)
+        .where(eq(users.id, user.id))
+      expect(row?.used).toBe(0)
     })
 
     it('marks the account premium everywhere, not just in /premium', async () => {
       const user = await createUser(app)
-      await app.inject({
-        method: 'POST',
-        url: '/api/premium/checkout',
-        headers: auth(user),
-      })
+      await grantPremium(user, inDays(30))
 
       const me = await app.inject({
         method: 'GET',
@@ -328,6 +350,66 @@ describe.skipIf(!hasDb)('account and premium', () => {
         .from(users)
         .where(and(eq(users.id, user.id), eq(users.isPremium, true)))
       expect(row?.premium).toBe(true)
+    })
+  })
+
+  /**
+   * This server has no Stripe keys, so every paying route is off. What matters
+   * is that "off" means refusing, not quietly granting premium — the paywall
+   * must not be liftable by a client that just calls the checkout endpoint.
+   */
+  describe('payments, unconfigured', () => {
+    it('refuses checkout instead of handing out premium', async () => {
+      const user = await createUser(app)
+
+      const checkout = await app.inject({
+        method: 'POST',
+        url: '/api/premium/checkout',
+        headers: auth(user),
+      })
+      expect(checkout.statusCode).toBe(503)
+      expect(checkout.json()).toMatchObject({ error: 'payments_disabled' })
+
+      const [row] = await db
+        .select({ premium: users.isPremium })
+        .from(users)
+        .where(eq(users.id, user.id))
+      expect(row?.premium).toBe(false)
+    })
+
+    it('tells the client payments are unavailable', async () => {
+      const user = await createUser(app)
+      const status = await app.inject({
+        method: 'GET',
+        url: '/api/premium',
+        headers: auth(user),
+      })
+      expect(status.json()).toMatchObject({
+        paymentsEnabled: false,
+        isPremium: false,
+      })
+    })
+
+    it('refuses the portal and the cancellation', async () => {
+      const user = await createUser(app)
+      for (const [method, url] of [
+        ['POST', '/api/premium/portal'],
+        ['DELETE', '/api/premium'],
+      ] as const) {
+        const res = await app.inject({ method, url, headers: auth(user) })
+        expect(res.statusCode).toBe(503)
+      }
+    })
+
+    it('takes the webhook without a token but never on trust', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/premium/webhook',
+        payload: { type: 'customer.subscription.created' },
+      })
+      // 503 here because Stripe is unconfigured; what matters is that it is not
+      // a 401 — the endpoint is public — and not a 200 either.
+      expect(res.statusCode).toBe(503)
     })
   })
 

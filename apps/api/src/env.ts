@@ -45,10 +45,11 @@ const schema = z.object({
   SENTRY_ENVIRONMENT: blankToUndefined(z.string().optional()),
 
   /**
-   * Meal photos a free account may analyse per rolling 24 hours. Every call
-   * costs money upstream, so the free tier is capped and premium is not.
+   * Meal photos a free account may analyse, ever. Not a daily allowance: one
+   * taste of the feature, then the paywall. Every call costs money upstream and
+   * the photo analysis is the only thing premium sells.
    */
-  FREE_DAILY_PHOTO_SCANS: z.coerce.number().int().min(0).default(3),
+  FREE_PHOTO_SCANS: z.coerce.number().int().min(0).default(1),
   /**
    * Burst guard on the analyse route, independent of the daily allowance above:
    * it is per IP rather than per account, and it is what stops one client
@@ -146,6 +147,33 @@ const schema = z.object({
    * notification is stale enough to be noise and is dropped for the day.
    */
   REMINDER_GRACE_MINUTES: z.coerce.number().int().min(1).max(120).default(10),
+
+  /**
+   * Stripe. Key, price and webhook secret are required together — the same
+   * all-or-nothing gate as vision and push. With any of them missing there is
+   * no checkout at all: /premium/checkout answers 503 and the client says
+   * payments are unavailable instead of handing out premium for free.
+   *
+   * The webhook secret is not optional-in-practice: without it the endpoint
+   * cannot tell a real Stripe event from anyone who found the URL, and that
+   * endpoint is what grants premium.
+   */
+  STRIPE_SECRET_KEY: blankToUndefined(z.string().optional()),
+  /** The recurring price the checkout subscribes to, `price_...`. */
+  STRIPE_PRICE_ID: blankToUndefined(z.string().optional()),
+  STRIPE_WEBHOOK_SECRET: blankToUndefined(z.string().optional()),
+  /**
+   * Where Stripe sends the browser back to. Must be the public URL of the web
+   * app, not the API: the return page is a route in the SPA.
+   *
+   * That means it has to include the app's base path. The SPA is mounted at
+   * /app — the site root is the static landing page — so a value of
+   * `https://calorico.davideghiotto.it` would send a paying customer to a 404
+   * on the way back from checkout. nginx 301s `/premium/return` to
+   * `/app/premium/return` as a backstop, but a redirect in the middle of a
+   * Stripe return is a thing to have, not to rely on.
+   */
+  APP_URL: z.string().default('http://localhost:5173/app'),
 })
 
 const parsed = schema.safeParse(process.env)
@@ -192,8 +220,19 @@ const push =
       }
     : null
 
+/** Present only when the key, the price and the webhook secret are all set. */
+const stripe =
+  d.STRIPE_SECRET_KEY && d.STRIPE_PRICE_ID && d.STRIPE_WEBHOOK_SECRET
+    ? {
+        secretKey: d.STRIPE_SECRET_KEY,
+        priceId: d.STRIPE_PRICE_ID,
+        webhookSecret: d.STRIPE_WEBHOOK_SECRET,
+      }
+    : null
+
 export const env = {
   ...d,
+  appUrl: d.APP_URL.replace(/\/$/, ''),
   corsOrigins: d.CORS_ORIGINS.split(',')
     .map((o) => o.trim())
     .filter(Boolean),
@@ -202,4 +241,5 @@ export const env = {
   sentry,
   vision,
   push,
+  stripe,
 }

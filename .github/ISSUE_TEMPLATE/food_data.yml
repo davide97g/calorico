@@ -1,0 +1,44 @@
+name: Wrong or missing food
+description: A product or generic food has bad data, or is not there at all
+labels: ['data']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The food data comes from two places, and where a fix belongs depends on
+        which one:
+
+        - **Packaged products with a barcode** come from
+          [Open Food Facts](https://world.openfoodfacts.org). Those are best
+          fixed *there* — the correction reaches every app using the database,
+          not just this one, and it lands here on the next import.
+        - **Generic, unpackaged foods** (raw chicken breast, cooked pasta, an
+          apple) are a curated list in this repository. Those belong here.
+
+        If you are not sure which it is, open the issue anyway.
+
+  - type: input
+    id: food
+    attributes:
+      label: Which food
+      placeholder: Petto di pollo crudo — or "Fusilli Coop, barcode 8001120…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What is wrong
+      description: Wrong name, wrong nutrition figures, a duplicate, or missing entirely.
+    validations:
+      required: true
+
+  - type: textarea
+    id: correct
+    attributes:
+      label: The correct values, and where they come from
+      description: |
+        A source matters more than the numbers. A photo of the label, a CREA or
+        BDA-IEO table reference, or a link to the manufacturer's page.
+    validations:
+      required: true

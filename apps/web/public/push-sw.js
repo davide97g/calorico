@@ -13,6 +13,26 @@
 
 /* global self */
 
+/**
+ * The app is mounted at /app; the site root is the landing page.
+ *
+ * Reminder payloads carry a react-router path — `/`, `/weight`,
+ * `/add?meal=lunch` — because that is what the API knows about. Translating it
+ * here keeps the basename in one place on this side: the API stays unaware of
+ * where the client happens to be mounted, and a reminder tapped at 8am opens
+ * the diary rather than the pitch.
+ */
+const APP_BASE = '/app'
+
+function toAppUrl(routerPath) {
+  if (typeof routerPath !== 'string' || routerPath[0] !== '/') return APP_BASE
+  // Already prefixed — an older payload, or a future one that does its own.
+  if (routerPath === APP_BASE || routerPath.startsWith(APP_BASE + '/')) {
+    return routerPath
+  }
+  return routerPath === '/' ? APP_BASE : APP_BASE + routerPath
+}
+
 self.addEventListener('push', (event) => {
   let data = {}
   try {
@@ -24,7 +44,7 @@ self.addEventListener('push', (event) => {
   }
 
   const title = data.title || 'Calorico'
-  const url = data.url || '/'
+  const url = toAppUrl(data.url)
 
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -42,7 +62,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = (event.notification.data && event.notification.data.url) || '/'
+  const url = toAppUrl(event.notification.data && event.notification.data.url)
 
   event.waitUntil(
     (async () => {

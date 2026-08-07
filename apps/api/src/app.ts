@@ -14,6 +14,7 @@ import { db, sql } from './db/index.js'
 import { users } from './db/schema.js'
 import { env } from './env.js'
 import { premiumRoutes } from './routes/premium.js'
+import { stripeWebhookRoutes } from './routes/stripe-webhook.js'
 import { authRoutes } from './routes/auth.js'
 import { profileRoutes } from './routes/profile.js'
 import { foodRoutes } from './routes/foods.js'
@@ -168,6 +169,10 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(notificationRoutes, { prefix: '/api/notifications' })
   await app.register(visionRoutes, { prefix: '/api/vision' })
   await app.register(premiumRoutes, { prefix: '/api/premium' })
+  // Its own plugin under the same prefix: Stripe authenticates with a signature
+  // over the raw body, not a token, so it needs neither the auth hook nor the
+  // JSON parser the routes above use.
+  await app.register(stripeWebhookRoutes, { prefix: '/api/premium' })
 
   return app
 }

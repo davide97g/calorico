@@ -1,7 +1,24 @@
 # Calorico
 
+[![CI](https://github.com/davide97g/calorico/actions/workflows/ci.yml/badge.svg)](https://github.com/davide97g/calorico/actions/workflows/ci.yml)
+[![Licence: AGPL v3](https://img.shields.io/badge/licence-AGPL--3.0-3f7530.svg)](LICENSE)
+[![Data: ODbL](https://img.shields.io/badge/product%20data-ODbL-3f7530.svg)](https://opendatacommons.org/licenses/odbl/1-0/)
+[![PWA](https://img.shields.io/badge/PWA-installable-3f7530.svg)](#pwa-and-updates)
+
 A calorie and macro diary built around Italian supermarket products. React + Node
 + Postgres, packaged for a VPS running Dokploy.
+
+**[calorico.davideghiotto.it](https://calorico.davideghiotto.it)** ·
+[Privacy](https://calorico.davideghiotto.it/privacy) ·
+[Terms](https://calorico.davideghiotto.it/termini) ·
+[Contributing](CONTRIBUTING.md) ·
+[Security](SECURITY.md)
+
+Most calorie trackers sold in Italy are English-language databases with a
+translation layer on top: search "fusilli Coop" and you get nothing, so you type
+the label in by hand. Calorico starts from the products actually on Italian
+shelves — supermarket private labels included — and fills the other half of the
+diary, the food that never had a barcode, from composition tables.
 
 Food data comes from two sources:
 
@@ -94,6 +111,8 @@ talks to one origin — same as in production.
 | `npm test`             | Tests in both workspaces — see [Tests](#tests)      |
 | `npm run import:off`   | Bulk import from the Open Food Facts dump           |
 | `npm run build:catalogue` | Regenerate the generic food catalogue            |
+| `npm run csp:hashes`   | Rehash the landing page's JSON-LD into the marketing CSP |
+| `npm run fonts`        | Refetch the self-hosted webfonts into `public/fonts` |
 
 ## Filling the product database
 
@@ -259,8 +278,8 @@ How a photo goes:
    **The photo is never stored** — not on the VPS, not in a bucket, not in the
    logs. That route carries its own 1 MB body limit (the app-wide one is 512 KB),
    its own per-IP burst limit (`VISION_MAX_PER_MINUTE`, 10 by default) and a
-   per-account daily allowance — see [Premium](#premium) — because each call
-   costs money.
+   per-account allowance — see [Premium](#premium) — because each call costs
+   money.
 3. Every detected item is searched against the local catalogue with the same
    trigram ranking the search screen uses; packaged products additionally fall
    back to Open Food Facts. The three best candidates ride along so swapping a
@@ -296,25 +315,60 @@ addresses it explicitly.
 
 ## Premium
 
-**There is no payment provider wired up.** `POST /api/premium/checkout` sets
-`users.is_premium` and answers; the sheet in front of it is shaped like a
-checkout, and says in plain Italian that nothing is being charged. It exists so
-the paywall can be built and walked through before any billing decision, and so
-the quota has something to switch on. Whatever eventually takes money replaces the
-body of that one route — everything else already reads the flag.
+**5 €/month, charged by Stripe, and it buys exactly one thing: unlimited
+meal-photo analysis.** Everything else in the app is free and stays free.
 
-What is behind it: **meal-photo analysis only**. A free account gets
-`FREE_DAILY_PHOTO_SCANS` (3) photos per **rolling 24 hours**, counted off the
-`scan_events` rows the analyse route already writes. Past that the API answers
-`402 photo_quota_exceeded` and the client opens the paywall, holding the photo so
-that "paying" analyses it straight away instead of asking for another shot.
+A free account gets `FREE_PHOTO_SCANS` (1) photo analysis **for the life of the
+account** — one taste of the feature, not a daily allowance. Past it the API
+answers `402 photo_quota_exceeded` and the client opens the paywall. The count
+lives on `users.free_photo_scans_used` rather than being derived from the scan
+feed: that feed is written best-effort, and a dropped row there must not hand out
+a second free analysis.
 
-A rolling window rather than a calendar day, on purpose: the server does not know
-the user's timezone, and a window nobody has to agree on midnight for cannot be
-gamed by changing it. The UI says *ultime 24 ore*.
+The claim is one atomic statement (`claimFreePhotoScan`), taken *before* the
+provider is called and handed back if the call fails or finds no food. Two photos
+uploaded at the same instant therefore cost the allowance twice, not once, and an
+outage on our side never eats somebody's only free scan.
 
-`DELETE /api/premium` drops back to the free tier — the only way to see the
-paywall twice — and is also a button on the profile page.
+### The flow
+
+| Step | Where |
+| --- | --- |
+| `POST /api/premium/checkout` | creates a Stripe Checkout session, answers with its URL |
+| The card | on Stripe's own page — never on ours, no card data reaches this app |
+| `POST /api/premium/webhook` | Stripe calls back; **the only place premium is granted** |
+| `/premium/return` | where the browser lands, polling until the webhook has landed |
+| `POST /api/premium/portal` | Stripe's customer portal: card, invoices, cancellation |
+| `DELETE /api/premium` | cancels at period end, without leaving the app |
+
+Checkout cannot grant anything. The flag is written by the webhook, whose
+authenticity is the signature over the raw request body — which is why that route
+is its own Fastify plugin with its own buffer parser, outside the authenticated
+one. `POST /api/premium/sync` reads the subscription straight from Stripe and is
+what the return page uses: it makes the flow work on a laptop Stripe cannot call
+back, and it removes the wait everywhere else.
+
+`users.premium_until` holds the end of the period paid for. Someone who cancels
+keeps the feature until then, and it doubles as the safety net for a
+`subscription.deleted` event that never arrived: past that date the account reads
+as free again even with the flag still set.
+
+### Without Stripe keys
+
+Unset any of `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID` or `STRIPE_WEBHOOK_SECRET`
+and every paying route answers `503 payments_disabled`, `/api/premium` reports
+`paymentsEnabled: false` and the client disables the button. There is no
+fallback that flips the flag for free — the tests assert exactly that.
+
+### Testing it locally
+
+```bash
+stripe login                                    # sandbox account
+stripe listen --forward-to localhost:3001/api/premium/webhook
+# copy the whsec_... it prints into STRIPE_WEBHOOK_SECRET, then restart the API
+```
+
+Card `4242 4242 4242 4242`, any future expiry, any CVC.
 
 ## Reminders
 
@@ -370,9 +424,7 @@ A phone has no console, and "notifications are on but nothing arrives" has half 
 dozen causes that look identical from the outside. So the reminders screen lists
 every one of them with its answer — server keys, browser support, installed as an
 app, permission, service worker, subscription, devices known to the server. The
-first ✗ is the reason. Next to it sits a button that shows a notification from the
-worker itself, with no server involved: if that one appears and a test push does
-not, the problem is delivery rather than the device.
+first ✗ is the reason.
 
 ### How a reminder goes out
 
@@ -504,7 +556,8 @@ TEST_DATABASE_URL=postgres://calorico:calorico@127.0.0.1:5432/calorico_test npm 
 What they cover: family sharing in both directions (two households cannot see
 each other; a stranger cannot read, rotate or leave someone else's family; a
 member who left stops receiving), token revocation, the login rate limit, account
-deletion and its cascades, and the photo quota including the fake checkout.
+deletion and its cascades, and the photo allowance — including that a server with
+no Stripe keys refuses the checkout rather than quietly handing out Premium.
 
 The reminder scheduler is in there too, and it needs the database for the same
 reason: "is it 13:00 for this user?" is a `now() at time zone profiles.timezone`
@@ -586,7 +639,11 @@ Worth knowing:
 | `VISION_MAX_IMAGE_BYTES` | `1048576`               | Backstop for a client that skipped compression |
 | `VISION_TIMEOUT_MS` | `30000`                      | Vision calls are slow                        |
 | `VISION_MAX_PER_MINUTE` | `10`                     | Per-IP burst limit on the analyse route      |
-| `FREE_DAILY_PHOTO_SCANS` | `3`                     | Photos a free account may analyse per rolling 24 h |
+| `FREE_PHOTO_SCANS` | `1`                           | Photos a free account may analyse, ever      |
+| `STRIPE_SECRET_KEY` | —                            | With the price and the webhook secret, enables Premium |
+| `STRIPE_PRICE_ID` | —                              | The recurring price the checkout subscribes to |
+| `STRIPE_WEBHOOK_SECRET` | —                        | Signs the callback that grants premium; required together with the two above |
+| `APP_URL`         | `http://localhost:5173`        | Public URL of the **web** app: where Stripe returns the browser |
 | `VAPID_PUBLIC_KEY` | —                            | With the private key and a subject, enables push reminders (`npm run vapid`) |
 | `VAPID_PRIVATE_KEY` | —                           | Required together with the public key         |
 | `VAPID_SUBJECT`   | —                              | Contact for the push services: `mailto:` or an https URL |
@@ -636,7 +693,71 @@ compensates:
 - search collapses duplicates on name + energy, preferring the copy that has a
   brand, a photo and a serving size
 
+## The public site
+
+The origin serves two things that have almost nothing to do with each other.
+
+| Path | What it is |
+| --- | --- |
+| `/` | Landing page — static HTML, no JavaScript, no build step |
+| `/privacy`, `/termini` | Privacy notice and terms, same treatment |
+| `/robots.txt`, `/sitemap.xml`, `/llms.txt`, `/og.png` | For crawlers, AI answer engines and link previews |
+| `/app/**` | The single-page app, behind a login wall and `noindex` |
+| `/api/**` | Proxied to the API container |
+
+The three public pages live in `apps/web/public/` as hand-written HTML with a
+hand-written stylesheet (`marketing.css`). They ship no JavaScript on purpose: a
+crawler, an LLM and a cold phone on 3G all get finished markup in the first
+response, which no amount of prerendering the SPA would match.
+
+Consequences worth knowing before you change routing:
+
+- **The router has a `basename` of `/app`** (`src/main.tsx`). Internal links are
+  unaffected; anything that builds a URL outside the router is not — see
+  `inviteUrl()` in `hooks/use-family.ts`.
+- **Reminder payloads carry router paths** (`/weight`, `/add?meal=lunch`). The
+  service worker maps them onto `/app` in `public/push-sw.js`, so the API never
+  has to know where the client is mounted.
+- **`nginx.conf` 301s the old root-level routes** (`/login`, `/stats`, …) to
+  their `/app` equivalents, for bookmarks and notifications issued before the
+  split. Everything unrecognised is a real 404, not the landing page — a soft
+  404 would get the pitch indexed under invented URLs.
+- **The manifest keeps `id: '/'`** while `start_url` moved to `/app`. The id is
+  the installed app's identity: changing it would make every existing
+  installation look like a different app.
+- **The landing page carries three JSON-LD blocks**, and CSP covers
+  `<script type="application/ld+json">` like any other script. Their hashes live
+  in `security-headers-marketing.conf`, generated by `npm run csp:hashes`. Edit
+  the JSON-LD without re-running it and the structured data silently stops
+  reaching crawlers.
+
+### No third-party requests
+
+The site loads nothing from another origin. That is a deliberate constraint, not
+a coincidence: it is what lets the privacy notice say there are no cookies and
+no consent banner, and mean it.
+
+The webfonts used to come from Google. They now live in `public/fonts/`,
+regenerated with `npm run fonts`. A stylesheet on `fonts.googleapis.com` makes
+every visitor's browser hand its IP address to Google before the first pixel is
+drawn, which is a transfer nobody wants to justify over a typeface.
+
+If you add an analytics script, a font CDN, a chat widget or an embedded video,
+you have also just created a disclosure obligation and, for most of them, a
+consent requirement. Update the privacy notice in the same commit or do not add
+it.
+
 ## Licence and attribution
+
+The **code** in this repository is licensed under the
+[GNU Affero General Public License v3.0](LICENSE). You may run, study, modify
+and redistribute it under those terms. The clause that matters: if you modify
+Calorico and offer it to others over a network, you have to make your modified
+source available to its users. Self-hosting it unchanged, or changed for
+yourself and your household, obliges you to nothing.
+
+The name "Calorico", the logo and the brand assets are not covered by that
+licence and may not be used to present a derived service as the original.
 
 Product data and the categories taxonomy © Open Food Facts contributors,
 licensed under the

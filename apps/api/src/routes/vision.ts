@@ -4,7 +4,11 @@ import { env } from '../env.js'
 import { getVisionProvider } from '../lib/vision/index.js'
 import { matchAnalysis } from '../lib/vision/match.js'
 import { recordScan } from '../lib/scan-log.js'
-import { photoQuota } from '../lib/premium.js'
+import {
+  claimFreePhotoScan,
+  photoQuota,
+  releaseFreePhotoScan,
+} from '../lib/premium.js'
 
 const ACCEPTED = new Set(['image/webp', 'image/jpeg', 'image/png'])
 
@@ -66,10 +70,12 @@ export const visionRoutes: FastifyPluginAsync = async (app) => {
       if (decodedBytes(body.image) > maxImageBytes)
         return reply.code(413).send({ error: 'image_too_large' })
 
-      // Checked after the cheap validation, before the provider is paid: the
-      // rate limit above bounds bursts, this bounds the bill.
-      const quota = await photoQuota(request.user.sub)
-      if (quota.remaining !== null && quota.remaining <= 0) {
+      // Claimed after the cheap validation and before the provider is paid: the
+      // rate limit above bounds bursts, this bounds the bill. Taking the free
+      // photo up front rather than counting it afterwards is what makes two
+      // simultaneous uploads cost the allowance twice instead of once.
+      if (!(await claimFreePhotoScan(request.user.sub))) {
+        const quota = await photoQuota(request.user.sub)
         return reply.code(402).send({
           error: 'photo_quota_exceeded',
           used: quota.used,
@@ -86,11 +92,17 @@ export const visionRoutes: FastifyPluginAsync = async (app) => {
         })
       } catch (err) {
         request.log.error({ err, provider: provider.name }, 'vision analysis failed')
+        // Our outage, not their photo: give the allowance back.
+        await releaseFreePhotoScan(request.user.sub)
         return reply.code(502).send({ error: 'vision_unavailable' })
       }
 
-      if (analysis.items.length === 0)
+      // A plate we could not read still cost a provider call, but charging the
+      // single free analysis for "no ho riconosciuto cibo" reads as a con.
+      if (analysis.items.length === 0) {
+        await releaseFreePhotoScan(request.user.sub)
         return reply.code(422).send({ error: 'no_food_detected' })
+      }
 
       // Labels and portions only — the photo stays unstored, as above.
       await recordScan(

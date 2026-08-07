@@ -38,7 +38,7 @@ export interface Profile {
 
 export interface PhotoQuota {
   isPremium: boolean
-  /** Photos analysed in the last 24 hours. */
+  /** Free photos analysed over the life of the account. */
   used: number
   /** null when premium, which is uncapped. */
   limit: number | null
@@ -48,7 +48,20 @@ export interface PhotoQuota {
 export interface PremiumStatus {
   isPremium: boolean
   since: string | null
+  /** End of the period already paid for; null when there is nothing running. */
+  until: string | null
+  /** Cancelled, but still inside the period above. */
+  cancelAtPeriodEnd: boolean
+  /** False when the server has no Stripe keys: the paywall stays hidden. */
+  paymentsEnabled: boolean
+  /** Monthly price, in euro, for the copy on the paywall. */
+  priceEur: number
   photoQuota: PhotoQuota
+}
+
+/** Stripe Checkout and the customer portal both answer with a URL to go to. */
+export interface CheckoutSession {
+  url: string
 }
 
 export interface VisionStatus {

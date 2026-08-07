@@ -1,0 +1,57 @@
+name: Bug report
+description: Something is broken or behaves differently from what it should
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report a security vulnerability here — see
+        [SECURITY.md](https://github.com/davide97g/calorico/blob/main/SECURITY.md).
+
+        Do not paste screenshots of your diary if you would rather not have your
+        food and weight in a public issue. A description is enough.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      placeholder: |
+        1. Open the diary
+        2. Search for "…"
+        3. …
+    validations:
+      required: true
+
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: The hosted site, or your own deployment?
+      placeholder: calorico.davideghiotto.it — or self-hosted, commit abc1234
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: Browser and device
+      placeholder: Safari on iPhone 15, iOS 18.4 — installed to home screen
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      description: Anything red in the browser console, if you can get to it.
+      render: text
+    validations:
+      required: false

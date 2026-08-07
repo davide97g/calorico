@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/davide97g/calorico/security/advisories/new
+    about: Report privately. Never in a public issue — the app holds health data.
+  - name: Wrong data on a packaged product
+    url: https://world.openfoodfacts.org
+    about: Barcode products come from Open Food Facts. Fixing it there fixes it for every app, and it reaches Calorico on the next import.
+  - name: Question about running your own copy
+    url: https://github.com/davide97g/calorico/blob/main/README.md
+    about: The README covers local development, the Docker Compose deployment and the data import.

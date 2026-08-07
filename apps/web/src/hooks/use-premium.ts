@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { PremiumStatus } from '@/lib/types'
+import type { CheckoutSession, PremiumStatus } from '@/lib/types'
 
 export const premiumKeys = {
   status: ['premium'] as const,
@@ -15,32 +15,79 @@ export function usePremium() {
 }
 
 /**
- * The placeholder checkout. No card, no charge, no payment provider: the server
- * flips a flag and answers. Everything that reads the flag is real, so swapping
- * this for a genuine payment means changing the endpoint and nothing else.
+ * Everything that carries the premium flag: the status, the photo allowance
+ * shown in the camera sheet, and the account behind /auth/me.
  */
-export function useFakeCheckout() {
-  const queryClient = useQueryClient()
+function refreshPremium(
+  queryClient: ReturnType<typeof useQueryClient>,
+  status?: PremiumStatus,
+) {
+  if (status) queryClient.setQueryData(premiumKeys.status, status)
+  void queryClient.invalidateQueries({ queryKey: ['vision', 'status'] })
+  void queryClient.invalidateQueries({ queryKey: ['me'] })
+}
+
+/**
+ * Starts the subscription. The server creates a Stripe Checkout session and
+ * answers with its URL; the browser leaves the app for Stripe's own page and
+ * comes back to /premium/return. Nothing here can grant premium — the flag is
+ * written when Stripe tells the API the subscription is live.
+ */
+export function useCheckout() {
   return useMutation({
-    mutationFn: () => api<PremiumStatus>('/premium/checkout', { method: 'POST' }),
-    onSuccess: (status) => {
-      queryClient.setQueryData(premiumKeys.status, status)
-      // The photo quota and /auth/me both carry the premium flag.
-      void queryClient.invalidateQueries({ queryKey: ['vision', 'status'] })
-      void queryClient.invalidateQueries({ queryKey: ['me'] })
+    mutationFn: async () => {
+      const session = await api<CheckoutSession>('/premium/checkout', {
+        method: 'POST',
+      })
+      // Assign rather than push: Stripe is a different origin, and the back
+      // button should return to the app, not to a half-finished checkout.
+      window.location.assign(session.url)
+      // The redirect is not instant; resolving now would let the caller close
+      // the sheet under the user's finger.
+      await new Promise(() => {})
+      return session
     },
   })
 }
 
-/** Back to the free tier — the only way to see the paywall a second time. */
+/**
+ * Asks the API to read the subscription straight from Stripe. Used by the
+ * return page: the webhook usually wins the race, and this covers the times it
+ * does not — a local server Stripe cannot call back at all, for instance.
+ */
+export function useSyncPremium() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api<PremiumStatus>('/premium/sync', { method: 'POST' }),
+    onSuccess: (status) => refreshPremium(queryClient, status),
+  })
+}
+
+/**
+ * The Stripe customer portal: card, invoices, cancellation. Sends the browser
+ * away in the same way the checkout does.
+ */
+export function useBillingPortal() {
+  return useMutation({
+    mutationFn: async () => {
+      const session = await api<CheckoutSession>('/premium/portal', {
+        method: 'POST',
+      })
+      window.location.assign(session.url)
+      await new Promise(() => {})
+      return session
+    },
+  })
+}
+
+/**
+ * Cancels from inside the app, without a trip to the portal. Takes effect at
+ * the end of the period already paid for, so premium stays on until then.
+ */
 export function useCancelPremium() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => api<PremiumStatus>('/premium', { method: 'DELETE' }),
-    onSuccess: (status) => {
-      queryClient.setQueryData(premiumKeys.status, status)
-      void queryClient.invalidateQueries({ queryKey: ['vision', 'status'] })
-      void queryClient.invalidateQueries({ queryKey: ['me'] })
-    },
+    onSuccess: (status) => refreshPremium(queryClient, status),
   })
 }
