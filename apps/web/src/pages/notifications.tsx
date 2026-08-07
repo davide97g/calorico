@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   BellRing,
+  Check,
   Clock,
   Globe2,
   Plus,
   Send,
   Smartphone,
+  Stethoscope,
   TriangleAlert,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
@@ -33,7 +36,15 @@ import {
   useUpdateReminder,
 } from '@/hooks/use-notifications'
 import { ApiError } from '@/lib/api'
-import { needsInstallFirst, pushPermission, pushSupported } from '@/lib/push'
+import {
+  needsInstallFirst,
+  pushDiagnostics,
+  pushPermission,
+  pushSupported,
+  showLocalNotification,
+  subscribeToPush,
+  type PushDiagnostics,
+} from '@/lib/push'
 import { clockTime, parseClockTime, weekdaysLabel } from '@/lib/format'
 import type { ReminderPreset } from '@/lib/types'
 
@@ -63,6 +74,24 @@ export default function NotificationsPage() {
   const data = settings.data
   const publicKey = data?.push.publicKey ?? null
   const repaired = useRef(false)
+  /** True while the browser is being asked for permission and a subscription. */
+  const [arming, setArming] = useState(false)
+  const [diagnostics, setDiagnostics] = useState<PushDiagnostics | null>(null)
+
+  /** Re-read the browser's side of things; cheap, and never throws. */
+  const refreshDiagnostics = useCallback(async () => {
+    try {
+      setDiagnostics(await pushDiagnostics())
+    } catch {
+      setDiagnostics(null)
+    }
+  }, [])
+
+  // Read once on open, and again whenever the device count moves: those are the
+  // two moments the answer can have changed under us.
+  useEffect(() => {
+    void refreshDiagnostics()
+  }, [refreshDiagnostics, data?.devices])
 
   /**
    * A browser can drop its push subscription on its own, and the account keeps
@@ -76,10 +105,42 @@ export default function NotificationsPage() {
     repair.mutate(publicKey)
   }, [data?.enabled, data?.devices, publicKey, repair])
 
+  /**
+   * Arms this browser: permission, subscription, then the server.
+   *
+   * The first two steps run here rather than inside the mutation because they
+   * must start inside the tap — Safari draws the permission prompt only while
+   * the gesture is live, and react-query awaits before it calls a `mutationFn`.
+   * Nothing may be awaited before `subscribeToPush`.
+   */
+  const arm = (key: string, done: () => void) => {
+    setArming(true)
+    subscribeToPush(key)
+      .then((subscription) => {
+        enable.mutate(subscription, {
+          onSuccess: done,
+          onError: (error) =>
+            toast.error(
+              error instanceof ApiError && error.code === 'push_disabled'
+                ? 'Il server non ha le chiavi push configurate.'
+                : 'Registrazione non riuscita. Riprova.',
+            ),
+        })
+      })
+      .catch((error) => toast.error(pushErrorMessage(error)))
+      .finally(() => {
+        setArming(false)
+        void refreshDiagnostics()
+      })
+  }
+
   const handleToggle = (next: boolean) => {
     if (!next) {
       disable.mutate(undefined, {
-        onSuccess: () => toast.success('Promemoria disattivati'),
+        onSuccess: () => {
+          toast.success('Promemoria disattivati')
+          void refreshDiagnostics()
+        },
         onError: () => toast.error('Operazione non riuscita'),
       })
       return
@@ -88,20 +149,17 @@ export default function NotificationsPage() {
       toast.error('Le notifiche non sono configurate su questo server.')
       return
     }
-    enable.mutate(publicKey, {
-      onSuccess: () => {
-        toast.success('Notifiche attive su questo dispositivo')
-        // A first-time user with no reminders would arm notifications and get
-        // nothing, so the suggested set is offered right here.
-        if ((data?.reminders.length ?? 0) === 0) {
-          applyDefaults.mutate(undefined, {
-            onSuccess: ({ created }) => {
-              if (created > 0) toast.success('Aggiunti i promemoria consigliati')
-            },
-          })
-        }
-      },
-      onError: (error) => toast.error(pushErrorMessage(error)),
+    arm(publicKey, () => {
+      toast.success('Notifiche attive su questo dispositivo')
+      // A first-time user with no reminders would arm notifications and get
+      // nothing, so the suggested set is offered right here.
+      if ((data?.reminders.length ?? 0) === 0) {
+        applyDefaults.mutate(undefined, {
+          onSuccess: ({ created }) => {
+            if (created > 0) toast.success('Aggiunti i promemoria consigliati')
+          },
+        })
+      }
     })
   }
 
@@ -141,10 +199,14 @@ export default function NotificationsPage() {
   }
 
   const serverReady = data.push.supported
+  // An iPhone in a Safari tab has no Notification API at all, so "install
+  // first" has to be decided before, and independently of, browser support:
+  // otherwise the screen blames the browser for something an install fixes.
+  const installFirst = needsInstallFirst()
   const browserReady = pushSupported()
-  const permission = browserReady ? pushPermission() : 'denied'
-  const installFirst = browserReady && needsInstallFirst()
-  const canArm = serverReady && browserReady && !installFirst
+  const permission = browserReady ? pushPermission() : 'default'
+  const canArm = serverReady && !installFirst && browserReady
+  const busy = arming || enable.isPending || disable.isPending
   const savedTimezone = data.timezone
   const localTimezone = browserTimezone()
   const usedPresetKeys = new Set(
@@ -169,7 +231,7 @@ export default function NotificationsPage() {
           action={
             <Switch
               checked={data.enabled}
-              disabled={!canArm || enable.isPending || disable.isPending}
+              disabled={(!canArm && !data.enabled) || busy}
               onCheckedChange={handleToggle}
               aria-label="Attiva le notifiche"
             />
@@ -182,17 +244,17 @@ export default function NotificationsPage() {
 
         {!serverReady ? (
           <Notice>
-            Questo server non ha le chiavi push configurate, quindi le notifiche
-            non possono essere inviate.
+            Questo server non ha le chiavi push configurate (VAPID), quindi le
+            notifiche non possono essere inviate.
           </Notice>
-        ) : !browserReady ? (
-          <Notice>Questo browser non supporta le notifiche push.</Notice>
         ) : installFirst ? (
           <Notice>
             Su iPhone e iPad aggiungi Calorico alla schermata Home (Condividi →
-            Aggiungi a Home): Safari consegna le notifiche solo all’app
-            installata.
+            Aggiungi a Home) e riapri l’app da lì: Safari chiede il permesso, e
+            consegna le notifiche, solo all’app installata.
           </Notice>
+        ) : !browserReady ? (
+          <Notice>Questo browser non supporta le notifiche push.</Notice>
         ) : permission === 'denied' ? (
           <Notice>
             Le notifiche sono bloccate per questo sito. Riattivale dalle
@@ -209,17 +271,14 @@ export default function NotificationsPage() {
                   ? 'Nessun dispositivo registrato: i promemoria non possono arrivare.'
                   : `${data.devices} ${data.devices === 1 ? 'dispositivo registrato' : 'dispositivi registrati'}.`}
               </p>
-              {data.devices === 0 && publicKey ? (
+              {data.devices === 0 && publicKey && canArm ? (
                 <Button
                   variant="secondary"
                   className="bg-card h-9 shrink-0 rounded-full px-3 text-xs"
                   onClick={() =>
-                    enable.mutate(publicKey, {
-                      onSuccess: () => toast.success('Dispositivo registrato'),
-                      onError: (error) => toast.error(pushErrorMessage(error)),
-                    })
+                    arm(publicKey, () => toast.success('Dispositivo registrato'))
                   }
-                  disabled={enable.isPending}
+                  disabled={busy}
                 >
                   Registra
                 </Button>
@@ -258,12 +317,7 @@ export default function NotificationsPage() {
               onClick={() =>
                 test.mutate(undefined, {
                   onSuccess: () => toast.success('Notifica di prova inviata'),
-                  onError: (error) =>
-                    toast.error(
-                      error instanceof ApiError && error.code === 'no_devices'
-                        ? 'Nessun dispositivo registrato per questo account.'
-                        : 'Invio non riuscito',
-                    ),
+                  onError: (error) => toast.error(testErrorMessage(error)),
                 })
               }
               disabled={test.isPending}
@@ -390,7 +444,191 @@ export default function NotificationsPage() {
           )
         }
       />
+
+      <DiagnosticsPanel
+        diagnostics={diagnostics}
+        serverReady={serverReady}
+        devices={data.devices}
+        onRefresh={() => void refreshDiagnostics()}
+      />
     </AppShell>
+  )
+}
+
+/** Why a push failed, in the words of the thing that failed. */
+function testErrorMessage(error: unknown) {
+  if (!(error instanceof ApiError)) return 'Invio non riuscito'
+  switch (error.code) {
+    case 'no_devices':
+      return 'Nessun dispositivo registrato per questo account.'
+    case 'push_disabled':
+      return 'Il server non ha le chiavi push configurate.'
+    case 'push_failed':
+      return 'Il servizio push ha rifiutato la notifica: controlla le chiavi VAPID del server.'
+    default:
+      return 'Invio non riuscito'
+  }
+}
+
+/**
+ * Every condition a notification depends on, listed with its answer.
+ *
+ * "Notifications are on and nothing arrives" has half a dozen causes that look
+ * identical from the outside, and a phone has no console to check them in. So
+ * they are all on screen: the first ✗ is the reason.
+ */
+function DiagnosticsPanel({
+  diagnostics,
+  serverReady,
+  devices,
+  onRefresh,
+}: {
+  diagnostics: PushDiagnostics | null
+  serverReady: boolean
+  devices: number
+  onRefresh: () => void
+}) {
+  const permissionLabel = {
+    granted: 'concesso',
+    denied: 'negato',
+    default: 'non ancora chiesto',
+  }
+
+  return (
+    <Panel className="mt-3">
+      <PanelHeader
+        icon={<Stethoscope />}
+        title="Diagnostica"
+        action={
+          <Button
+            variant="secondary"
+            className="bg-muted h-9 rounded-full px-3 text-xs"
+            onClick={onRefresh}
+          >
+            Aggiorna
+          </Button>
+        }
+      />
+      <p className="text-muted-foreground mt-2 text-[11px] leading-relaxed">
+        Serve tutto quanto segue perché una notifica arrivi. La prima riga con ✗
+        è il motivo del silenzio.
+      </p>
+      <ul className="mt-3 flex flex-col gap-2">
+        <DiagnosticRow
+          label="Chiavi push sul server (VAPID)"
+          ok={serverReady}
+          detail={
+            serverReady
+              ? undefined
+              : 'Imposta VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY e VAPID_SUBJECT sul server, poi riavvialo.'
+          }
+        />
+        {diagnostics ? (
+          <>
+            <DiagnosticRow
+              label="Notifiche supportate dal browser"
+              ok={diagnostics.notificationApi && diagnostics.pushApi}
+              detail={
+                diagnostics.notificationApi && diagnostics.pushApi
+                  ? undefined
+                  : diagnostics.ios && !diagnostics.standalone
+                    ? 'Su iPhone le API esistono solo nell’app installata.'
+                    : 'Questo browser non espone Notification o PushManager.'
+              }
+            />
+            {diagnostics.ios ? (
+              <DiagnosticRow
+                label="App aggiunta alla schermata Home"
+                ok={diagnostics.standalone}
+                detail={
+                  diagnostics.standalone
+                    ? undefined
+                    : 'Condividi → Aggiungi a Home, poi apri Calorico da lì.'
+                }
+              />
+            ) : null}
+            <DiagnosticRow
+              label={`Permesso: ${permissionLabel[diagnostics.permission]}`}
+              ok={diagnostics.permission === 'granted'}
+              detail={
+                diagnostics.permission === 'denied'
+                  ? 'Solo le impostazioni del browser possono riattivarlo.'
+                  : undefined
+              }
+            />
+            <DiagnosticRow
+              label="Service worker registrato"
+              ok={diagnostics.serviceWorker}
+              detail={
+                diagnostics.serviceWorker
+                  ? undefined
+                  : 'Ricarica l’app: il worker si registra all’avvio.'
+              }
+            />
+            <DiagnosticRow
+              label="Iscrizione push su questo dispositivo"
+              ok={diagnostics.subscribed}
+            />
+          </>
+        ) : null}
+        <DiagnosticRow
+          label={`Dispositivi registrati sul server: ${devices}`}
+          ok={devices > 0}
+        />
+      </ul>
+
+      {diagnostics?.permission === 'granted' && diagnostics.serviceWorker ? (
+        <>
+          <Button
+            variant="secondary"
+            className="mt-3 w-full rounded-full"
+            onClick={() => {
+              showLocalNotification().catch((error) =>
+                toast.error(pushErrorMessage(error)),
+              )
+            }}
+          >
+            <BellRing className="size-4" />
+            Prova senza il server
+          </Button>
+          <p className="text-muted-foreground mt-2 text-[11px] leading-relaxed">
+            Mostra una notifica dal dispositivo stesso. Se questa arriva e quella
+            di prova no, il problema è nella consegna: chiavi, iscrizione o
+            server.
+          </p>
+        </>
+      ) : null}
+    </Panel>
+  )
+}
+
+function DiagnosticRow({
+  label,
+  ok,
+  detail,
+}: {
+  label: string
+  ok: boolean
+  detail?: string
+}) {
+  return (
+    <li className="flex items-start gap-2.5">
+      <span
+        className={`mt-px flex size-4 shrink-0 items-center justify-center rounded-full ${
+          ok ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/20'
+        }`}
+      >
+        {ok ? <Check className="size-3" /> : <X className="size-3" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] leading-relaxed font-medium">{label}</p>
+        {detail ? (
+          <p className="text-muted-foreground text-[11px] leading-relaxed">
+            {detail}
+          </p>
+        ) : null}
+      </div>
+    </li>
   )
 }
 

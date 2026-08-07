@@ -194,7 +194,7 @@ export async function deliver(
   userId: string,
   payload: PushPayload,
   send: Sender = sendPush,
-): Promise<{ sent: number; removed: number }> {
+): Promise<{ sent: number; removed: number; failed: number }> {
   const targets = await db
     .select({
       id: pushSubscriptions.id,
@@ -207,6 +207,7 @@ export async function deliver(
 
   let sent = 0
   let removed = 0
+  let failed = 0
 
   for (const target of targets) {
     const result = await send(target, payload)
@@ -218,6 +219,11 @@ export async function deliver(
         .where(eq(pushSubscriptions.id, target.id))
       continue
     }
+    // Both remaining verdicts are a device that did not get it; only one of
+    // them means the row is worthless. The count of the rest is what tells a
+    // caller "there were devices, the push itself was refused" — the difference
+    // between a misconfigured server and an account with no phone on it.
+    failed += 1
     if (result === 'gone') {
       removed += 1
       await db
@@ -226,7 +232,7 @@ export async function deliver(
     }
   }
 
-  return { sent, removed }
+  return { sent, removed, failed }
 }
 
 export interface TickResult {
@@ -284,7 +290,12 @@ interface Logger {
  */
 export function startReminderScheduler(log: Logger): () => void {
   if (!pushConfigured()) {
-    log.info({}, 'reminders: no VAPID keys, scheduler not started')
+    // Warn, not info: on a deployment that means every reminder anyone sets is
+    // silently never sent, and that should not be buried at info level.
+    log.warn(
+      {},
+      'reminders: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT not all set, scheduler not started',
+    )
     return () => {}
   }
 
@@ -295,6 +306,11 @@ export function startReminderScheduler(log: Logger): () => void {
     try {
       const result = await runDueReminders()
       if (result.due > 0) log.info(result, 'reminders: pass complete')
+      // Reminders that were due, claimed and then landed nowhere. Usually a push
+      // service refusing the keys, which is invisible from the client.
+      if (result.failed > 0) {
+        log.warn({ failed: result.failed }, 'reminders: deliveries failed')
+      }
       if (result.due === MAX_PER_TICK) {
         log.warn({ cap: MAX_PER_TICK }, 'reminders: hit the per-pass cap')
       }

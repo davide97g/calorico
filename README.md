@@ -340,9 +340,39 @@ VAPID_PRIVATE_KEY=<generated>
 VAPID_SUBJECT=mailto:you@yourdomain.com
 ```
 
+Both keys are checked for shape at boot, not just for presence: a truncated paste
+is the one misconfiguration that looks like working software — the browser
+subscribes happily, `web-push` throws on the first send, and the only symptom is a
+phone that stays quiet. A wrong length fails the container at startup with the
+variable named, and keys missing altogether are a `warn` on the first tick, not an
+`info` nobody reads.
+
 Rotating the pair invalidates every subscription already on a phone: browsers
-hold the public key inside the subscription itself. They re-register on their next
-visit to the reminders screen, and until then they get nothing.
+hold the public key inside the subscription itself. The push service rejects those
+pushes with **403**, which the sender treats as a dead subscription — so the row
+is dropped, the reminders screen sees a device count of zero, and the phone
+re-registers on its next visit.
+
+### Asking for permission
+
+`Notification.requestPermission()` has to be called **straight out of the tap**.
+Safari draws the prompt only while the user gesture is still live and does not
+report the difference: a request made one `await` too late resolves to `default`
+with no prompt ever drawn, which is indistinguishable from a broken app. So
+`subscribeToPush` asks as its first statement, and the reminders screen calls it
+from the switch's own handler — never from inside a react-query `mutationFn`,
+which is only reached after react-query has awaited. The mutation gets the
+finished subscription handed to it.
+
+### Diagnostics
+
+A phone has no console, and "notifications are on but nothing arrives" has half a
+dozen causes that look identical from the outside. So the reminders screen lists
+every one of them with its answer — server keys, browser support, installed as an
+app, permission, service worker, subscription, devices known to the server. The
+first ✗ is the reason. Next to it sits a button that shows a notification from the
+worker itself, with no server involved: if that one appears and a test push does
+not, the problem is delivery rather than the device.
 
 ### How a reminder goes out
 
@@ -372,8 +402,10 @@ visit to the reminders screen, and until then they get nothing.
 `push_subscriptions` holds one row per browser, keyed on the endpoint — the push
 service's own name for that browser. That is what makes a re-subscribe an update
 instead of a pile of dead rows, and what moves a phone that changed account. A
-push service answering **404 or 410** is the only signal that a subscription is
-gone for good, and it deletes the row on the spot.
+push service answering **404, 410 or 403** is telling us that subscription is gone
+for good — the first two because the browser dropped it, the third because it was
+signed with a VAPID key we no longer have — and the row is deleted on the spot.
+Everything else is transient and never deletes a device.
 
 A browser can also drop its subscription on its own, and the only symptom is
 silence. So the reminders screen shows how many devices are registered, and
@@ -381,9 +413,11 @@ re-registers this one if the account wants reminders and has none.
 
 ### iOS
 
-Safari exposes `PushManager` in a normal tab but **only delivers to a PWA added to
-the home screen**, and asking for permission in a tab burns the prompt for
-nothing. The screen detects that case and says to install first — see [PWA and
+iOS **only delivers push to a PWA added to the home screen**, and in a plain
+Safari tab it does not even define `Notification` — so the install has to be
+checked *before* browser support, or the screen blames the browser for something
+an install fixes. That is the order the reminders screen and `subscribeToPush`
+both use: install first, then support, then permission. See [PWA and
 updates](#pwa-and-updates) for the install itself.
 
 ### What is in a notification

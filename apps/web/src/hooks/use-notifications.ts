@@ -7,6 +7,7 @@ import {
   pushSupported,
   subscribeToPush,
   unsubscribeFromPush,
+  type PushSubscriptionPayload,
 } from '@/lib/push'
 import type {
   Meal,
@@ -30,18 +31,22 @@ function browserTimezone() {
 }
 
 /**
- * Turning notifications on, all of it: permission, a push subscription, the
- * device registered server-side, and only then the master switch.
+ * Registers a browser subscription server-side, then flips the master switch.
  *
- * Order matters. Flipping the switch first would leave an account marked as
- * wanting reminders with no device to send them to, which is indistinguishable
- * from a broken scheduler.
+ * The browser half — permission, then `pushManager.subscribe` — deliberately
+ * does *not* happen here: it has to be started straight from the tap, and
+ * react-query awaits before it ever calls a `mutationFn`, which is long enough
+ * for Safari to consider the gesture over and drop the prompt without a word.
+ * So the caller subscribes and hands the result in. See lib/push.ts.
+ *
+ * Order still matters on this side. Flipping the switch first would leave an
+ * account marked as wanting reminders with no device to send them to, which is
+ * indistinguishable from a broken scheduler.
  */
 export function useEnableNotifications() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (publicKey: string) => {
-      const subscription = await subscribeToPush(publicKey)
+    mutationFn: async (subscription: PushSubscriptionPayload) => {
       await api('/notifications/subscribe', {
         method: 'POST',
         body: { ...subscription, userAgent: navigator.userAgent },
@@ -259,6 +264,8 @@ export function pushErrorMessage(error: unknown) {
       return 'Questo browser non supporta le notifiche push.'
     case 'denied':
       return 'Le notifiche sono bloccate. Riattivale dalle impostazioni del browser per questo sito.'
+    case 'dismissed':
+      return 'Permesso non concesso. Riprova e scegli “Consenti” nella richiesta del browser.'
     case 'needs_install':
       return 'Su iPhone e iPad aggiungi prima Calorico alla schermata Home: Safari consegna le notifiche solo all’app installata.'
     case 'no_service_worker':

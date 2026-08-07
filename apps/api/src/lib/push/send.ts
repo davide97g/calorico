@@ -83,6 +83,13 @@ export async function sendPush(
   } catch (err) {
     const status = (err as { statusCode?: number }).statusCode
     if (status === 404 || status === 410) return 'gone'
+    // 403 is the push service saying the VAPID key that signed this push is not
+    // the one the subscription was created with. That never fixes itself: the
+    // browser holds the old public key inside the subscription, so after a key
+    // rotation every push to it is rejected forever. Treating it as dead is
+    // what lets the settings screen notice ("no devices") and re-subscribe —
+    // the alternative is a row that looks healthy and never delivers again.
+    if (status === 403) return 'gone'
     return 'failed'
   }
 }

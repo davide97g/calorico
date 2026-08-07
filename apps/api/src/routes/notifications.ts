@@ -342,14 +342,27 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
         return reply.code(503).send({ error: 'push_disabled' })
       }
 
-      const { sent, removed } = await deliver(request.user.sub, {
+      const { sent, removed, failed } = await deliver(request.user.sub, {
         title: 'Calorico',
         body: 'Le notifiche funzionano. I promemoria arriveranno così.',
         url: '/notifications',
         tag: 'reminder-test',
       })
 
-      if (sent === 0) return reply.code(409).send({ error: 'no_devices' })
+      // Two different silences, and the client says something different about
+      // each: no device on the account at all, or a device the push service
+      // refused to deliver to — which is what wrong VAPID keys look like from
+      // here, and the one case where the fix is on the server.
+      if (sent === 0) {
+        if (failed > 0) {
+          request.log.warn(
+            { userId: request.user.sub, failed, removed },
+            'push: test notification refused by the push service',
+          )
+          return reply.code(502).send({ error: 'push_failed' })
+        }
+        return reply.code(409).send({ error: 'no_devices' })
+      }
       return { sent, removed }
     },
   )
