@@ -31,6 +31,13 @@ export interface PushPayload {
   url: string
   /** Collapse key: a second notification with the same tag replaces the first. */
   tag: string
+  /**
+   * What kind of notice this is. The service worker reads it to decide what a
+   * tap does: a reminder opens a screen, a release hands the page over to the
+   * new build and reloads. Absent means reminder — every payload sent before
+   * releases existed.
+   */
+  kind?: 'reminder' | 'release'
 }
 
 /** True when the server has VAPID keys, i.e. when push can work at all. */
@@ -58,12 +65,21 @@ function ensureVapid() {
  */
 const TTL_SECONDS = 30 * 60
 
+/**
+ * A release notice does not go stale the way a reminder does — the new version is
+ * still new hours later — so a phone that was off keeps it, and it is sent at low
+ * urgency because nothing about it is worth waking a device for.
+ */
+const RELEASE_TTL_SECONDS = 12 * 60 * 60
+
 export async function sendPush(
   target: PushTarget,
   payload: PushPayload,
 ): Promise<PushResult> {
   if (!env.push) return 'failed'
   ensureVapid()
+
+  const release = payload.kind === 'release'
 
   try {
     await webpush.sendNotification(
@@ -73,8 +89,8 @@ export async function sendPush(
       },
       JSON.stringify(payload),
       {
-        TTL: TTL_SECONDS,
-        urgency: 'normal',
+        TTL: release ? RELEASE_TTL_SECONDS : TTL_SECONDS,
+        urgency: release ? 'low' : 'normal',
         // Lets the push service collapse a queued reminder with its successor.
         topic: topicFor(payload.tag),
       },

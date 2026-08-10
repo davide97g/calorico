@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { BUILD_ID } from '@/lib/build'
 import {
   PushError,
   currentSubscription,
@@ -49,7 +51,11 @@ export function useEnableNotifications() {
     mutationFn: async (subscription: PushSubscriptionPayload) => {
       await api('/notifications/subscribe', {
         method: 'POST',
-        body: { ...subscription, userAgent: navigator.userAgent },
+        body: {
+          ...subscription,
+          userAgent: navigator.userAgent,
+          buildId: BUILD_ID,
+        },
       })
       return api<{ enabled: boolean; timezone: string }>('/notifications', {
         method: 'PATCH',
@@ -123,7 +129,11 @@ export function useRepairSubscription() {
       const subscription = await subscribeToPush(publicKey)
       await api('/notifications/subscribe', {
         method: 'POST',
-        body: { ...subscription, userAgent: navigator.userAgent },
+        body: {
+          ...subscription,
+          userAgent: navigator.userAgent,
+          buildId: BUILD_ID,
+        },
       })
       return true
     },
@@ -135,6 +145,41 @@ export function useRepairSubscription() {
     // A repair that cannot run is not an error the user asked for.
     onError: () => {},
   })
+}
+
+/**
+ * One report per page load is enough, and the flag lives outside the hook so
+ * StrictMode's double effect and a re-render cannot turn it into two requests.
+ */
+let buildReported = false
+
+/**
+ * Tells the server which build this device is running.
+ *
+ * That is what keeps the release notification honest: a phone that already
+ * picked up the new worker on its own — the app was in the background, the
+ * update applied silently — must not be told there is a new version. The server
+ * only pushes to subscriptions whose last reported build is not the deployed
+ * one, so the report is the difference between a useful notice and a nag.
+ *
+ * Only meaningful for a browser that holds a push subscription; there is nothing
+ * to record against otherwise. Failures are ignored: the next session reports
+ * again, and at worst the device gets one notification it did not need.
+ */
+export function useReportBuild(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled || buildReported) return
+    buildReported = true
+
+    void (async () => {
+      const subscription = await currentSubscription()
+      if (!subscription) return
+      await api('/notifications/version', {
+        method: 'POST',
+        body: { endpoint: subscription.endpoint, buildId: BUILD_ID },
+      }).catch(() => {})
+    })()
+  }, [enabled])
 }
 
 export interface ReminderInput {

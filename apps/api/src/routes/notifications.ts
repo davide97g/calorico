@@ -41,6 +41,18 @@ const settingsBody = z.object({
     .optional(),
 })
 
+/**
+ * The web build a browser is running. Opaque to the server — it is only ever
+ * compared for equality with what the deployment publishes — so the shape is
+ * checked to keep junk out of the column, not to be understood.
+ */
+const buildId = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(/^[A-Za-z0-9._-]+$/, 'unexpected build id')
+
 const subscribeBody = z.object({
   endpoint: z.string().url().max(1000),
   keys: z.object({
@@ -48,6 +60,12 @@ const subscribeBody = z.object({
     auth: z.string().min(1).max(100),
   }),
   userAgent: z.string().max(300).optional(),
+  buildId: buildId.optional(),
+})
+
+const versionBody = z.object({
+  endpoint: z.string().url().max(1000),
+  buildId,
 })
 
 const unsubscribeBody = z.object({
@@ -209,6 +227,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
         p256dh: body.keys.p256dh,
         auth: body.keys.auth,
         userAgent: body.userAgent ?? request.headers['user-agent'] ?? null,
+        buildId: body.buildId ?? null,
       })
       .onConflictDoUpdate({
         target: pushSubscriptions.endpoint,
@@ -217,6 +236,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
           p256dh: body.keys.p256dh,
           auth: body.keys.auth,
           userAgent: body.userAgent ?? request.headers['user-agent'] ?? null,
+          buildId: body.buildId ?? null,
         },
       })
 
@@ -243,6 +263,36 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
 
     return reply.code(204).send()
   })
+
+  /**
+   * Records which build this device is on, once per session.
+   *
+   * It is what stops the "new version available" push going to a device that
+   * already has it: the notifier only sends to subscriptions whose build is not
+   * the deployed one. Nothing here can trigger a notification — the deployed
+   * build is read from the web container, never from a client — so an endpoint
+   * this account does not own simply matches no row, and the answer is the same
+   * 204 either way rather than a probe into whose device is whose.
+   */
+  app.post(
+    '/version',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const body = versionBody.parse(request.body)
+
+      await db
+        .update(pushSubscriptions)
+        .set({ buildId: body.buildId })
+        .where(
+          and(
+            eq(pushSubscriptions.endpoint, body.endpoint),
+            eq(pushSubscriptions.userId, request.user.sub),
+          ),
+        )
+
+      return reply.code(204).send()
+    },
+  )
 
   app.post('/reminders', async (request, reply) => {
     const body = normalise(createBody.parse(request.body))

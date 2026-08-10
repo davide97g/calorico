@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -8,10 +8,57 @@ import { VitePWA } from 'vite-plugin-pwa'
 const BACKGROUND_LIGHT = '#f4f5ef'
 const LIME = '#dcf58f'
 
+/**
+ * Identity of this build, baked into the bundle and written to version.json.
+ *
+ * Two very different readers need the same string: the browser, which reports
+ * the build it is running so the server knows whether that device is behind
+ * (src/lib/build.ts), and the API, which polls version.json to learn what is
+ * deployed and pushes a notification to the devices still on the old one.
+ *
+ * The build clock is what generates it, not git: the Docker build context has no
+ * .git, and what matters is only that a new build gets a name the old one never
+ * had. BUILD_ID can be set from outside to pin it — a rebuild of the same commit
+ * would otherwise count as a new release, which is the honest answer anyway
+ * since the bytes are new.
+ */
+const BUILD_ID = process.env.BUILD_ID?.trim() || String(Date.now())
+
+/**
+ * Publishes the build id at a fixed URL the API can poll.
+ *
+ * A file rather than an env var shared by both containers: Dokploy builds the
+ * two images separately from the same commit and has nothing to hand them a
+ * common value with, so the deployed bundle is the only thing that can be
+ * trusted to say which build is live. nginx serves it `no-store` and workbox
+ * never precaches it (its glob covers no .json), so the answer is always the
+ * running deployment's, not a cached one's.
+ */
+function versionManifest(buildId: string): Plugin {
+  return {
+    name: 'calorico:version-manifest',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: `${JSON.stringify({
+          buildId,
+          builtAt: new Date().toISOString(),
+        })}\n`,
+      })
+    },
+  }
+}
+
 export default defineConfig({
+  define: {
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
+  },
   plugins: [
     react(),
     tailwindcss(),
+    versionManifest(BUILD_ID),
     VitePWA({
       // 'prompt' keeps the new worker waiting until we decide to activate it, so
       // src/lib/pwa.ts can reload at a moment that never eats a half-typed form.

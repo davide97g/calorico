@@ -11,6 +11,18 @@ const SW_URL = '/sw.js'
  */
 const CHECK_INTERVAL_MS = 60_000
 
+/** Sent by public/push-sw.js when a release notification is tapped. */
+const RELOAD_MESSAGE = 'CALORICO_RELOAD'
+
+/**
+ * How long a tap on a release notification waits for the new worker to take
+ * control before reloading anyway. The handover is the clean path — it guarantees
+ * the reload lands on the new build — but a tap must never leave the app sitting
+ * there doing nothing, and there is no update to wait for when the notification
+ * reaches a device that already updated itself.
+ */
+const RELOAD_FALLBACK_MS = 1_500
+
 /**
  * Registers the service worker and owns the update policy.
  *
@@ -29,15 +41,32 @@ export function initPwa() {
   let reloading = false
   let updateReady = false
   let sawNewWorker = false
+  /** Set once the registration exists; hands the page over to a waiting build. */
+  let activateWaiting: (() => void) | null = null
   const hadController = !!navigator.serviceWorker.controller
+
+  const reloadNow = () => {
+    if (reloading) return
+    reloading = true
+    window.location.reload()
+  }
+
+  // The user tapped "new version available". The worker has already asked the
+  // waiting build to take over, so the reload usually comes from
+  // controllerchange below; this only makes sure the tap does something even
+  // when there was no newer build to hand over to.
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    const type = (event.data as { type?: string } | null)?.type
+    if (type !== RELOAD_MESSAGE) return
+    activateWaiting?.()
+    window.setTimeout(reloadNow, RELOAD_FALLBACK_MS)
+  })
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     // On a first visit the worker claiming this page is the initial install,
     // not a new build — reloading for it would be a pointless flash.
     if (!hadController && !sawNewWorker) return
-    if (reloading) return
-    reloading = true
-    window.location.reload()
+    reloadNow()
   })
 
   const start = () => void register()
@@ -60,6 +89,8 @@ export function initPwa() {
       toast.dismiss('pwa-update')
       registration.waiting.postMessage({ type: 'SKIP_WAITING' })
     }
+
+    activateWaiting = activate
 
     const announce = () => {
       if (!registration.waiting || updateReady) return

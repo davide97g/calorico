@@ -7,6 +7,7 @@ import {
 } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { getPendingInvite } from '@/hooks/use-family'
+import { useReportBuild } from '@/hooks/use-notifications'
 import { BrandLoader } from '@/components/ui/brand-loader'
 import TodayPage from '@/pages/today'
 import LoginPage from '@/pages/login'
@@ -64,6 +65,11 @@ function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // Mounted once for the whole session, which is exactly how often the build
+  // this device runs needs reporting. See useReportBuild.
+  const { user } = useAuth()
+  useReportBuild(Boolean(user))
+
   return (
     <Suspense fallback={<FullScreenLoader />}>
       <Routes>

@@ -484,6 +484,13 @@ export const pushSubscriptions = pgTable(
     auth: text('auth').notNull(),
     /** Only to tell devices apart in the UI. Never parsed. */
     userAgent: text('user_agent'),
+    /**
+     * The web build this browser last reported running (see app_releases). Null
+     * means it never said — an old client, or one that subscribed before this
+     * column existed — and that counts as "behind", because a device on the
+     * current build always reports it on the session it starts.
+     */
+    buildId: text('build_id'),
     lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -492,6 +499,39 @@ export const pushSubscriptions = pgTable(
   (t) => [
     uniqueIndex('push_subscriptions_endpoint_unique').on(t.endpoint),
     index('push_subscriptions_user_idx').on(t.userId),
+  ],
+)
+
+/**
+ * One row per web build that was seen deployed, newest last.
+ *
+ * The server does not decide what is deployed: it polls `WEB_ORIGIN/version.json`,
+ * which is written by the web build itself, and inserts a row the first time it
+ * sees a build id it has no row for. That makes the deployed bundle the single
+ * source of truth — a client could otherwise claim any version it liked and have
+ * every device on the server notified.
+ *
+ * `announcedAt` is the send-once lock, in the same style as `reminders.lastSentOn`:
+ * it is written before the first push goes out, so a restart or a second API
+ * container cannot announce the same release twice.
+ */
+export const appReleases = pgTable(
+  'app_releases',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Opaque; the build clock generates it. Compared for equality only. */
+    buildId: text('build_id').notNull(),
+    detectedAt: timestamp('detected_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Null until the release notice went out; set even when it went nowhere. */
+    announcedAt: timestamp('announced_at', { withTimezone: true }),
+    /** Devices the notice reached. Kept for the logs, nothing reads it. */
+    notified: integer('notified').notNull().default(0),
+  },
+  (t) => [
+    uniqueIndex('app_releases_build_id_unique').on(t.buildId),
+    index('app_releases_detected_idx').on(t.detectedAt),
   ],
 )
 
@@ -659,3 +699,4 @@ export type NewScanEvent = typeof scanEvents.$inferInsert
 export type Reminder = typeof reminders.$inferSelect
 export type NewReminder = typeof reminders.$inferInsert
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect
+export type AppRelease = typeof appReleases.$inferSelect

@@ -1,5 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import { beforeAll, beforeEach, afterAll, describe, expect, it } from 'vitest'
+import { eq } from 'drizzle-orm'
+import { db } from '../db/index.js'
+import { pushSubscriptions } from '../db/schema.js'
 import {
   auth,
   createUser,
@@ -267,6 +270,35 @@ describe.skipIf(!hasDb)('notifications', () => {
     })
     expect(mine.statusCode).toBe(204)
     expect((await get()).devices).toBe(0)
+  })
+
+  it('records the build a device reports, and only for its own endpoint', async () => {
+    const endpoint = 'https://push.example.test/subscription-3'
+    await subscribe(endpoint)
+
+    const report = (buildId: string, as: TestUser = user) =>
+      app.inject({
+        method: 'POST',
+        url: '/api/notifications/version',
+        headers: auth(as),
+        payload: { endpoint, buildId },
+      })
+
+    expect((await report('build-42')).statusCode).toBe(204)
+    const buildOf = async () => {
+      const [row] = await db
+        .select({ buildId: pushSubscriptions.buildId })
+        .from(pushSubscriptions)
+        .where(eq(pushSubscriptions.endpoint, endpoint))
+      return row?.buildId
+    }
+    expect(await buildOf()).toBe('build-42')
+
+    // A stranger reporting someone else's endpoint changes nothing, and is not
+    // told whether the endpoint exists.
+    const stranger = await createUser(app)
+    expect((await report('build-99', stranger)).statusCode).toBe(204)
+    expect(await buildOf()).toBe('build-42')
   })
 
   it('says so instead of pretending when there is no device to test with', async () => {

@@ -8,6 +8,7 @@ export const hasDb = Boolean(process.env.TEST_DATABASE_URL)
 
 /** Everything a test can dirty. Ordered by nothing — cascade sorts it out. */
 const TABLES = [
+  'app_releases',
   'reminders',
   'push_subscriptions',
   'scan_events',

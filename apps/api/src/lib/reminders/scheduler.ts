@@ -8,6 +8,7 @@ import {
   weightLogs,
 } from '../../db/schema.js'
 import { env } from '../../env.js'
+import { fanout, type FanoutResult, type Sender } from '../push/fanout.js'
 import { pushConfigured, sendPush, type PushPayload } from '../push/send.js'
 import { reminderMessage, type Meal, type ReminderKind } from './presets.js'
 
@@ -178,23 +179,18 @@ async function releaseClaim(id: string, previousSentOn: string | null) {
     .where(eq(reminders.id, id))
 }
 
-export type Sender = (
-  target: { endpoint: string; p256dh: string; auth: string },
-  payload: PushPayload,
-) => Promise<'sent' | 'gone' | 'failed'>
+export type { Sender } from '../push/fanout.js'
 
 /**
  * Pushes to every device of one user. Returns how many got it — zero means the
- * caller should not consider the reminder delivered.
- *
- * A `gone` verdict deletes the row on the spot: that endpoint will never work
- * again, and leaving it behind would make every later tick pay for it.
+ * caller should not consider the reminder delivered. Dead endpoints are pruned
+ * on the way; see lib/push/fanout.ts.
  */
 export async function deliver(
   userId: string,
   payload: PushPayload,
   send: Sender = sendPush,
-): Promise<{ sent: number; removed: number; failed: number }> {
+): Promise<FanoutResult> {
   const targets = await db
     .select({
       id: pushSubscriptions.id,
@@ -205,34 +201,7 @@ export async function deliver(
     .from(pushSubscriptions)
     .where(eq(pushSubscriptions.userId, userId))
 
-  let sent = 0
-  let removed = 0
-  let failed = 0
-
-  for (const target of targets) {
-    const result = await send(target, payload)
-    if (result === 'sent') {
-      sent += 1
-      await db
-        .update(pushSubscriptions)
-        .set({ lastSuccessAt: new Date() })
-        .where(eq(pushSubscriptions.id, target.id))
-      continue
-    }
-    // Both remaining verdicts are a device that did not get it; only one of
-    // them means the row is worthless. The count of the rest is what tells a
-    // caller "there were devices, the push itself was refused" — the difference
-    // between a misconfigured server and an account with no phone on it.
-    failed += 1
-    if (result === 'gone') {
-      removed += 1
-      await db
-        .delete(pushSubscriptions)
-        .where(eq(pushSubscriptions.id, target.id))
-    }
-  }
-
-  return { sent, removed, failed }
+  return fanout(targets, payload, send)
 }
 
 export interface TickResult {

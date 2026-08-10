@@ -473,9 +473,12 @@ updates](#pwa-and-updates) for the install itself.
 
 ### What is in a notification
 
-The title, one line of body, and a path to open. No food names, no calories,
-nothing from the diary: the payload is encrypted end-to-end, but a notification
-also sits on a lock screen, and a reminder needs none of that to be useful.
+The title, one line of body, a path to open, and a `kind` — `reminder` (the
+default, and everything sent before releases existed) or `release`, which is what
+tells the worker a tap means "hand the page over to the new build and reload"
+rather than "open this screen". No food names, no calories, nothing from the
+diary: the payload is encrypted end-to-end, but a notification also sits on a
+lock screen, and a reminder needs none of that to be useful.
 
 The `push` and `notificationclick` handlers live in `apps/web/public/push-sw.js`
 and are pulled into the generated worker with `workbox.importScripts`. Keeping
@@ -597,7 +600,8 @@ Getting a new build onto a phone takes two things: a server that never serves a
 stale worker, and a client that keeps asking.
 
 1. **Server** — `apps/web/nginx.conf` sends `Cache-Control: no-store` for
-   `/index.html`, `/sw.js`, `/push-sw.js` and `/manifest.webmanifest`, and
+   `/index.html`, `/sw.js`, `/push-sw.js`, `/version.json` and
+   `/manifest.webmanifest`, and
    `max-age=31536000, immutable` only for content-hashed files under `/assets/`
    and `workbox-*.js`. A cached `sw.js` is the one failure mode that makes a
    deploy invisible, so nothing is allowed to hold on to it.
@@ -610,6 +614,49 @@ stale worker, and a client that keeps asking.
    foreground/background switch. So an installed app picks up a deploy within
    about a minute of being used, without a force-quit.
 
+### When the app is closed: the release notification
+
+Steps 1 and 2 only reach an app someone is looking at. An installed diary spends
+almost all of its life closed, and a closed app cannot poll — so a deploy stayed
+invisible until the user happened to open it. The push channel closes that gap:
+when a new build is live, the devices still running the old one get a
+notification, and tapping it loads the new version.
+
+1. **The build names itself.** `vite.config.ts` bakes a build id into the bundle
+   (`src/lib/build.ts`) and writes the same value to `dist/version.json`. nginx
+   serves that file `no-store` and workbox never precaches it, so it always
+   answers for the running deployment.
+2. **The server reads it, not a client.** `lib/releases/notifier.ts` polls
+   `WEB_ORIGIN/version.json` once a minute and inserts a row in `app_releases`
+   the first time it sees a build id it has no row for. The deployed bundle is the
+   only thing trusted to say what is deployed — taking a version from a client
+   would let any account have every device on the server notified.
+3. **Only devices that are behind are told.** Each browser reports the build it is
+   running (`POST /api/notifications/version`, once per session) into
+   `push_subscriptions.build_id`. The notice goes to the subscriptions whose build
+   is not the deployed one — null included, since a device on the current build
+   always reports it — and to nobody whose master switch is off. A "new version"
+   notification landing on a phone that already updated itself is worse than
+   silence: it teaches people to ignore the next one.
+4. **Once, and late.** `app_releases.announced_at` is written *before* the first
+   push, so a restart or a second container cannot re-announce, and the notice
+   waits `RELEASE_NOTICE_DELAY_MINUTES` (10) — long enough for the apps that are
+   open to update themselves and report it, dropping out of the set. Best effort
+   by design: the claim is not handed back if the pushes fail, because the app
+   still updates itself the next time it is opened.
+5. **The tap is the interesting part.** `push-sw.js` asks the waiting worker to
+   `SKIP_WAITING` — fetching it first if the browser has not noticed the deploy
+   yet, since nothing polled while the app was closed — then focuses the window
+   and tells the page to reload. The reload rides `controllerchange`, so it lands
+   on the new build; with nothing open, `openWindow` gets it from a `no-store`
+   shell. There is a 1.5 s fallback reload for the case where there was no waiting
+   build to hand over to.
+
+The first build a server ever sees is recorded as *already announced* — nobody is
+knowingly behind at that point, and the alternative is one pointless notification
+to every phone the first time this ships. A build id that already has a row, which
+is what a rollback looks like, is not a new release and stays quiet.
+
 Worth knowing:
 
 - The update logic is deliberately not `virtual:pwa-register`'s: workbox-window
@@ -618,8 +665,8 @@ Worth knowing:
 - `/api` is never cached by the worker — the diary always reads live data. Offline
   gets you the app shell, not the food database.
 - If you ever put a CDN in front of Dokploy (Cloudflare and friends), exclude
-  `/sw.js`, `/push-sw.js`, `/index.html` and `/manifest.webmanifest` from its
-  cache too.
+  `/sw.js`, `/push-sw.js`, `/index.html`, `/version.json` and
+  `/manifest.webmanifest` from its cache too.
 
 ### Environment variables
 
@@ -648,6 +695,8 @@ Worth knowing:
 | `VAPID_SUBJECT`   | —                              | Contact for the push services: `mailto:` or an https URL |
 | `MAX_REMINDERS_PER_USER` | `12`                    | Reminders one account may keep                |
 | `REMINDER_GRACE_MINUTES` | `10`                    | How late a reminder may still be delivered    |
+| `WEB_ORIGIN`      | —                              | Internal URL of the web container (`http://web`); where the API reads `/version.json` to notify devices of a new build. Unset switches release notices off |
+| `RELEASE_NOTICE_DELAY_MINUTES` | `10`              | How long a new build waits before its notice goes out |
 | `SENTRY_DSN`      | —                              | Unset: the SDK is never initialised          |
 | `SENTRY_ENVIRONMENT` | `NODE_ENV`                  | Tag on every event                           |
 | `SENTRY_TRACES_SAMPLE_RATE` | `0`                  | `0` sends errors only                        |

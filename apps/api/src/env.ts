@@ -149,6 +149,32 @@ const schema = z.object({
   REMINDER_GRACE_MINUTES: z.coerce.number().int().min(1).max(120).default(10),
 
   /**
+   * Where the web container answers, used for one thing only: reading
+   * `/version.json` to learn which build is deployed, so devices still on the
+   * previous one can be told there is a new version.
+   *
+   * Internal, not public — in Compose it is `http://web`, the service name on the
+   * private network. Unset switches release notifications off entirely, which is
+   * what a dev machine wants: vite serves no version.json.
+   */
+  WEB_ORIGIN: blankToUndefined(z.string().url().optional()),
+  /**
+   * How long a newly deployed build waits before its notice goes out.
+   *
+   * An open app updates itself within a minute of the deploy and reports the new
+   * build, so this window is what keeps it out of the notified set — the
+   * notification is for the diary sitting closed on a home screen, not for the
+   * one the user is looking at. 0 sends on the next pass, which is what the
+   * tests use.
+   */
+  RELEASE_NOTICE_DELAY_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(1440)
+    .default(10),
+
+  /**
    * Stripe. Key, price and webhook secret are required together — the same
    * all-or-nothing gate as vision and push. With any of them missing there is
    * no checkout at all: /premium/checkout answers 503 and the client says
@@ -232,6 +258,8 @@ const stripe =
 export const env = {
   ...d,
   appUrl: d.APP_URL.replace(/\/$/, ''),
+  /** Null when release notifications are not configured. */
+  webOrigin: d.WEB_ORIGIN ? d.WEB_ORIGIN.replace(/\/$/, '') : null,
   corsOrigins: d.CORS_ORIGINS.split(',')
     .map((o) => o.trim())
     .filter(Boolean),

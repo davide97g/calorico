@@ -5,16 +5,19 @@ import { buildApp } from './app.js'
 import { env } from './env.js'
 import { sql } from './db/index.js'
 import { startReminderScheduler } from './lib/reminders/scheduler.js'
+import { startReleaseNotifier } from './lib/releases/notifier.js'
 
 const app = await buildApp()
 
 // Started here rather than inside buildApp: the test suite builds the app for
 // every file and must not end up with timers sending real pushes.
 const stopReminders = startReminderScheduler(app.log)
+const stopReleaseNotifier = startReleaseNotifier(app.log)
 
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, 'shutting down')
   stopReminders()
+  stopReleaseNotifier()
   await app.close()
   await sql.end({ timeout: 5 })
   // Anything captured in the last moments still has to reach Sentry.
