@@ -1,0 +1,278 @@
+import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm'
+import { db } from '../db/index.js'
+import { scanEvents } from '../db/schema.js'
+import { groceryVisibility } from './family.js'
+
+/**
+ * "What did we buy last time?" ranking, shared by the scan history screen and
+ * by the suggestions the grocery input shows while you type.
+ *
+ * Plain "most recent first" is wrong for both: a week of shopping buries the
+ * milk you buy every Tuesday under one-off scans, and a list ordered by raw
+ * count never forgets the brand you stopped buying in March. So every add or
+ * scan is one sample, weighted by how long ago it happened, and an item's score
+ * is the sum of its samples:
+ *
+ *     score = Σ 0.5 ^ (age_in_days / HALF_LIFE_DAYS)
+ *
+ * That is an exponentially weighted moving average of how often the item comes
+ * up — frequency and recency in one number, with no cron job to maintain: a
+ * sample counts 1 the day it happens, 0.5 a month later, 0.25 two months later.
+ * Something bought weekly sits far above something bought five times last
+ * spring, and drops on its own once you stop buying it.
+ *
+ * Half-life of a month because a household's staples turn over on that scale:
+ * short enough that last week outranks last season, long enough that skipping
+ * one shop does not evict an item from the top of the list.
+ */
+const HALF_LIFE_DAYS = 30
+
+const decayed = (at: SQL) =>
+  sql`power(
+    0.5,
+    extract(epoch from (now() - ${at})) / ${HALF_LIFE_DAYS * 86400}
+  )`
+
+/** `%` and `_` are ordinary characters in a shopping list, not wildcards. */
+const escapeLike = (term: string) => term.replace(/[\\%_]/g, '\\$&')
+
+/** Accent- and case-insensitive substring match, as everywhere else in search. */
+const matches = (column: SQL, term: string) =>
+  sql`unaccent(lower(${column})) like unaccent(lower(${`%${escapeLike(term)}%`}))`
+
+/** Scan rows the user may see: their families' scans, plus their own private ones. */
+function scanVisibility(userId: string, familyIds: string[]): SQL {
+  const own = and(isNull(scanEvents.familyId), eq(scanEvents.userId, userId))!
+  if (familyIds.length === 0) return own
+  return or(inArray(scanEvents.familyId, familyIds), own)!
+}
+
+/**
+ * The key two scans of the same thing share. A product is the food row it
+ * resolved to; a barcode that never resolved is still the same product each
+ * time; a photo scan only ever has its summary line.
+ *
+ * Deliberately the same shape as `grocery_items.dedupe_key`, so a scanned
+ * product and the list row it created collapse into one suggestion below.
+ */
+const scanKey = sql`coalesce(
+  'food:' || ${scanEvents.foodId}::text,
+  'code:' || ${scanEvents.barcode},
+  'text:' || lower(${scanEvents.nameSnapshot})
+)`
+
+export interface RankedScan {
+  key: string
+  kind: 'barcode' | 'photo'
+  foodId: string | null
+  barcode: string | null
+  nameSnapshot: string
+  brandSnapshot: string | null
+  items: { label: string; quantityG: number }[] | null
+  /** How many times this item was scanned, ever. */
+  times: number
+  lastAt: Date
+  score: number
+  scannedBy: { id: string; name: string; avatarUrl: string | null }
+}
+
+/**
+ * Scan history, one row per distinct item, best-remembered first. The snapshots
+ * and the author come from that item's most recent scan — the name a product
+ * carried last time is the one worth showing.
+ */
+export async function rankedScans(
+  userId: string,
+  familyIds: string[],
+  { limit, offset, term }: { limit: number; offset: number; term?: string },
+): Promise<RankedScan[]> {
+  const visible = scanVisibility(userId, familyIds)
+  const filter = term
+    ? and(visible, matches(sql`${scanEvents.nameSnapshot}`, term))!
+    : visible
+
+  const rows = await db.execute(sql`
+    with events as (
+      select
+        ${scanKey} as key,
+        ${scanEvents.id} as id,
+        ${scanEvents.createdAt} as at,
+        ${decayed(sql`${scanEvents.createdAt}`)} as weight
+      from ${scanEvents}
+      where ${filter}
+    ),
+    ranked as (
+      select
+        key,
+        count(*)::int as times,
+        max(at) as last_at,
+        sum(weight)::float8 as score,
+        (array_agg(id order by at desc))[1] as last_id
+      from events
+      group by key
+      order by score desc, last_at desc
+      limit ${limit}
+      offset ${offset}
+    )
+    select
+      ranked.key,
+      ranked.times,
+      ranked.last_at,
+      ranked.score,
+      scan_events.kind,
+      scan_events.food_id,
+      scan_events.barcode,
+      scan_events.name_snapshot,
+      scan_events.brand_snapshot,
+      scan_events.items,
+      users.id as scanned_by_id,
+      users.name as scanned_by_name,
+      users.avatar_url as scanned_by_avatar_url
+    from ranked
+    join scan_events on scan_events.id = ranked.last_id
+    join users on users.id = scan_events.user_id
+    order by ranked.score desc, ranked.last_at desc
+  `)
+
+  // Raw SQL, so the driver hands back snake_case columns untyped.
+  interface Row {
+    key: string
+    times: number
+    last_at: Date
+    score: number
+    kind: 'barcode' | 'photo'
+    food_id: string | null
+    barcode: string | null
+    name_snapshot: string
+    brand_snapshot: string | null
+    items: RankedScan['items']
+    scanned_by_id: string
+    scanned_by_name: string
+    scanned_by_avatar_url: string | null
+  }
+
+  return (rows as unknown as Row[]).map((row) => ({
+    key: row.key,
+    kind: row.kind,
+    foodId: row.food_id,
+    barcode: row.barcode,
+    nameSnapshot: row.name_snapshot,
+    brandSnapshot: row.brand_snapshot,
+    items: row.items,
+    times: Number(row.times),
+    lastAt: row.last_at,
+    score: Number(row.score),
+    scannedBy: {
+      id: row.scanned_by_id,
+      name: row.scanned_by_name,
+      avatarUrl: row.scanned_by_avatar_url,
+    },
+  }))
+}
+
+export interface GrocerySuggestion {
+  /** The `dedupe_key` an add would use, so the caller can dedupe against search hits. */
+  key: string
+  name: string
+  brand: string | null
+  foodId: string | null
+  times: number
+  lastAt: Date
+  score: number
+}
+
+/**
+ * What to offer while someone types into the grocery input: everything this
+ * list has held before, plus everything scanned into it, ranked as above.
+ *
+ * Rows already waiting on the list are left out — they are visible right below
+ * the input, and suggesting them would only ever bump a quantity. Photo scans
+ * are left out too: their snapshot is a summary of a meal ("pasta, pollo,
+ * insalata"), which is not a line anybody wants on a shopping list.
+ */
+export async function grocerySuggestions(
+  userId: string,
+  familyIds: string[],
+  { limit, term }: { limit: number; term: string },
+): Promise<GrocerySuggestion[]> {
+  const groceryVisible = groceryVisibility(userId, familyIds)
+  const scanVisible = and(
+    scanVisibility(userId, familyIds),
+    eq(scanEvents.kind, 'barcode'),
+  )!
+
+  const rows = await db.execute(sql`
+    with events as (
+      select
+        grocery_items.dedupe_key as key,
+        grocery_items.name_snapshot as name,
+        grocery_items.brand_snapshot as brand,
+        grocery_items.food_id as food_id,
+        grocery_items.created_at as at,
+        ${decayed(sql`grocery_items.created_at`)} as weight
+      from grocery_items
+      where ${groceryVisible}
+        and ${matches(sql`grocery_items.name_snapshot`, term)}
+
+      union all
+
+      select
+        ${scanKey},
+        ${scanEvents.nameSnapshot},
+        ${scanEvents.brandSnapshot},
+        ${scanEvents.foodId},
+        ${scanEvents.createdAt},
+        ${decayed(sql`${scanEvents.createdAt}`)}
+      from ${scanEvents}
+      where ${scanVisible}
+        and ${matches(sql`${scanEvents.nameSnapshot}`, term)}
+    ),
+    grouped as (
+      select
+        key,
+        (array_agg(name order by at desc))[1] as name,
+        (array_agg(brand order by at desc))[1] as brand,
+        (array_agg(food_id order by at desc))[1] as food_id,
+        count(*)::int as times,
+        max(at) as last_at,
+        sum(weight)::float8 as score
+      from events
+      where key not in (
+        select dedupe_key from grocery_items
+        where ${groceryVisible} and grocery_items.completed = false
+      )
+      group by key
+    )
+    select * from grouped
+    order by
+      -- A name that starts with what was typed first, then the ranking: typing
+      -- "lat" should open on "Latte", not on the "Insalata" bought more often.
+      (case
+        when unaccent(lower(name)) like unaccent(lower(${`${escapeLike(term)}%`})) then 0
+        else 1
+      end),
+      score desc,
+      last_at desc
+    limit ${limit}
+  `)
+
+  interface Row {
+    key: string
+    name: string
+    brand: string | null
+    food_id: string | null
+    times: number
+    last_at: Date
+    score: number
+  }
+
+  return (rows as unknown as Row[]).map((row) => ({
+    key: row.key,
+    name: row.name,
+    brand: row.brand,
+    foodId: row.food_id,
+    times: Number(row.times),
+    lastAt: row.last_at,
+    score: Number(row.score),
+  }))
+}

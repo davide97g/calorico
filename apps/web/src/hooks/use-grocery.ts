@@ -1,7 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
-import type { GroceryItem, GroceryResponse } from '@/lib/types'
+import type {
+  GroceryItem,
+  GroceryResponse,
+  GrocerySuggestionsResponse,
+} from '@/lib/types'
 
 export const groceryKey = ['grocery'] as const
 
@@ -18,6 +27,29 @@ export function useGrocery() {
   return useQuery({
     queryKey: groceryKey,
     queryFn: () => api<GroceryResponse>('/grocery'),
+  })
+}
+
+export const grocerySuggestionsKey = [...groceryKey, 'suggestions'] as const
+
+/**
+ * Lines this list has held before, matched against what is being typed. Under
+ * `groceryKey` so that every mutation's invalidation reaches it too: ticking a
+ * row off or deleting it changes what deserves to be suggested.
+ */
+export function useGrocerySuggestions(term: string) {
+  const q = term.trim()
+  return useQuery({
+    queryKey: [...grocerySuggestionsKey, q],
+    queryFn: () =>
+      api<GrocerySuggestionsResponse>('/grocery/suggestions', {
+        query: { q, limit: 5 },
+      }),
+    enabled: q.length > 0,
+    // Hold the last answer while the next one loads: the rows must not blink
+    // out from under a thumb that is already moving towards one.
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
   })
 }
 
@@ -42,6 +74,8 @@ export function useAddGroceryItem() {
           ...(current?.items.filter((existing) => existing.id !== item.id) ?? []),
         ]),
       }))
+      // The row is on the list now, so it must drop out of the suggestions.
+      void queryClient.invalidateQueries({ queryKey: grocerySuggestionsKey })
     },
   })
 }

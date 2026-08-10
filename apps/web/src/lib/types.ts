@@ -258,8 +258,13 @@ export interface InvitePreview {
 
 export type ScanKind = 'barcode' | 'photo'
 
-export interface ScanEvent {
-  id: string
+/**
+ * One scanned item, not one scan: the API folds every scan of the same product
+ * into a single row ranked by how often and how recently it comes up.
+ */
+export interface ScanHistoryItem {
+  /** Stable per item, not per scan — safe as a list key, useless as a row id. */
+  key: string
   kind: ScanKind
   foodId: string | null
   barcode: string | null
@@ -267,14 +272,33 @@ export interface ScanEvent {
   brandSnapshot: string | null
   /** Photo scans only: what the model saw. Never nutrition figures. */
   items: { label: string; quantityG: number }[] | null
-  familyId: string | null
-  createdAt: string
+  /** How many times this item was scanned, ever. */
+  times: number
+  lastAt: string
+  /** Frequency and recency in one number; the order the list arrives in. */
+  score: number
   scannedBy: PersonRef
 }
 
 export interface ScansResponse {
-  items: ScanEvent[]
-  nextCursor: string | null
+  items: ScanHistoryItem[]
+  /** Offset to ask for next, or null at the end — the order is a score, not a clock. */
+  nextOffset: number | null
+}
+
+/** A line the list has held before, offered back while typing. */
+export interface GrocerySuggestion {
+  key: string
+  name: string
+  brand: string | null
+  foodId: string | null
+  times: number
+  lastAt: string
+  score: number
+}
+
+export interface GrocerySuggestionsResponse {
+  items: GrocerySuggestion[]
 }
 
 export interface TargetEstimate {

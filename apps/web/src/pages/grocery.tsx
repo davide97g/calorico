@@ -31,12 +31,13 @@ import {
   useAddGroceryItem,
   useDeleteGroceryItem,
   useGrocery,
+  useGrocerySuggestions,
   useUpdateGroceryItem,
 } from '@/hooks/use-grocery'
 import { useFoodSearch } from '@/hooks/use-diary'
 import { useFamilies } from '@/hooks/use-family'
 import { relativeTime } from '@/lib/date'
-import type { Food, GroceryItem } from '@/lib/types'
+import type { Food, GroceryItem, GrocerySuggestion } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 export default function GroceryPage() {
@@ -46,6 +47,7 @@ export default function GroceryPage() {
   const deleteItem = useDeleteGroceryItem()
   const [term, setTerm] = useState('')
   const [debounced, setDebounced] = useState('')
+  const [historyTerm, setHistoryTerm] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<GroceryItem | null>(null)
 
   useEffect(() => {
@@ -53,7 +55,23 @@ export default function GroceryPage() {
     return () => clearTimeout(id)
   }, [term])
 
+  // The history is a local query over rows this list already has, so it can
+  // keep up with typing — no reason to make it wait for the OFF debounce.
+  useEffect(() => {
+    const id = setTimeout(() => setHistoryTerm(term.trim()), 120)
+    return () => clearTimeout(id)
+  }, [term])
+
   const search = useFoodSearch(debounced)
+  const suggestions = useGrocerySuggestions(historyTerm)
+
+  const history = term.trim() ? (suggestions.data?.items ?? []) : []
+  // The same product from both sources reads as a duplicate row. The history one
+  // wins: it also says how often this household actually buys it.
+  const remembered = new Set(history.map((item) => item.foodId).filter(Boolean))
+  const searchHits = (search.data?.items ?? [])
+    .filter((food) => !remembered.has(food.id))
+    .slice(0, 6)
   const families = useFamilies()
   const items = grocery.data?.items ?? []
   const activeCount = items.filter((item) => !item.completed).length
@@ -90,6 +108,17 @@ export default function GroceryPage() {
       { name },
       {
         onSuccess: () => finishAdd(name),
+        onError: () => toast.error('Non è stato possibile aggiungere la voce'),
+      },
+    )
+  }
+
+  /** A line off the history: back onto the list as whatever it was last time. */
+  const addSuggestion = (suggestion: GrocerySuggestion) => {
+    addItem.mutate(
+      suggestion.foodId ? { foodId: suggestion.foodId } : { name: suggestion.name },
+      {
+        onSuccess: () => finishAdd(suggestion.name),
         onError: () => toast.error('Non è stato possibile aggiungere la voce'),
       },
     )
@@ -180,9 +209,44 @@ export default function GroceryPage() {
 
       {term.trim() ? (
         <Panel className="mt-2 p-2">
-          {debounced.length >= 2 && search.data?.items.length ? (
-            <ul className="max-h-64 overflow-y-auto">
-              {search.data.items.slice(0, 6).map((food) => (
+          {history.length ? (
+            <ul>
+              {history.map((suggestion) => (
+                <li key={suggestion.key}>
+                  <button
+                    type="button"
+                    onClick={() => addSuggestion(suggestion)}
+                    disabled={addItem.isPending}
+                    className="hover:bg-secondary/70 flex w-full items-center gap-3 rounded-2xl p-2 text-left transition-colors"
+                  >
+                    <span className="bg-secondary text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-[14px]">
+                      <History className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">
+                        {suggestion.name}
+                      </span>
+                      <span className="text-muted-foreground block truncate text-xs">
+                        {suggestion.brand ? `${suggestion.brand} · ` : ''}
+                        {suggestion.times > 1
+                          ? `${suggestion.times} volte · ${relativeTime(suggestion.lastAt)}`
+                          : relativeTime(suggestion.lastAt)}
+                      </span>
+                    </span>
+                    <Plus className="text-primary-strong size-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {debounced.length >= 2 && searchHits.length ? (
+            <ul
+              className={cn(
+                'max-h-64 overflow-y-auto',
+                history.length && 'border-border mt-1 border-t pt-1',
+              )}
+            >
+              {searchHits.map((food) => (
                 <li key={food.id}>
                   <button
                     type="button"

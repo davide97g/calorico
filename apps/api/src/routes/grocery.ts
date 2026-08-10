@@ -8,6 +8,7 @@ import {
   groceryVisibility,
   resolveWriteFamilyId,
 } from '../lib/family.js'
+import { grocerySuggestions } from '../lib/history.js'
 
 const quantity = z.number().int().min(1).max(999)
 
@@ -20,6 +21,11 @@ const createBody = z
   .refine((body) => Boolean(body.foodId) !== Boolean(body.name), {
     message: 'Provide either foodId or name',
   })
+
+const suggestionsQuery = z.object({
+  q: z.string().trim().min(1).max(160),
+  limit: z.coerce.number().int().min(1).max(20).default(5),
+})
 
 const patchBody = z
   .object({
@@ -72,6 +78,24 @@ export const groceryRoutes: FastifyPluginAsync = async (app) => {
       )
 
     return { items }
+  })
+
+  /**
+   * What the list has held before, matched against what is being typed. The
+   * catalogue search answers "what is this product"; this answers "what do we
+   * usually buy", which is the question a shopping list is actually asked.
+   */
+  app.get('/suggestions', async (request) => {
+    const { q, limit } = suggestionsQuery.parse(request.query)
+    const userId = request.user.sub
+    const familyIds = await getFamilyIds(userId)
+
+    return {
+      items: await grocerySuggestions(userId, familyIds, {
+        term: normaliseName(q),
+        limit,
+      }),
+    }
   })
 
   app.post('/', async (request, reply) => {
