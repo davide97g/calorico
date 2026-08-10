@@ -36,6 +36,7 @@ import {
   useUpdateReminder,
 } from '@/hooks/use-notifications'
 import { ApiError } from '@/lib/api'
+import { BUILD_ID } from '@/lib/build'
 import {
   needsInstallFirst,
   pushDiagnostics,
@@ -576,6 +577,14 @@ function DiagnosticsPanel({
           ok={devices > 0}
         />
       </ul>
+
+      {/* Which build this device is actually running. The avviso di nuova
+          versione is sent only to the devices behind the deployed build, so when
+          it does not arrive this is the first thing to compare with the server. */}
+      <p className="text-muted-foreground mt-3 text-[11px] leading-relaxed">
+        Versione installata su questo dispositivo:{' '}
+        <span className="font-medium tabular-nums">{BUILD_ID}</span>
+      </p>
 
       {diagnostics?.permission === 'granted' && diagnostics.serviceWorker ? (
         <>
