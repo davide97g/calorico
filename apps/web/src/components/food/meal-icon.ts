@@ -10,6 +10,18 @@ export const MEAL_ICON: Record<Meal, LucideIcon> = {
 }
 
 /**
+ * The hue each meal is tinted with, defined in index.css so light and dark get
+ * their own value. Read as a raw colour (not a Tailwind class) because the
+ * diary mixes it into gradients with color-mix().
+ */
+export const MEAL_ACCENT: Record<Meal, string> = {
+  breakfast: 'var(--meal-breakfast)',
+  lunch: 'var(--meal-lunch)',
+  dinner: 'var(--meal-dinner)',
+  snack: 'var(--meal-snack)',
+}
+
+/**
  * The clock bands `currentMeal()` picks from. Shown on the meal tiles so the
  * automatic choice is a rule the user can read, not a guess.
  */

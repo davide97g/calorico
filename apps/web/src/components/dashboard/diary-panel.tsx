@@ -1,8 +1,9 @@
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
 import { Panel } from '@/components/ui/panel'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
-import { MEAL_ICON } from '@/components/food/meal-icon'
+import { MEAL_ACCENT, MEAL_ICON } from '@/components/food/meal-icon'
 import { MEAL_LABELS, MEAL_ORDER, grams, kcal } from '@/lib/format'
 import { isFutureDay } from '@/lib/date'
 import { cn } from '@/lib/utils'
@@ -32,15 +33,16 @@ export function DiaryPanel({ day, byMeal, total, onDelete }: DiaryPanelProps) {
         </span>
       </header>
 
-      <Panel className="p-2">
-        {MEAL_ORDER.map((meal, index) => (
+      {/* Each meal carries its own tint, so the four blocks separate on colour
+          alone — no rule between them to do the job. */}
+      <Panel className="flex flex-col gap-1.5 p-2">
+        {MEAL_ORDER.map((meal) => (
           <MealGroup
             key={meal}
             meal={meal}
             day={day}
             entries={byMeal[meal] ?? []}
             onDelete={onDelete}
-            className={index > 0 ? 'border-border/60 mt-1 border-t pt-1' : ''}
           />
         ))}
       </Panel>
@@ -53,21 +55,36 @@ function MealGroup({
   day,
   entries,
   onDelete,
-  className,
 }: {
   meal: Meal
   day: string
   entries: DiaryEntry[]
   onDelete: (entry: DiaryEntry) => void
-  className?: string
 }) {
   const Icon = MEAL_ICON[meal]
   const total = entries.reduce((sum, e) => sum + e.kcal, 0)
 
   return (
-    <div className={className}>
-      <header className="flex items-center gap-2.5 py-1 pl-2">
-        <span className="bg-secondary text-foreground/70 flex size-7 shrink-0 items-center justify-center rounded-full">
+    <div
+      className="rounded-[22px] p-0.5 pb-1"
+      style={
+        {
+          '--meal': MEAL_ACCENT[meal],
+          // Strongest at the header and gone by the last row, so the tint
+          // labels the meal without colouring the food underneath it.
+          backgroundImage:
+            'linear-gradient(150deg, color-mix(in oklab, var(--meal) 34%, transparent), color-mix(in oklab, var(--meal) 8%, transparent) 58%, transparent 92%)',
+        } as CSSProperties
+      }
+    >
+      <header className="flex items-center gap-2.5 py-1 pl-1.5">
+        <span
+          className="flex size-7 shrink-0 items-center justify-center rounded-full text-[oklch(0.24_0.03_145)]"
+          style={{
+            backgroundImage:
+              'linear-gradient(140deg, var(--meal), color-mix(in oklab, var(--meal) 62%, white))',
+          }}
+        >
           <Icon className="size-3.5" strokeWidth={2.2} />
         </span>
         <h3 className="text-sm font-semibold">{MEAL_LABELS[meal]}</h3>

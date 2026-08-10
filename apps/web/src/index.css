@@ -53,6 +53,14 @@
   --chart-3: oklch(0.83 0.08 245);
   --chart-4: oklch(0.86 0.17 120);
   --chart-5: oklch(0.72 0.12 160);
+
+  /* One hue per meal, walking the day round the wheel: amber sunrise, lime
+     midday, indigo night, rose for the snack in between. The diary tints each
+     group with these, so the four blocks are told apart before reading a word. */
+  --meal-breakfast: oklch(0.87 0.14 75);
+  --meal-lunch: oklch(0.87 0.16 135);
+  --meal-dinner: oklch(0.8 0.12 285);
+  --meal-snack: oklch(0.84 0.11 15);
 }
 
 .dark {
@@ -98,6 +106,12 @@
   --chart-3: oklch(0.72 0.1 245);
   --chart-4: oklch(0.8 0.18 122);
   --chart-5: oklch(0.65 0.12 160);
+
+  /* Same four hues, dimmed: on the dark card a full-chroma tint glows. */
+  --meal-breakfast: oklch(0.76 0.13 75);
+  --meal-lunch: oklch(0.76 0.15 135);
+  --meal-dinner: oklch(0.7 0.13 285);
+  --meal-snack: oklch(0.73 0.12 15);
 }
 
 @theme inline {
@@ -132,6 +146,11 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
+  --color-meal-breakfast: var(--meal-breakfast);
+  --color-meal-lunch: var(--meal-lunch);
+  --color-meal-dinner: var(--meal-dinner);
+  --color-meal-snack: var(--meal-snack);
 
   --radius-sm: calc(var(--radius) - 8px);
   --radius-md: calc(var(--radius) - 4px);
