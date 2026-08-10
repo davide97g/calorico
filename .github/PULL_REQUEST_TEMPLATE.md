@@ -20,7 +20,7 @@ Closes #
 - [ ] Tests added for anything with a rule in it — a cascade, a cap, a rounding, a time window
 - [ ] Comments explain *why*, not *what*
 - [ ] No new third-party request from the browser (the privacy notice promises there are none)
-- [ ] `npm run csp:hashes` re-run, if any JSON-LD on the landing page changed
+- [ ] New app routes added to the list in `apps/web/nginx.conf`, or a cold load of them 404s
 - [ ] Privacy notice and terms updated, if this changes what data is collected, where it goes, or how long it is kept
 
 ## Anything a reviewer should look at twice

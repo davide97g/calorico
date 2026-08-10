@@ -29,8 +29,8 @@ npm run dev:web                  # http://localhost:5173
 ```
 
 The Vite dev server proxies `/api` to the API, so the browser only ever talks to
-one origin — same as in production. The app is mounted at `/app`; the site root
-is the static landing page in `apps/web/public/`.
+one origin — same as in production. The app is mounted at the site root; the two
+legal pages are static HTML in `apps/web/public/`.
 
 ## Before you open a pull request
 

@@ -1,7 +1,7 @@
 # Launch checklist
 
-State of play for taking Calorico public: open source, a landing page that can
-be found, and legal pages that hold up in the EU.
+State of play for taking Calorico public: open source, an app that can be found,
+and legal pages that hold up in the EU.
 
 Everything under **Done** is in the working tree already. Everything under
 **Blocking** has to happen before the repository and the link go anywhere.
@@ -27,19 +27,21 @@ Everything under **Done** is in the working tree already. Everything under
       history or the working tree.
 - [x] README: badges, positioning paragraph, public-site section, AGPL section.
 
-### Landing page and SEO
+### SEO
 
-- [x] `/` — static landing page, zero JavaScript, no build step. Hero, features,
-      data sources, pricing, open-source section, FAQ, footer.
-- [x] Title, meta description, canonical, `hreflang`, Open Graph and Twitter
-      card tags.
+- [x] `/` — the app itself. Signed out it renders the sign-in screen; there is no
+      separate marketing page. The static landing page that used to live here was
+      removed along with the `/app` mount, which broke the installed PWA.
+- [x] Title, meta description, canonical, Open Graph and Twitter card tags on the
+      app shell — a shared link is scraped, not rendered, so these tags are the
+      whole preview.
 - [x] `og.png` at 1200×630 — LinkedIn will not render an SVG, and a link
       posted without one gets a grey box.
 - [x] `robots.txt` with an explicit allow for GPTBot, ClaudeBot, PerplexityBot,
       OAI-SearchBot and Google-Extended.
 - [x] `sitemap.xml`.
-- [x] A real `404.html`, so an unknown URL is a 404 rather than a soft 200 on
-      the landing page.
+- [x] A real `404.html`, and an nginx route list rather than a blanket SPA
+      fallback, so an unknown URL is a 404 rather than a soft 200 on the shell.
 - [x] Self-hosted webfonts — also removes the last render-blocking third-party
       request.
 
@@ -47,13 +49,14 @@ Everything under **Done** is in the working tree already. Everything under
 
 - [x] `llms.txt` — what the product is, what it does, pricing, data sources,
       privacy posture and stated limits, in the form an LLM can lift verbatim.
-- [x] JSON-LD: `SoftwareApplication` with both offers, `FAQPage` with seven
-      questions, `WebSite`.
-- [x] The FAQ is written as question-shaped headings with self-contained
-      answers — the unit an answer engine actually quotes.
-- [x] CSP hashes for the JSON-LD (`npm run csp:hashes`). Under
-      `script-src 'self'` a browser drops inline `ld+json` and the structured
-      data disappears with no visible symptom.
+      With the landing page gone this is the only prose description the site
+      serves, so it carries the whole pitch.
+
+The JSON-LD (`SoftwareApplication`, `FAQPage`, `WebSite`) went with the landing
+page, and so did `npm run csp:hashes`. Putting it back needs either an HTML page
+to hang it on or a CSP hash for an inline block in the app shell — under
+`script-src 'self'` a browser drops inline `ld+json` with no visible symptom. See
+the backlog below.
 
 ### Legal
 
@@ -72,11 +75,15 @@ Everything under **Done** is in the working tree already. Everything under
 
 ### Routing
 
-- [x] App moved to `/app` so the site root can be a real HTML page.
-- [x] Router `basename`, manifest `start_url`, app shortcuts, invite links and
-      push-notification targets all updated.
-- [x] 301s from the old root-level routes for existing bookmarks.
-- [x] `noindex` on the app shell.
+- [x] App at the site root. It was briefly moved to `/app` so the root could be a
+      static landing page; a `start_url` below the origin root is one browsers are
+      free to reinterpret, and iOS stopped opening the installed app in its own
+      window. The landing page went, the root went back to being the app.
+- [x] Manifest `id` and `start_url` both `/`, no router `basename`, app shortcuts,
+      invite links and push-notification targets all following.
+- [x] 301s from `/app/**` back to the root, for links issued during the split.
+- [x] nginx serves the shell on a list of known routes, not on everything, so an
+      unknown URL is still a real 404.
 
 ---
 
@@ -104,7 +111,7 @@ under **explicit consent, Art. 9(2)(a) GDPR**. Explicit consent has to be an
 affirmative act — a ticked box, not a line of small print. Right now the
 registration form does not ask.
 
-Minimum: an unticked, required checkbox on `/app/register` reading roughly
+Minimum: an unticked, required checkbox on `/register` reading roughly
 
 > Ho letto l'[informativa privacy](/privacy) e acconsento al trattamento dei
 > miei dati relativi alla salute (diario alimentare, peso, dati corporei) per
@@ -117,31 +124,32 @@ anyone ever asks.
 This is the one item on the list where the pages currently describe something
 the app does not yet do.
 
-### 3. Set `APP_URL` to include `/app` in Dokploy
+### 3. Drop the `/app` suffix from `APP_URL` in Dokploy
 
-Your in-flight Stripe work builds `success_url` as `${APP_URL}/premium/return`.
-With the app now mounted at `/app`, an `APP_URL` of
-`https://calorico.davideghiotto.it` would drop a paying customer on a 404 the
-moment they come back from checkout.
+Stripe's `success_url` is built as `${APP_URL}/premium/return`. The value was set
+to end in `/app` while the app was mounted there; now that suffix sends a paying
+customer through a redirect on the way back from checkout.
 
 ```
-APP_URL=https://calorico.davideghiotto.it/app
+APP_URL=https://calorico.davideghiotto.it
 ```
 
-The default in `env.ts` and `.env.example` was updated to match, and nginx 301s
-`/premium/return` as a backstop — but do not ship a Stripe flow that depends on
-a redirect.
+The default in `env.ts` and `.env.example` matches, and nginx 301s `/app/**` back
+to the root as a backstop — but do not ship a Stripe flow that depends on a
+redirect.
 
 ### 4. Verify the deploy before announcing
 
-The routing change is the risky part: existing installed PWAs have `/` as their
-start URL.
+The routing is the risky part: installed PWAs carry whichever `start_url` their
+last worker update saw, and a stale one now points at `/app`.
 
 ```bash
 # after the deploy
-curl -sI https://calorico.davideghiotto.it/            # 200, marketing CSP
-curl -sI https://calorico.davideghiotto.it/app         # 200
-curl -sI https://calorico.davideghiotto.it/stats       # 301 -> /app/stats
+curl -sI https://calorico.davideghiotto.it/            # 200, app shell, no-store
+curl -sI https://calorico.davideghiotto.it/stats       # 200, same shell
+curl -sI https://calorico.davideghiotto.it/app         # 301 -> /
+curl -sI https://calorico.davideghiotto.it/app/stats   # 301 -> /stats
+curl -sI https://calorico.davideghiotto.it/index.html  # 301 -> /
 curl -sI https://calorico.davideghiotto.it/nonesiste   # 404
 curl -s  https://calorico.davideghiotto.it/robots.txt
 curl -s  https://calorico.davideghiotto.it/og.png -o /dev/null -w '%{http_code} %{size_download}\n'
@@ -149,13 +157,12 @@ curl -s  https://calorico.davideghiotto.it/og.png -o /dev/null -w '%{http_code} 
 
 Then by hand:
 
-- [ ] Sign in on a phone. Confirm the landing page bounces you to `/app`.
-- [ ] Open the installed PWA. Confirm it still opens the diary, and that the
-      new `start_url` takes effect after the worker updates.
-- [ ] Tap a push reminder and confirm it lands on `/app/...`, not `/`.
-- [ ] Generate a family invite link and confirm it contains `/app/join/`.
-- [ ] Open the browser console on `/` — no CSP violations, meaning the JSON-LD
-      hashes match what shipped.
+- [ ] Open the installed PWA. Confirm it opens the diary in its own window, and
+      that a launch from a stale `/app` start URL still lands on the diary.
+- [ ] Cold-load `/` signed out: the sign-in screen, no redirect anywhere.
+- [ ] Tap a push reminder and confirm it lands on the right screen.
+- [ ] Generate a family invite link and confirm it contains `/join/`, not
+      `/app/join/`.
 - [ ] Network tab on `/`: no request leaves the origin.
 
 ### 5. Check the link preview before posting
@@ -165,9 +172,7 @@ Paste the URL into the
 scrape once. LinkedIn caches previews hard — a bad first scrape is stuck for
 days, which is exactly the wrong day for it.
 
-Then validate the structured data:
-[Rich Results Test](https://search.google.com/test/rich-results) and
-[Schema validator](https://validator.schema.org/).
+There is no structured data to validate any more — see the GEO note above.
 
 ---
 
@@ -177,7 +182,8 @@ Then validate the structured data:
       request indexing on `/`.
 - [ ] Bing Webmaster Tools — it feeds ChatGPT search, which is half the point of
       the GEO work.
-- [ ] Watch the server logs for 404s on paths the 301 list missed.
+- [ ] Watch the server logs for 404s: an app route missing from the nginx list,
+      or an `/app/**` link the 301 does not cover.
 - [ ] Pin a repository issue as a place for first-time feedback.
 
 ## First week
@@ -190,9 +196,14 @@ Then validate the structured data:
       link preview there by a wide margin.
 - [ ] `data-export` for account portability — GDPR Art. 20 gives the right, and
       the notice promises it. Deletion works today, export does not.
-- [ ] Lighthouse on `/` and `/app`. The landing page should be at or near 100.
-- [ ] English version of the landing page at `/en` with reciprocal `hreflang`,
-      if the LinkedIn post reaches beyond Italy.
+- [ ] Lighthouse on `/`, `/privacy` and a couple of app routes.
+- [ ] Decide whether the pitch comes back as a page. Removing `/app` cost the
+      site its landing page, its JSON-LD and everything an answer engine likes to
+      quote except `llms.txt`. Options: a real page at `/it` or `/informazioni`
+      served statically like the legal pages, or marketing copy on the sign-out
+      screen itself, which crawlers see rendered but not in the first response.
+- [ ] English pitch with reciprocal `hreflang`, if the LinkedIn post reaches
+      beyond Italy — only once the above is decided.
 
 ## Before taking a single euro
 
@@ -216,9 +227,9 @@ Ordered by how badly it goes wrong if skipped.
 
 ## Notes
 
-- **`npm run csp:hashes` after any JSON-LD edit.** It fails loudly on invalid
-  JSON, but nothing warns you if you forget to run it — the structured data just
-  stops arriving.
+- **A new app route needs a line in `apps/web/nginx.conf`.** Nothing fails in
+  development, where Vite answers every path: the URL only 404s on a cold load in
+  production.
 - **`npm run fonts`** regenerates the self-hosted webfonts. Do not put the
   Google Fonts `<link>` back: it would make the privacy notice's "no third-party
   requests" claim false in one line.

@@ -11,16 +11,50 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <title>Calorico</title>
+    <title>Calorico — contacalorie italiano con i prodotti del supermercato</title>
     <meta
       name="description"
-      content="Calorico — diario di calorie e macronutrienti con i prodotti dei supermercati italiani."
+      content="Calorico è un contacalorie gratuito e open source in italiano: cerchi i prodotti dei supermercati italiani per nome o codice a barre, registri i pasti e vedi calorie e macronutrienti del giorno. Nessuna pubblicità, nessuna rivendita dei dati."
     />
     <meta name="format-detection" content="telephone=no" />
-    <!-- The app shell is behind a login wall and renders nothing without JS.
-         The page worth indexing is the landing page at /, not this. -->
-    <meta name="robots" content="noindex, follow" />
+    <!-- This shell is the site: there is no separate landing page. nginx serves
+         it on every app route, so the canonical is what keeps a dozen URLs from
+         being a dozen copies of one page. Signed out, the page it renders is the
+         sign-in screen. -->
+    <meta name="robots" content="index, follow, max-image-preview:large" />
     <link rel="canonical" href="https://calorico.davideghiotto.it/" />
+
+    <!-- Link previews. A shared URL is scraped, not rendered, so these tags are
+         all a crawler for WhatsApp or LinkedIn ever sees of the app. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Calorico" />
+    <meta property="og:locale" content="it_IT" />
+    <meta property="og:url" content="https://calorico.davideghiotto.it/" />
+    <meta
+      property="og:title"
+      content="Calorico — contacalorie italiano con i prodotti del supermercato"
+    />
+    <meta
+      property="og:description"
+      content="Contacalorie gratuito e open source in italiano. Prodotti Coop, Esselunga, Conad e tabelle CREA, ricerca per nome o codice a barre, calorie e macro del giorno."
+    />
+    <meta property="og:image" content="https://calorico.davideghiotto.it/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Calorico — diario di calorie e macronutrienti"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Calorico — contacalorie italiano con i prodotti del supermercato"
+    />
+    <meta
+      name="twitter:description"
+      content="Contacalorie gratuito e open source in italiano. Prodotti dei supermercati italiani, ricerca per nome o codice a barre, calorie e macro del giorno."
+    />
+    <meta name="twitter:image" content="https://calorico.davideghiotto.it/og.png" />
 
     <!-- Status bar colour follows the app background in both schemes. -->
     <meta

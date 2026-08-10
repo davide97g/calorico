@@ -22,7 +22,6 @@
     "import:off": "npm run import:off -w @calorico/api",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:down": "docker compose -f docker-compose.dev.yml down",
-    "csp:hashes": "node scripts/csp-hashes.mjs",
     "fonts": "node scripts/fetch-fonts.mjs"
   },
   "engines": {

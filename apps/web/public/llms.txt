@@ -85,8 +85,9 @@ dietro Traefik gestito da Dokploy.
 
 ## Pagine
 
-- [Home](https://calorico.davideghiotto.it/): che cos'è, funzioni, fonti dei
-  dati, prezzi e domande frequenti.
+- [Applicazione](https://calorico.davideghiotto.it/): l'applicazione stessa. Non
+  esiste una pagina vetrina separata: senza accesso la pagina mostra il modulo di
+  registrazione. Questo file è la descrizione del prodotto in forma testuale.
 - [Informativa privacy](https://calorico.davideghiotto.it/privacy): dati
   trattati, basi giuridiche, destinatari, conservazione e diritti GDPR.
 - [Termini di servizio](https://calorico.davideghiotto.it/termini): condizioni

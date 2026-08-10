@@ -166,14 +166,13 @@ const schema = z.object({
    * Where Stripe sends the browser back to. Must be the public URL of the web
    * app, not the API: the return page is a route in the SPA.
    *
-   * That means it has to include the app's base path. The SPA is mounted at
-   * /app — the site root is the static landing page — so a value of
-   * `https://calorico.davideghiotto.it` would send a paying customer to a 404
-   * on the way back from checkout. nginx 301s `/premium/return` to
-   * `/app/premium/return` as a backstop, but a redirect in the middle of a
-   * Stripe return is a thing to have, not to rely on.
+   * The SPA owns the origin root, so this is the bare origin — no base path. A
+   * value still carrying the old `/app` suffix would send a paying customer to
+   * `/app/premium/return`, which nginx 301s back to the right place, but a
+   * redirect in the middle of a Stripe return is a thing to have as a backstop,
+   * not to rely on.
    */
-  APP_URL: z.string().default('http://localhost:5173/app'),
+  APP_URL: z.string().default('http://localhost:5173'),
 })
 
 const parsed = schema.safeParse(process.env)

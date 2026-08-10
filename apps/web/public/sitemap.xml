@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Three URLs, because three is how many public pages there are. Everything under
-  /app needs an account and renders nothing without JavaScript.
+  Three URLs, because three is how many URLs are worth crawling: the app at the
+  root and the two legal pages. Every other app route serves the same shell and
+  points its canonical back at `/`.
   Keep <lastmod> honest: a date that never changes is ignored, and a date that
   changes on every deploy is worse than none.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://calorico.davideghiotto.it/</loc>
-    <lastmod>2026-08-07</lastmod>
+    <lastmod>2026-08-10</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>

@@ -75,8 +75,8 @@ Context, so you can skip the obvious:
   every token already issued for that user.
 - Rate limits are applied to sign-in, registration and account deletion.
 - A restrictive Content Security Policy is set on every response, plus HSTS,
-  `nosniff`, a referrer policy and a permissions policy. The landing page's
-  policy is stricter still and allows no outbound connections at all.
+  `nosniff`, a referrer policy and a permissions policy. The policy on the static
+  legal pages is stricter still and allows no outbound connections at all.
 - The site makes no third-party requests: the webfonts are self-hosted for
   exactly that reason.
 - Meal photographs are never written to disk or database. They exist in memory

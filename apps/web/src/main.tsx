@@ -29,9 +29,10 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        {/* The app lives under /app. The site root is the static landing page
-            in public/, served by nginx and never touched by the router. */}
-        <BrowserRouter basename="/app">
+        {/* The app owns the site root. There is no basename: a PWA whose
+            start_url sits below the origin root is a PWA every browser is
+            free to reinterpret, and iOS did. */}
+        <BrowserRouter>
           <AuthProvider>
             <App />
             <Toaster position="top-center" />

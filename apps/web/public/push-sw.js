@@ -14,23 +14,17 @@
 /* global self */
 
 /**
- * The app is mounted at /app; the site root is the landing page.
- *
  * Reminder payloads carry a react-router path — `/`, `/weight`,
- * `/add?meal=lunch` — because that is what the API knows about. Translating it
- * here keeps the basename in one place on this side: the API stays unaware of
- * where the client happens to be mounted, and a reminder tapped at 8am opens
- * the diary rather than the pitch.
+ * `/add?meal=lunch` — and the app is mounted at the origin root, so the path is
+ * already the URL to open. The only work left is refusing a payload that is not
+ * a path at all, and stripping the `/app` prefix that reminders queued while the
+ * app lived there still carry.
  */
-const APP_BASE = '/app'
-
 function toAppUrl(routerPath) {
-  if (typeof routerPath !== 'string' || routerPath[0] !== '/') return APP_BASE
-  // Already prefixed — an older payload, or a future one that does its own.
-  if (routerPath === APP_BASE || routerPath.startsWith(APP_BASE + '/')) {
-    return routerPath
-  }
-  return routerPath === '/' ? APP_BASE : APP_BASE + routerPath
+  if (typeof routerPath !== 'string' || routerPath[0] !== '/') return '/'
+  if (routerPath === '/app') return '/'
+  if (routerPath.startsWith('/app/')) return routerPath.slice('/app'.length)
+  return routerPath
 }
 
 self.addEventListener('push', (event) => {

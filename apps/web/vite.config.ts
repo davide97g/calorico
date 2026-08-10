@@ -27,13 +27,10 @@ export default defineConfig({
           'Diario di calorie e macronutrienti con i prodotti dei supermercati italiani.',
         lang: 'it',
         dir: 'ltr',
-        // The diary is at /app; the site root is the landing page. `id` stays
-        // '/' on purpose — it is the installed app's identity, and changing it
-        // would make browsers treat this as a second, unrelated app for
-        // everyone who already installed the old one.
-        start_url: '/app',
-        // Scope stays the whole origin so a tap on Privacy or Termini opens
-        // inside the standalone window instead of kicking out to the browser.
+        // Origin root, matching `id`. A start_url below the root is what broke
+        // the installed app: iOS treated a launch at /app as out of the scope
+        // it had remembered and opened it in Safari instead of standalone.
+        start_url: '/',
         scope: '/',
         display: 'standalone',
         display_override: ['standalone', 'minimal-ui'],
@@ -78,7 +75,7 @@ export default defineConfig({
           {
             name: 'Aggiungi alimento',
             short_name: 'Aggiungi',
-            url: '/app/add',
+            url: '/add',
             icons: [
               { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
             ],
@@ -86,7 +83,7 @@ export default defineConfig({
           {
             name: 'Registra peso',
             short_name: 'Peso',
-            url: '/app/weight',
+            url: '/weight',
             icons: [
               { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
             ],
@@ -104,27 +101,30 @@ export default defineConfig({
         // push-sw.js is fetched by importScripts, not by the page: precaching it
         // would only keep a second, staler copy of the same file.
         //
-        // The marketing pages are excluded too. They are read once, before there
-        // is an account to install anything for, and shipping them inside the
-        // app's precache would mean a new deploy of the privacy notice forcing
-        // every installed diary to re-download its worker.
+        // The legal pages are excluded too. They are read once, in the browser,
+        // and shipping them inside the app's precache would mean a new deploy of
+        // the privacy notice forcing every installed diary to re-download its
+        // worker.
         globIgnores: [
           '**/splash/**',
           'push-sw.js',
-          'landing.html',
           'privacy.html',
           'termini.html',
           'marketing.css',
-          'landing-redirect.js',
           'og.png',
           'llms.txt',
         ],
         navigateFallback: '/index.html',
-        // Only /app is the SPA. Without the allowlist the worker would answer
-        // /, /privacy and /termini with the app shell, and an installed app
-        // would never show the landing page again — nor a 404 that is real.
-        navigateFallbackAllowlist: [/^\/app(\/|$)/],
-        navigateFallbackDenylist: [/^\/api\//],
+        // The app owns the root, so the fallback is everything except the paths
+        // nginx answers with static HTML of their own. Without the denylist an
+        // installed app would serve the shell for /privacy and never show the
+        // notice again — nor a 404 that is real.
+        navigateFallbackDenylist: [
+          /^\/api\//,
+          /^\/privacy$/,
+          /^\/termini$/,
+          /^\/404\.html$/,
+        ],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         // No runtime caching rules: the fonts used to be the only cross-origin
