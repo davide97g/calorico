@@ -98,13 +98,20 @@ export default function NotificationsPage() {
    * A browser can drop its push subscription on its own, and the account keeps
    * looking armed. Opening this screen is the natural moment to notice and fix
    * it, once per visit.
+   *
+   * Not gated on the account having no device: the case that needs repairing most
+   * is the *second* browser, where the account is armed, some other device is
+   * registered, and this one is silently not. `useRepairSubscription` does
+   * nothing unless permission is already granted and there is no subscription, so
+   * running it always is safe — and a permission never asked still needs the tap
+   * below, since no browser draws that prompt outside a gesture.
    */
   useEffect(() => {
     if (repaired.current) return
-    if (!data?.enabled || !publicKey || data.devices > 0) return
+    if (!data?.enabled || !publicKey) return
     repaired.current = true
     repair.mutate(publicKey)
-  }, [data?.enabled, data?.devices, publicKey, repair])
+  }, [data?.enabled, publicKey, repair])
 
   /**
    * Arms this browser: permission, subscription, then the server.
@@ -207,6 +214,16 @@ export default function NotificationsPage() {
   const browserReady = pushSupported()
   const permission = browserReady ? pushPermission() : 'default'
   const canArm = serverReady && !installFirst && browserReady
+  /**
+   * Whether *this* browser can receive anything — which is not the same question
+   * as whether the account has a device somewhere.
+   *
+   * An account armed on a laptop leaves a phone in a dead end: the switch reads
+   * on, because it is an account setting, so there is no off→on tap left — and
+   * that tap is the only thing that ever asks iOS for permission. Until the
+   * diagnostics have been read the device count is the best guess available.
+   */
+  const deviceMissing = diagnostics ? !diagnostics.subscribed : data.devices === 0
   const busy = arming || enable.isPending || disable.isPending
   const savedTimezone = data.timezone
   const localTimezone = browserTimezone()
@@ -270,9 +287,11 @@ export default function NotificationsPage() {
               <p className="min-w-0 flex-1 text-[11px] leading-relaxed">
                 {data.devices === 0
                   ? 'Nessun dispositivo registrato: i promemoria non possono arrivare.'
-                  : `${data.devices} ${data.devices === 1 ? 'dispositivo registrato' : 'dispositivi registrati'}.`}
+                  : deviceMissing
+                    ? 'Questo dispositivo non è registrato: i promemoria arrivano solo agli altri.'
+                    : `${data.devices} ${data.devices === 1 ? 'dispositivo registrato' : 'dispositivi registrati'}.`}
               </p>
-              {data.devices === 0 && publicKey && canArm ? (
+              {deviceMissing && publicKey && canArm ? (
                 <Button
                   variant="secondary"
                   className="bg-card h-9 shrink-0 rounded-full px-3 text-xs"
