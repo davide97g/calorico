@@ -38,6 +38,12 @@
   --destructive: oklch(0.62 0.2 25);
   --destructive-foreground: oklch(0.98 0 0);
 
+  /* Going past the calorie band means opposite things depending on the goal,
+     so it gets two tints instead of one red. Both are kept light: they are
+     washed over the lime hero, which still has to carry dark text. */
+  --over-warn: oklch(0.74 0.17 30);
+  --over-good: oklch(0.78 0.16 158);
+
   --border: oklch(0.92 0.008 120);
   --input: oklch(0.92 0.008 120);
   --ring: oklch(0.82 0.16 120);
@@ -92,6 +98,10 @@
   --destructive: oklch(0.62 0.2 25);
   --destructive-foreground: oklch(0.98 0 0);
 
+  /* The hero keeps its light lime in dark mode, so the tints do too. */
+  --over-warn: oklch(0.7 0.18 30);
+  --over-good: oklch(0.74 0.17 158);
+
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 14%);
   --ring: oklch(0.7 0.14 122);
@@ -132,6 +142,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-over-warn: var(--over-warn);
+  --color-over-good: var(--over-good);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

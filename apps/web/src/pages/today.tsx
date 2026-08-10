@@ -106,6 +106,7 @@ export default function TodayPage() {
                     : 'Budget del giorno'
               }
               planned={planned}
+              goal={profile?.goal}
             />
 
             <AddFoodAction day={day} />
