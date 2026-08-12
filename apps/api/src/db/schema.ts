@@ -383,6 +383,39 @@ export const favorites = pgTable(
   (t) => [uniqueIndex('favorites_pk').on(t.userId, t.foodId)],
 )
 
+/**
+ * Foods this user has met but not necessarily eaten: a barcode scanned, a
+ * search hit opened, a food typed in by hand.
+ *
+ * The recents list used to be built from the diary alone, which meant a product
+ * only became findable again *after* it was logged — scan something, back out
+ * without saving, and it was gone. One row per user and food, upserted, because
+ * the only thing worth remembering is that the encounter happened and when: the
+ * ranking in lib/history.ts weighs it well below an actual entry, so meeting a
+ * food never outranks eating one. `times` is kept for the same reason scan
+ * counts are — it says how familiar the food is, not how often it was eaten.
+ */
+export const foodTouches = pgTable(
+  'food_touches',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    foodId: uuid('food_id')
+      .notNull()
+      .references(() => foods.id, { onDelete: 'cascade' }),
+    times: integer('times').notNull().default(1),
+    lastAt: timestamp('last_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('food_touches_pk').on(t.userId, t.foodId),
+    index('food_touches_user_idx').on(t.userId, t.lastAt),
+  ],
+)
+
 export const groceryItems = pgTable(
   'grocery_items',
   {
@@ -690,6 +723,7 @@ export type FoodImage = typeof foodImages.$inferSelect
 export type NewFoodImage = typeof foodImages.$inferInsert
 export type DiaryEntry = typeof diaryEntries.$inferSelect
 export type WeightLog = typeof weightLogs.$inferSelect
+export type FoodTouch = typeof foodTouches.$inferSelect
 export type GroceryItem = typeof groceryItems.$inferSelect
 export type Family = typeof families.$inferSelect
 export type FamilyMember = typeof familyMembers.$inferSelect

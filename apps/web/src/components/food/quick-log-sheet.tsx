@@ -16,6 +16,7 @@ import { WhenBar } from '@/components/food/when-picker'
 import { useRecentFoods } from '@/hooks/use-diary'
 import { useQuickLog } from '@/hooks/use-quick-log'
 import { todayISO } from '@/lib/date'
+import { rememberedPortion } from '@/lib/portion'
 import { currentMeal, grams, kcal } from '@/lib/format'
 import type { When } from '@/lib/when'
 import type { RecentFood } from '@/lib/types'
@@ -58,7 +59,12 @@ export function QuickLogSheet({
   const items = data?.items ?? []
 
   const handleLog = (food: RecentFood) => {
-    log({ food, quantityG: food.lastQuantityG, day: when.day, meal: when.meal })
+    log({
+      food,
+      quantityG: rememberedPortion(food).grams,
+      day: when.day,
+      meal: when.meal,
+    })
     setLogged((prev) => [...prev, food.id])
   }
 
@@ -105,7 +111,7 @@ export function QuickLogSheet({
                       onLog={() => handleLog(food)}
                       onAdjust={() =>
                         leave(
-                          `/food/${food.id}?day=${when.day}&meal=${when.meal}&q=${food.lastQuantityG}`,
+                          `/food/${food.id}?day=${when.day}&meal=${when.meal}&q=${rememberedPortion(food).grams}`,
                         )
                       }
                     />
@@ -167,6 +173,10 @@ function QuickLogRow({
   onLog: () => void
   onAdjust: () => void
 }) {
+  // Logged foods only in this sheet, so the portion is the remembered one; the
+  // fallback covers the type, not a case anybody sees.
+  const { grams: portion } = rememberedPortion(food)
+
   return (
     <div className="flex items-center gap-1">
       <button
@@ -174,7 +184,7 @@ function QuickLogRow({
         onClick={onLog}
         disabled={busy}
         className="hover:bg-secondary/60 active:bg-secondary flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-lg p-2 text-left transition-colors disabled:opacity-60"
-        aria-label={`Registra ${food.name}, ${grams(food.lastQuantityG)} ${food.unit}`}
+        aria-label={`Registra ${food.name}, ${grams(portion)} ${food.unit}`}
       >
         {busy ? (
           <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-md">
@@ -195,14 +205,14 @@ function QuickLogRow({
           <span className="text-muted-foreground block truncate text-xs">
             {food.brand ? `${food.brand} · ` : ''}
             <span className="tabular">
-              {grams(food.lastQuantityG)} {food.unit}
+              {grams(portion)} {food.unit}
             </span>
             {food.times > 1 ? ` · ${food.times} volte` : ''}
           </span>
         </span>
 
         <span className="tabular shrink-0 pr-1 text-sm font-bold">
-          {kcal((food.kcal100 * food.lastQuantityG) / 100)}
+          {kcal((food.kcal100 * portion) / 100)}
         </span>
       </button>
 

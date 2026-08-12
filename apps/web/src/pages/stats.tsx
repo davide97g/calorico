@@ -1,201 +1,111 @@
-import { useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Flame, Info, PieChart } from 'lucide-react'
+import { useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { AppShell } from '@/components/layout/app-shell'
-import { WeeklyBars } from '@/components/charts/weekly-bars'
-import { MacroDonut, MacroLegend } from '@/components/charts/macro-donut'
-import { Panel, PanelHeader } from '@/components/ui/panel'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { TopBar } from '@/components/layout/top-bar'
+import { DayReport } from '@/components/stats/day-report'
+import { PeriodReport } from '@/components/stats/period-report'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useStats } from '@/hooks/use-diary'
-import { lastNDays, longDayLabel, todayISO } from '@/lib/date'
-import { kcal } from '@/lib/format'
+import { startOfMonthISO, startOfWeekISO, todayISO } from '@/lib/date'
 
-const RANGES = [
-  { key: '7', label: '7 giorni', days: 7 },
-  { key: '14', label: '14 giorni', days: 14 },
-  { key: '30', label: '30 giorni', days: 30 },
+/**
+ * Three zoom levels, and they are not three copies of one screen.
+ *
+ *   giorno    — the detailed one: every meal, every food, deltas against
+ *               yesterday and against this weekday's usual cost.
+ *   settimana — still detailed: the seven days stay individually visible and
+ *               tappable, and each week is read against the one before it.
+ *   mese      — smoothed on purpose: averages, coverage, a recap. By then the
+ *               question is no longer "which day" but "was this month better".
+ *
+ * The scope and its selection live in the URL, so the dashboard can link
+ * straight at a day ("?day=2026-08-11") or at the week view, and a reload keeps
+ * whatever the user was looking at.
+ */
+const SCOPES = [
+  { key: 'day', label: 'Giorno' },
+  { key: 'week', label: 'Settimana' },
+  { key: 'month', label: 'Mese' },
 ] as const
 
+type Scope = (typeof SCOPES)[number]['key']
+
+const isScope = (value: string | null): value is Scope =>
+  SCOPES.some((s) => s.key === value)
+
 export default function StatsPage() {
-  const navigate = useNavigate()
-  const [params] = useSearchParams()
-  const [range, setRange] = useState<'7' | '14' | '30'>('7')
-  const [selectedDay, setSelectedDay] = useState(params.get('day') ?? todayISO())
+  const [params, setParams] = useSearchParams()
 
-  const days = RANGES.find((r) => r.key === range)!.days
-  const { from, to } = useMemo(() => lastNDays(days), [days])
-  const { data, isLoading } = useStats(from, to)
+  const scope: Scope = isScope(params.get('tab')) ? (params.get('tab') as Scope) : 'day'
+  const day = params.get('day') ?? todayISO()
+  const bucket = params.get('bucket')
 
-  const selected =
-    data?.days.find((d) => d.day === selectedDay) ?? data?.days.at(-1)
-  const targets = data?.targets
+  /** One writer for the whole screen: every selection is a URL, replace-only. */
+  const patch = useCallback(
+    (next: Record<string, string | null>) => {
+      setParams(
+        (current) => {
+          const merged = new URLSearchParams(current)
+          for (const [key, value] of Object.entries(next)) {
+            if (value === null) merged.delete(key)
+            else merged.set(key, value)
+          }
+          return merged
+        },
+        { replace: true },
+      )
+    },
+    [setParams],
+  )
 
-  const bandWidth = targets
-    ? ((targets.kcalMax - targets.kcalMin) / (targets.kcalMax * 1.15)) * 100
-    : 0
-  const bandStart = targets
-    ? (targets.kcalMin / (targets.kcalMax * 1.15)) * 100
-    : 0
-  const consumedWidth =
-    selected && targets
-      ? Math.min(100, (selected.kcal / (targets.kcalMax * 1.15)) * 100)
-      : 0
+  const showDay = useCallback(
+    (nextDay: string) => patch({ tab: 'day', day: nextDay }),
+    [patch],
+  )
 
   return (
     <AppShell>
-      <header className="mb-3 flex items-center justify-between">
-        <Button
-          variant="secondary"
-          size="icon"
-          className="bg-card shadow-soft size-11 rounded-full"
-          onClick={() => navigate(-1)}
-          aria-label="Torna indietro"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
-        <h1 className="text-lg font-bold">Statistiche</h1>
-        <div className="size-11" />
-      </header>
+      <TopBar title="Analisi" back />
 
       <Tabs
-        value={range}
-        onValueChange={(v) => setRange(v as typeof range)}
+        value={scope}
+        onValueChange={(value) =>
+          patch({
+            tab: value,
+            // Moving up a level re-anchors on the period the selected day is
+            // in, so the three tabs never disagree about "when".
+            bucket:
+              value === 'week'
+                ? startOfWeekISO(day)
+                : value === 'month'
+                  ? startOfMonthISO(day)
+                  : null,
+          })
+        }
         className="mb-3"
       >
         <TabsList className="bg-card shadow-soft h-12 w-full rounded-full p-1">
-          {RANGES.map((r) => (
+          {SCOPES.map((s) => (
             <TabsTrigger
-              key={r.key}
-              value={r.key}
+              key={s.key}
+              value={s.key}
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full text-xs data-[state=active]:shadow-none"
             >
-              {r.label}
+              {s.label}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
 
-      {isLoading || !data ? (
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-[200px] rounded-lg" />
-          <Skeleton className="h-[160px] rounded-lg" />
-          <Skeleton className="h-[200px] rounded-lg" />
-        </div>
+      {scope === 'day' ? (
+        <DayReport day={day} onSelectDay={showDay} />
       ) : (
-        <div className="flex flex-col gap-3">
-          <Panel className="pt-3">
-            <WeeklyBars
-              days={data.days}
-              target={targets?.kcal ?? 2000}
-              selectedDay={selected?.day ?? selectedDay}
-              onSelectDay={setSelectedDay}
-            />
-          </Panel>
-
-          <Panel>
-            <PanelHeader icon={<Flame />} title="Calorie" />
-            <p className="text-muted-foreground mt-2 text-xs">
-              {selected ? longDayLabel(selected.day) : ''}
-            </p>
-            <p className="tabular mt-1 text-display-sm leading-none font-extrabold">
-              {kcal(selected?.kcal ?? 0)} kcal
-            </p>
-            <p className="text-muted-foreground mt-1 text-xs">
-              Obiettivo: {kcal(targets?.kcal ?? 0)} kcal
-            </p>
-
-            {/* Progress bar with the acceptable band drawn behind it. */}
-            <div className="bg-secondary relative mt-4 h-3 overflow-hidden rounded-full">
-              <div
-                className="bg-ring-track absolute inset-y-0"
-                style={{ left: `${bandStart}%`, width: `${bandWidth}%` }}
-              />
-              <div
-                className="bg-primary absolute inset-y-0 left-0 rounded-full transition-[width] duration-700"
-                style={{ width: `${consumedWidth}%` }}
-              />
-            </div>
-            <div className="text-muted-foreground mt-2 flex items-center justify-between text-micro">
-              <span>0</span>
-              <span className="flex items-center gap-1.5">
-                <span className="bg-ring-track inline-block size-2.5 rounded-[3px]" />
-                Intervallo obiettivo {targets?.kcalMin}-{targets?.kcalMax}
-              </span>
-              <span>{Math.round((targets?.kcalMax ?? 0) * 1.15)}</span>
-            </div>
-          </Panel>
-
-          <Panel>
-            <PanelHeader icon={<PieChart />} title="Ripartizione nutrienti" />
-            <div className="mt-4 grid grid-cols-[1fr_1fr_auto] items-start gap-3">
-              <figure className="flex flex-col items-center gap-2">
-                <MacroDonut
-                  carbsG={targets?.carbsG ?? 0}
-                  fatG={targets?.fatG ?? 0}
-                  proteinG={targets?.proteinG ?? 0}
-                  size={92}
-                />
-                <figcaption className="text-muted-foreground flex items-center gap-1 text-micro">
-                  Consigliato <Info className="size-3" />
-                </figcaption>
-              </figure>
-
-              <figure className="flex flex-col items-center gap-2">
-                <MacroDonut
-                  carbsG={selected?.carbsG ?? 0}
-                  fatG={selected?.fatG ?? 0}
-                  proteinG={selected?.proteinG ?? 0}
-                  size={92}
-                />
-                <figcaption className="text-muted-foreground text-micro">
-                  Effettivo
-                </figcaption>
-              </figure>
-
-              <div className="pt-1">
-                <MacroLegend
-                  carbsG={selected?.carbsG ?? 0}
-                  fatG={selected?.fatG ?? 0}
-                  proteinG={selected?.proteinG ?? 0}
-                />
-              </div>
-            </div>
-          </Panel>
-
-          <Panel>
-            <PanelHeader title="Media del periodo" />
-            <dl className="mt-3 grid grid-cols-2 gap-3">
-              <SummaryStat
-                label="Calorie / giorno"
-                value={`${kcal(data.summary.avgKcal)} kcal`}
-              />
-              <SummaryStat
-                label="Giorni registrati"
-                value={`${data.summary.loggedDays} / ${data.days.length}`}
-              />
-              <SummaryStat
-                label="Nel target"
-                value={`${data.summary.daysInRange} giorni`}
-              />
-              <SummaryStat
-                label="Proteine / giorno"
-                value={`${data.summary.avgProteinG} g`}
-              />
-            </dl>
-          </Panel>
-        </div>
+        <PeriodReport
+          unit={scope}
+          selectedKey={bucket}
+          onSelectKey={(key) => patch({ bucket: key })}
+          onSelectDay={showDay}
+        />
       )}
     </AppShell>
-  )
-}
-
-function SummaryStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-secondary/60 rounded-md p-3">
-      <dt className="text-muted-foreground text-micro">{label}</dt>
-      <dd className="tabular mt-1 text-base font-bold">{value}</dd>
-    </div>
   )
 }

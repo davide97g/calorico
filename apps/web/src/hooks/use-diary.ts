@@ -8,12 +8,16 @@ import { api } from '@/lib/api'
 import { premiumKeys } from '@/hooks/use-premium'
 import type {
   BatchEntryInput,
+  BreakdownResponse,
+  DayStats,
   DiaryDay,
   DiaryEntry,
   Food,
   FoodPortions,
   Meal,
   MealAnalysis,
+  PeriodsResponse,
+  PeriodUnit,
   Profile,
   RecentFood,
   StatsResponse,
@@ -23,13 +27,26 @@ import type {
   WeightResponse,
 } from '@/lib/types'
 
+/**
+ * `all` also asks for the foods this user has only met — scanned, opened from
+ * search, created by hand — which come without a portion. See lib/history.ts on
+ * the server.
+ */
+export type RecentInclude = 'logged' | 'all'
+
 export const queryKeys = {
   diary: (day: string) => ['diary', day] as const,
   stats: (from: string, to: string) => ['stats', from, to] as const,
+  dayStats: (day: string) => ['stats', 'day', day] as const,
+  periods: (unit: PeriodUnit, from: string, to: string) =>
+    ['stats', 'periods', unit, from, to] as const,
+  breakdown: (from: string, to: string) =>
+    ['stats', 'breakdown', from, to] as const,
   weight: () => ['weight'] as const,
   search: (q: string) => ['foods', 'search', q] as const,
   food: (id: string) => ['foods', id] as const,
-  recent: (meal?: Meal) => ['foods', 'recent', meal ?? 'any'] as const,
+  recent: (meal?: Meal, include: RecentInclude = 'logged') =>
+    ['foods', 'recent', meal ?? 'any', include] as const,
   portions: (id: string) => ['foods', 'portions', id] as const,
   favorites: () => ['foods', 'favorites'] as const,
   suggestedTargets: () => ['profile', 'suggested'] as const,
@@ -47,6 +64,40 @@ export function useStats(from: string, to: string) {
   return useQuery({
     queryKey: queryKeys.stats(from, to),
     queryFn: () => api<StatsResponse>('/stats/daily', { query: { from, to } }),
+    placeholderData: keepPreviousData,
+  })
+}
+
+/**
+ * One day in full: its meals, its biggest contributors, and the three figures
+ * that give a day's calories a meaning — yesterday, the last week, and what this
+ * weekday usually looks like.
+ */
+export function useDayStats(day: string) {
+  return useQuery({
+    queryKey: queryKeys.dayStats(day),
+    queryFn: () => api<DayStats>('/stats/day', { query: { day } }),
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** The same diary folded into weeks or months, newest bucket last. */
+export function usePeriodStats(unit: PeriodUnit, from: string, to: string) {
+  return useQuery({
+    queryKey: queryKeys.periods(unit, from, to),
+    queryFn: () =>
+      api<PeriodsResponse>('/stats/periods', { query: { unit, from, to } }),
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** Meals, weekdays, top foods and streaks over one range. */
+export function useBreakdown(from: string, to: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.breakdown(from, to),
+    queryFn: () =>
+      api<BreakdownResponse>('/stats/breakdown', { query: { from, to } }),
+    enabled,
     placeholderData: keepPreviousData,
   })
 }
@@ -83,13 +134,17 @@ export function useFood(id: string | undefined) {
  *
  * `meal` weights the ranking towards what gets eaten at that hour without
  * filtering the rest out, so a breakfast list is never empty.
+ *
+ * `include: 'all'` widens the list to foods merely met, for the Recenti tab on
+ * the search screen. The callers that log a whole entry from one tap stay on the
+ * default: they need the remembered portion, which only a logged food has.
  */
-export function useRecentFoods(meal?: Meal) {
+export function useRecentFoods(meal?: Meal, include: RecentInclude = 'logged') {
   return useQuery({
-    queryKey: queryKeys.recent(meal),
+    queryKey: queryKeys.recent(meal, include),
     queryFn: () =>
       api<{ items: RecentFood[] }>('/foods/recent', {
-        query: meal ? { meal } : undefined,
+        query: { ...(meal ? { meal } : {}), include },
       }),
     placeholderData: keepPreviousData,
   })
@@ -286,8 +341,13 @@ export function useToggleFavorite() {
 }
 
 export function useBarcodeLookup() {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (code: string) => api<Food>(`/foods/barcode/${code}`),
+    // The lookup put the product in this user's recents, server-side.
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['foods', 'recent'] })
+    },
   })
 }
 
@@ -298,6 +358,8 @@ export function useCreateFood() {
       api<Food>('/foods', { method: 'POST', body }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['foods', 'search'] })
+      // A food created by hand is in recents before it is ever logged.
+      void queryClient.invalidateQueries({ queryKey: ['foods', 'recent'] })
     },
   })
 }

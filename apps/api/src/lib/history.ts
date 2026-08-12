@@ -194,13 +194,27 @@ const OTHER_MEAL_WEIGHT = 0.35
 /** How many remembered portions a food carries. Three chips fit one row. */
 const TOP_QUANTITIES = 3
 
+/**
+ * What meeting a food counts for next to eating it — a barcode scanned, a search
+ * hit opened, a food created by hand. See `food_touches`.
+ *
+ * Well under one whole entry, on purpose: a food scanned this morning should be
+ * easy to find again, and should still sit below the yogurt eaten every day. At
+ * 0.3 an encounter today ranks just under a single entry from a week ago, and a
+ * habit — many entries, summed — stays out of reach.
+ */
+const TOUCH_WEIGHT = 0.3
+
 export interface RankedDiaryFood {
   foodId: string
-  /** The portion this food was logged with the last time it was logged. */
-  lastQuantityG: number
-  /** Its best-remembered portions, in the same order as the ranking. */
+  /**
+   * The portion this food was logged with the last time it was logged, or null
+   * when it has only ever been met and never eaten.
+   */
+  lastQuantityG: number | null
+  /** Its best-remembered portions, in the same order as the ranking. Empty when never logged. */
   topQuantities: number[]
-  /** How many times it has been logged, ever. */
+  /** How many times it has been logged, ever. Zero for a food only ever met. */
   times: number
   lastAt: Date
   score: number
@@ -212,14 +226,55 @@ export interface RankedDiaryFood {
  * The portion is the point: the daily job is not "find yogurt", it is "the
  * usual 180 g of yogurt". Both the strip on the dashboard and the quick-log
  * sheet read this, so a tap can write a complete entry.
+ *
+ * `include: 'all'` folds in the foods this user has merely met — see
+ * `food_touches` — which is what the Recenti list on the search screen wants: a
+ * product scanned and then abandoned used to vanish, and the next attempt to
+ * find it started from the barcode again. The strip and the quick-log sheet ask
+ * for the default, `'logged'`: both promise a portion with one tap, and a food
+ * never eaten has no portion to promise.
  */
 export async function rankedDiaryFoods(
   userId: string,
-  { limit, meal }: { limit: number; meal?: DiaryEntry['meal'] },
+  {
+    limit,
+    meal,
+    include = 'logged',
+  }: {
+    limit: number
+    meal?: DiaryEntry['meal']
+    include?: 'logged' | 'all'
+  },
 ): Promise<RankedDiaryFood[]> {
+  // Both branches spelled as float8. Postgres types a bare parameter from the
+  // other branch of the case, so `then 1 else $n` made the discount an integer
+  // and the whole query failed with "invalid input syntax for type integer:
+  // 0.35" — every meal-weighted request, which is every request the dashboard
+  // strip and the quick-log sheet make.
   const mealWeight = meal
-    ? sql`(case when ${diaryEntries.meal}::text = ${meal} then 1 else ${OTHER_MEAL_WEIGHT} end)`
-    : sql`1`
+    ? sql`(case when ${diaryEntries.meal}::text = ${meal} then 1::float8 else ${OTHER_MEAL_WEIGHT}::float8 end)`
+    : sql`1::float8`
+
+  // One encounter is one sample, weighted once however many times it happened:
+  // reopening a food screen is not a habit, and should not be able to climb the
+  // list by repetition the way eating something does.
+  const touched =
+    include === 'all'
+      ? sql`
+          select
+            food_id,
+            times,
+            last_at,
+            (${TOUCH_WEIGHT}::float8 * ${decayed(sql`food_touches.last_at`, DIARY_HALF_LIFE_DAYS)})::float8 as score
+          from food_touches
+          where user_id = ${userId}
+        `
+      : // Same columns, no rows: the join below stays one query either way.
+        sql`
+          select food_id, times, last_at, 0::float8 as score
+          from food_touches
+          where false
+        `
 
   const rows = await db.execute(sql`
     with events as (
@@ -244,16 +299,30 @@ export async function rankedDiaryFoods(
         max(at) as last_at
       from events
       group by food_id, quantity_g
-    )
+    ),
+    logged as (
+      select
+        food_id,
+        sum(times)::int as times,
+        sum(weight)::float8 as score,
+        max(last_at) as last_at,
+        (array_agg(quantity_g order by weight desc, last_at desc))[1:${sql.raw(String(TOP_QUANTITIES))}] as top_quantities,
+        (array_agg(quantity_g order by last_at desc))[1] as last_quantity_g
+      from per_quantity
+      group by food_id
+    ),
+    touched as (${touched})
     select
-      food_id,
-      sum(times)::int as times,
-      sum(weight)::float8 as score,
-      max(last_at) as last_at,
-      (array_agg(quantity_g order by weight desc, last_at desc))[1:${sql.raw(String(TOP_QUANTITIES))}] as top_quantities,
-      (array_agg(quantity_g order by last_at desc))[1] as last_quantity_g
-    from per_quantity
-    group by food_id
+      coalesce(logged.food_id, touched.food_id) as food_id,
+      coalesce(logged.times, 0)::int as times,
+      (coalesce(logged.score, 0) + coalesce(touched.score, 0))::float8 as score,
+      -- greatest() skips nulls in Postgres, so a food on one side only keeps its
+      -- own date.
+      greatest(logged.last_at, touched.last_at) as last_at,
+      logged.top_quantities as top_quantities,
+      logged.last_quantity_g as last_quantity_g
+    from logged
+    full outer join touched on touched.food_id = logged.food_id
     order by score desc, last_at desc
     limit ${limit}
   `)
@@ -263,14 +332,15 @@ export async function rankedDiaryFoods(
     times: number
     score: number
     last_at: Date
-    top_quantities: number[]
-    last_quantity_g: number
+    top_quantities: number[] | null
+    last_quantity_g: number | null
   }
 
   return (rows as unknown as Row[]).map((row) => ({
     foodId: row.food_id,
-    lastQuantityG: Number(row.last_quantity_g),
-    topQuantities: row.top_quantities.map(Number),
+    lastQuantityG:
+      row.last_quantity_g == null ? null : Number(row.last_quantity_g),
+    topQuantities: (row.top_quantities ?? []).map(Number),
     times: Number(row.times),
     lastAt: row.last_at,
     score: Number(row.score),

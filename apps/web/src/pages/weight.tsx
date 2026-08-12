@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Scale, TrendingDown, TrendingUp } from 'lucide-react'
+import { Scale, TrendingDown, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
+import { TopBar } from '@/components/layout/top-bar'
 import { WeightChart } from '@/components/charts/weight-chart'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,6 @@ import { longDayLabel, todayISO } from '@/lib/date'
 import { signed } from '@/lib/format'
 
 export default function WeightPage() {
-  const navigate = useNavigate()
   const { data, isLoading } = useWeight()
   const logWeight = useLogWeight()
   const [value, setValue] = useState('')
@@ -43,18 +42,7 @@ export default function WeightPage() {
 
   return (
     <AppShell>
-      <header className="mb-3 flex items-center gap-2">
-        <Button
-          variant="secondary"
-          size="icon"
-          className="bg-card shadow-soft size-11 shrink-0 rounded-full"
-          onClick={() => navigate(-1)}
-          aria-label="Torna indietro"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
-        <h1 className="text-lg font-bold">Peso</h1>
-      </header>
+      <TopBar title="Peso" back />
 
       {isLoading || !data ? (
         <Skeleton className="h-64 rounded-lg" />

@@ -35,6 +35,9 @@ Food data comes from two sources:
 
 - Daily diary with four meals, per-day totals and macro targets
 - Calorie ring, macro bars, weekly bar chart, macro split donuts
+- **Analisi**, its own tab in the bottom bar: day / week / month, from meal split
+  and top contributors up to monthly averages, adherence and streaks — see
+  [Analisi](#analisi)
 - Product search (trigram + prefix ranking, duplicates collapsed) with an
   Open Food Facts fallback that caches into Postgres
 - Barcode lookup, with native camera scanning where the browser supports it
@@ -223,6 +226,38 @@ Notes on the join:
 
 `docker-compose.yml` keeps Postgres data in the named volume `calorico_pgdata` —
 add it to Dokploy's backup schedule.
+
+## Analisi
+
+`/stats` is three zoom levels on the same diary, and they are deliberately not
+three copies of one screen:
+
+| Tab | Reads | What it answers |
+| --- | --- | --- |
+| **Giorno** | `GET /api/stats/day?day=`, `GET /api/stats/daily` | The detailed one. Meal split, macros against target, the five foods that carried the day, and the day's total against **yesterday**, against the **last 7 days** and against **that weekday's usual cost** |
+| **Settimana** | `GET /api/stats/periods?unit=week`, `GET /api/stats/breakdown` | Eight weeks side by side, the selected one broken into its seven tappable days, days-in-band, macro averages, the weekday pattern and the weight it moved |
+| **Mese** | `GET /api/stats/periods?unit=month`, `GET /api/stats/breakdown` | Smoothed on purpose: six monthly averages, coverage, adherence, recap and top foods. By then the question is not "which day" but "was this month better" |
+
+Three rules run through all of it:
+
+- **Averages are per logged day, never per calendar day.** A month with four
+  untracked days is not a month of eating less, and dividing by 30 would quietly
+  say it was. Coverage ("22 of 30 days") is reported as its own figure instead.
+- **A running bucket stays short.** `date_trunc` decides which week or month a
+  day belongs to — its week starts on Monday, which is the week these users live
+  in — and the last bucket simply stops at today, drawn hollow in the bar chart
+  so three days of a week never read as a light week.
+- **No figure is shown alone.** Every total carries a reference: the target band,
+  the previous bucket, yesterday, the weekday's own average. Where there is no
+  history to compare against, the comparison is absent rather than zero.
+
+The calendar work is SQL and the arithmetic is `lib/stats.ts`, which is why the
+bucketing, the streaks and the meal shares have unit tests that need no database.
+
+The account moved out of the bottom bar to the avatar in the top bar
+(`components/layout/top-bar.tsx`), which is what freed the slot: five targets,
+four of them destinations a diary is actually made of — day, analysis, shopping
+list, scale — plus the log button.
 
 ## Photos
 

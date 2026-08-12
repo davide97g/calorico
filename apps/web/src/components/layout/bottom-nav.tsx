@@ -1,20 +1,27 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { House, Scale, ShoppingBasket, Zap } from 'lucide-react'
-import { UserAvatar } from '@/components/user-avatar'
+import { ChartColumn, House, Scale, ShoppingBasket, Zap } from 'lucide-react'
 import { QuickLogSheet } from '@/components/food/quick-log-sheet'
-import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 
+/**
+ * Four destinations and one action. The account used to sit here as a fifth tab
+ * and it was the wrong kind of thing in the wrong place: a bar of five is a bar
+ * nobody aims at, and settings are not a daily destination. It moved to the
+ * avatar in the top bar, which freed the slot the diary was missing — where the
+ * days you have already logged add up. See components/layout/top-bar.tsx.
+ */
 const leftItems = [
   { to: '/', icon: House, label: 'Oggi' },
-  { to: '/grocery', icon: ShoppingBasket, label: 'Spesa' },
+  { to: '/stats', icon: ChartColumn, label: 'Analisi' },
 ] as const
 
-const rightItems = [{ to: '/weight', icon: Scale, label: 'Peso' }] as const
+const rightItems = [
+  { to: '/grocery', icon: ShoppingBasket, label: 'Spesa' },
+  { to: '/weight', icon: Scale, label: 'Peso' },
+] as const
 
 export function BottomNav() {
-  const { user } = useAuth()
   const [logging, setLogging] = useState(false)
 
   return (
@@ -43,35 +50,6 @@ export function BottomNav() {
           {rightItems.map((item) => (
             <NavItem key={item.to} {...item} />
           ))}
-
-          <li>
-            <NavLink
-              to="/profile"
-              className="flex w-16 flex-col items-center gap-1 rounded-md pt-1.5"
-              aria-label="Profilo"
-            >
-              {({ isActive }) => (
-                <>
-                  <UserAvatar
-                    user={user}
-                    className={cn(
-                      'size-6 transition-all',
-                      isActive && 'ring-primary-strong ring-2 ring-offset-2 ring-offset-card',
-                    )}
-                    fallbackClassName="text-micro"
-                  />
-                  <span
-                    className={cn(
-                      'text-micro leading-none font-semibold',
-                      isActive ? 'text-primary-strong' : 'text-muted-foreground',
-                    )}
-                  >
-                    Profilo
-                  </span>
-                </>
-              )}
-            </NavLink>
-          </li>
         </ul>
       </nav>
 

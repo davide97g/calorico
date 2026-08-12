@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft,
   Check,
   Copy,
   Link2,
@@ -12,6 +10,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
+import { TopBar } from '@/components/layout/top-bar'
 import { UserAvatar } from '@/components/user-avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -42,7 +41,6 @@ import { dayOf, dayTimeLabel, longDayLabel } from '@/lib/date'
 import type { Family } from '@/lib/types'
 
 export default function FamilyPage() {
-  const navigate = useNavigate()
   const families = useFamilies()
   const createFamily = useCreateFamily()
   const [newName, setNewName] = useState('')
@@ -66,18 +64,7 @@ export default function FamilyPage() {
 
   return (
     <AppShell>
-      <header className="mb-3 flex items-center gap-2">
-        <Button
-          variant="secondary"
-          size="icon"
-          className="bg-card shadow-soft size-11 shrink-0 rounded-full"
-          onClick={() => navigate(-1)}
-          aria-label="Torna indietro"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
-        <h1 className="text-lg font-bold">Famiglia</h1>
-      </header>
+      <TopBar title="Famiglia" back />
 
       {families.isLoading ? (
         <div className="flex flex-col gap-3">

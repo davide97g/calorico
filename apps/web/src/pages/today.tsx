@@ -3,11 +3,13 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { PieChart, Scale, TrendingDown, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
+import { TopBar } from '@/components/layout/top-bar'
 import { AddFoodAction } from '@/components/dashboard/add-food-action'
 import { DaySwitcher } from '@/components/dashboard/day-switcher'
 import { DiaryPanel } from '@/components/dashboard/diary-panel'
 import { IntakeHero } from '@/components/dashboard/intake-hero'
 import { QuickLog } from '@/components/dashboard/quick-log'
+import { TrendPanel } from '@/components/dashboard/trend-panel'
 import { MacroTriple } from '@/components/charts/macro-bars'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -82,7 +84,10 @@ export default function TodayPage() {
   return (
     <AppShell>
       {/* No title, no greeting: the top of the first screen belongs to the
-          data, and the user knows which app they opened. */}
+          data, and the user knows which app they opened. The bar is here for
+          the avatar alone — the account has to be reachable from every screen,
+          and it is not a tab. */}
+      <TopBar />
       <DaySwitcher day={day} onChange={setDay} />
 
       <div className="mt-3 flex flex-col gap-3">
@@ -119,7 +124,7 @@ export default function TodayPage() {
               <PanelHeader
                 icon={<PieChart />}
                 title="Ancora da assumere"
-                to={`/stats?day=${day}`}
+                to={`/stats?tab=day&day=${day}`}
               />
               <div className="mt-4">
                 <MacroTriple
@@ -129,6 +134,11 @@ export default function TodayPage() {
                 />
               </div>
             </Panel>
+
+            {/* Today against the week it sits in: the dashboard's own way in to
+                the analysis, above the diary because a trend is read more often
+                than a past entry is edited. */}
+            <TrendPanel />
 
             <DiaryPanel
               day={day}

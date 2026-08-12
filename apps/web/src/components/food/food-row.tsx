@@ -1,9 +1,19 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { kcal } from '@/lib/format'
 import type { Food } from '@/lib/types'
 
-export function FoodRow({ food, to }: { food: Food; to: string }) {
+export function FoodRow({
+  food,
+  to,
+  /** Replaces the pack serving on the right — the recents list puts the remembered portion there. */
+  trailing,
+}: {
+  food: Food
+  to: string
+  trailing?: ReactNode
+}) {
   return (
     <Link
       to={to}
@@ -27,7 +37,8 @@ export function FoodRow({ food, to }: { food: Food; to: string }) {
       </span>
 
       <span className="text-muted-foreground shrink-0 text-xs">
-        {food.servingSizeG ? `${food.servingSizeG} ${food.unit}` : ''}
+        {trailing ??
+          (food.servingSizeG ? `${food.servingSizeG} ${food.unit}` : '')}
       </span>
     </Link>
   )

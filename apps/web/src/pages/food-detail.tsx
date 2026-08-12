@@ -7,6 +7,7 @@ import { MacroDonut } from '@/components/charts/macro-donut'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { FoodGallery } from '@/components/food/food-gallery'
 import { PortionChips, portionOptions } from '@/components/food/portion-chips'
+import { HistoryBadge } from '@/components/food/history-badge'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -73,6 +74,20 @@ export default function FoodDetailPage() {
     () => (food ? portionOptions(food, portions) : []),
     [food, portions],
   )
+
+  /**
+   * Whether the amount in the field is one this user has actually weighed out
+   * before, whichever way it got there: the portion the last entry used, the
+   * `?q=` a recents row carried, or a remembered chip they tapped.
+   *
+   * Worth saying out loud, because the field is never empty: without the badge,
+   * "180 g because that is what you had last time" looks exactly like "100 g
+   * because something had to go in the box".
+   */
+  const quantityFromHistory =
+    grams_ > 0 &&
+    (portions?.lastQuantityG === grams_ ||
+      (portions?.topQuantities ?? []).includes(grams_))
 
   const handleSave = () => {
     if (!food) return
@@ -164,7 +179,10 @@ export default function FoodDetailPage() {
       </Panel>
 
       <Panel className="mt-3">
-        <PanelHeader title="Quantità" />
+        <PanelHeader
+          title="Quantità"
+          action={quantityFromHistory ? <HistoryBadge /> : null}
+        />
 
         {/* One control per row: a number field, a unit and a meal picker
             crammed into one 375 px line was three unrelated jobs. */}

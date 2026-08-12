@@ -1,10 +1,16 @@
 import {
+  addMonths,
+  endOfMonth,
+  endOfWeek,
   format,
   formatDistanceToNow,
+  isSameMonth,
   isToday,
   isTomorrow,
   isYesterday,
   parseISO,
+  startOfMonth,
+  startOfWeek,
 } from 'date-fns'
 import { it } from 'date-fns/locale'
 
@@ -73,6 +79,76 @@ export function longDayLabel(day: string) {
 
 export function lastNDays(n: number, endDay = todayISO()) {
   return { from: addDaysISO(endDay, -(n - 1)), to: endDay }
+}
+
+/**
+ * Week and month buckets. The API folds days with `date_trunc`, whose weeks
+ * start on Monday; these helpers have to agree with it exactly, or the range a
+ * screen asks for and the buckets it gets back drift apart by a day.
+ */
+const MONDAY = { weekStartsOn: 1 } as const
+
+export function startOfWeekISO(day: string) {
+  return toISODay(startOfWeek(parseISO(day), MONDAY))
+}
+
+export function endOfWeekISO(day: string) {
+  return toISODay(endOfWeek(parseISO(day), MONDAY))
+}
+
+export function startOfMonthISO(day: string) {
+  return toISODay(startOfMonth(parseISO(day)))
+}
+
+export function endOfMonthISO(day: string) {
+  return toISODay(endOfMonth(parseISO(day)))
+}
+
+export function addWeeksISO(day: string, delta: number) {
+  return addDaysISO(day, delta * 7)
+}
+
+export function addMonthsISO(day: string, delta: number) {
+  return toISODay(addMonths(parseISO(day), delta))
+}
+
+/**
+ * The last `n` whole weeks up to and including the one `endDay` falls in. The
+ * running week is deliberately left short: three days of a week are three days,
+ * and an average that pretends otherwise is the wrong number.
+ */
+export function lastNWeeks(n: number, endDay = todayISO()) {
+  return { from: startOfWeekISO(addWeeksISO(endDay, -(n - 1))), to: endDay }
+}
+
+export function lastNMonths(n: number, endDay = todayISO()) {
+  return { from: startOfMonthISO(addMonthsISO(endDay, -(n - 1))), to: endDay }
+}
+
+/** "3 – 9 ago", or "27 lug – 2 ago" when the week straddles two months. */
+export function weekRangeLabel(from: string, to: string) {
+  const start = parseISO(from)
+  const end = parseISO(to)
+  const endLabel = format(end, 'd MMM', { locale: it })
+  const startLabel = isSameMonth(start, end)
+    ? format(start, 'd', { locale: it })
+    : format(start, 'd MMM', { locale: it })
+  return from === to ? endLabel : `${startLabel} – ${endLabel}`
+}
+
+/** "agosto 2026" — the year matters once the chart reaches back past January. */
+export function monthLabel(day: string) {
+  return format(parseISO(day), 'LLLL yyyy', { locale: it })
+}
+
+/** "ago", for an axis tick where the full month name would never fit. */
+export function shortMonthLabel(day: string) {
+  return format(parseISO(day), 'LLL', { locale: it })
+}
+
+/** 0 = Sunday, matching the API's `extract(dow)` and WEEKDAY_INITIALS. */
+export function weekdayIndex(day: string) {
+  return parseISO(day).getDay()
 }
 
 /**

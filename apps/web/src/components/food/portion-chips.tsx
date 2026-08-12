@@ -1,3 +1,4 @@
+import { History } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FoodPortions } from '@/lib/types'
 
@@ -5,6 +6,8 @@ export interface PortionOption {
   grams: number
   /** Why this portion is on offer: "di solito", "porzione". */
   note?: string
+  /** This user has weighed out this amount before — the chip says so with the history icon. */
+  fromHistory?: boolean
 }
 
 /**
@@ -43,8 +46,10 @@ export function portionOptions(
   const options: PortionOption[] = remembered.map((grams, index) => ({
     grams,
     // Only the top one is labelled: three chips all claiming to be the usual
-    // portion would say nothing.
+    // portion would say nothing. The icon still marks all of them as this
+    // user's own amounts rather than the app's round numbers.
     note: index === 0 && (portions?.times ?? 0) > 1 ? 'di solito' : undefined,
+    fromHistory: true,
   }))
 
   for (const grams of [...standard].sort((a, b) => a - b)) {
@@ -85,15 +90,33 @@ export function PortionChips({
           type="button"
           onClick={() => onSelect(option.grams)}
           aria-pressed={value === option.grams}
+          aria-label={
+            option.fromHistory
+              ? `${option.grams} ${unit}, dalla cronologia`
+              : undefined
+          }
+          title={option.fromHistory ? 'Porzione dalla cronologia' : undefined}
           className={cn(
-            'tabular h-11 rounded-full px-4 text-xs font-semibold transition-colors',
+            'tabular inline-flex h-11 items-center gap-1.5 rounded-full px-4 text-xs font-semibold transition-colors',
             value === option.grams
               ? 'bg-primary text-primary-foreground'
               : 'bg-secondary text-secondary-foreground',
           )}
         >
-          {option.grams} {unit}
-          {option.note ? ` · ${option.note}` : ''}
+          {option.fromHistory ? (
+            <History
+              className={cn(
+                'size-3.5 shrink-0',
+                value !== option.grams && 'text-primary-strong',
+              )}
+              strokeWidth={2.4}
+              aria-hidden
+            />
+          ) : null}
+          <span>
+            {option.grams} {unit}
+            {option.note ? ` · ${option.note}` : ''}
+          </span>
         </button>
       ))}
     </div>

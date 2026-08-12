@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { FoodRow } from '@/components/food/food-row'
+import { HistoryBadge } from '@/components/food/history-badge'
 import { BarcodeScanner } from '@/components/food/barcode-scanner'
 import { PhotoMealSheet } from '@/components/food/photo-meal-sheet'
 import { WhenBar } from '@/components/food/when-picker'
@@ -31,7 +32,7 @@ import {
 import { useGroceryOffer } from '@/hooks/use-grocery'
 import { ApiError } from '@/lib/api'
 import { todayISO } from '@/lib/date'
-import { currentMeal } from '@/lib/format'
+import { currentMeal, grams } from '@/lib/format'
 import type { When } from '@/lib/when'
 import type { Food, Meal, RecentFood } from '@/lib/types'
 
@@ -71,15 +72,27 @@ export default function AddFoodPage() {
   }, [term])
 
   const search = useFoodSearch(debounced)
-  const recent = useRecentFoods(meal)
+  /**
+   * `all`: this tab is where someone comes back looking for the thing they
+   * scanned, searched out or typed in an hour ago, whether or not they got as
+   * far as saving it. The dashboard strip stays on logged foods only — it
+   * promises a portion with one tap.
+   */
+  const recent = useRecentFoods(meal, 'all')
   const favorites = useFavoriteFoods()
   const barcode = useBarcodeLookup()
   const offerGrocery = useGroceryOffer()
 
   const foodLink = (id: string) => `/food/${id}?day=${day}&meal=${meal}`
-  /** A food already eaten opens on the portion it was eaten in. */
+  /**
+   * A food already eaten opens on the portion it was eaten in. One only ever
+   * scanned or created has no such portion, and passing none lets the food
+   * screen fall back to the pack serving.
+   */
   const recentLink = (food: RecentFood) =>
-    `${foodLink(food.id)}&q=${food.lastQuantityG}`
+    food.lastQuantityG == null
+      ? foodLink(food.id)
+      : `${foodLink(food.id)}&q=${food.lastQuantityG}`
 
   const handleDetected = (code: string) => {
     barcode.mutate(code, {
@@ -208,8 +221,22 @@ export default function AddFoodPage() {
             <FoodList
               items={recent.data?.items}
               loading={recent.isLoading}
-              empty="Gli alimenti che registri finiscono qui."
+              empty="Gli alimenti che registri, scansioni o crei finiscono qui."
               linkFor={(food) => recentLink(food as RecentFood)}
+              trailingFor={(food) => {
+                const { lastQuantityG } = food as RecentFood
+                if (lastQuantityG == null) return null
+                // The remembered portion, marked as remembered: this row opens
+                // on that number, and it is worth knowing it is the user's own.
+                return (
+                  <span className="flex items-center gap-1.5">
+                    <HistoryBadge compact />
+                    <span className="tabular">
+                      {grams(lastQuantityG)} {food.unit}
+                    </span>
+                  </span>
+                )
+              }}
             />
           </TabsContent>
           <TabsContent value="favorites">
@@ -270,11 +297,13 @@ function FoodList({
   loading,
   empty,
   linkFor,
+  trailingFor,
 }: {
   items?: Food[]
   loading: boolean
   empty: string
   linkFor: (food: Food) => string
+  trailingFor?: (food: Food) => ReactNode
 }) {
   if (loading) {
     return (
@@ -297,7 +326,11 @@ function FoodList({
       <ul>
         {items.map((food) => (
           <li key={food.id}>
-            <FoodRow food={food} to={linkFor(food)} />
+            <FoodRow
+              food={food}
+              to={linkFor(food)}
+              trailing={trailingFor?.(food)}
+            />
           </li>
         ))}
       </ul>

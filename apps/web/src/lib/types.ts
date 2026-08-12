@@ -123,10 +123,15 @@ export interface FoodPortions {
  * the daily job, and it is only one tap if the quantity comes with the food.
  */
 export interface RecentFood extends Food {
-  /** The portion used the last time this food was logged. */
-  lastQuantityG: number
+  /**
+   * The portion used the last time this food was logged, or null for a food
+   * that has only been met — scanned, opened from search, created by hand —
+   * which `include=all` also returns.
+   */
+  lastQuantityG: number | null
   /** Its best-remembered portions, most-used first. At most three. */
   topQuantities: number[]
+  /** How many times it has been logged. Zero for a food never eaten. */
   times: number
   lastAt: string
 }
@@ -180,6 +185,7 @@ export interface DailyStat {
   proteinG: number
   carbsG: number
   fatG: number
+  fiberG?: number
   entries: number
 }
 
@@ -194,6 +200,108 @@ export interface StatsResponse {
     daysInRange: number
   }
   targets: DayTargets | null
+}
+
+/** One meal's slice of a day or of a period. */
+export interface MealShare {
+  meal: Meal
+  kcal: number
+  /** Percent of the period's calories. */
+  share: number
+  /** Per day this meal was actually logged, not per calendar day. */
+  avgKcal: number
+  days: number
+  entries: number
+}
+
+export interface MealShareWithMacros extends MealShare {
+  proteinG: number
+  carbsG: number
+  fatG: number
+}
+
+export interface TopFood {
+  name: string
+  brand: string | null
+  kcal: number
+  quantityG: number
+  times: number
+}
+
+/** GET /stats/day — one day, plus what to read it against. */
+export interface DayStats {
+  day: string
+  totals: Totals & { entries: number }
+  byMeal: MealShareWithMacros[]
+  topFoods: TopFood[]
+  /** Null wherever there is no history to compare with, never 0. */
+  context: {
+    prevDayKcal: number | null
+    recentAvgKcal: number | null
+    recentDays: number
+    weekdayAvgKcal: number | null
+    weekdayDays: number
+  }
+  targets: DayTargets | null
+}
+
+export type PeriodUnit = 'week' | 'month'
+
+export interface WeightSpan {
+  startKg: number
+  endKg: number
+  changeKg: number
+  avgKg: number
+  count: number
+}
+
+/** One week or month of the diary, as GET /stats/periods returns it. */
+export interface PeriodBucket {
+  /** The bucket's own first day, even when the range starts mid-bucket. */
+  key: string
+  /** First and last day covered — a running week stops at today. */
+  from: string
+  to: string
+  days: number
+  loggedDays: number
+  entries: number
+  totalKcal: number
+  /** Averages are per logged day. */
+  avgKcal: number
+  avgProteinG: number
+  avgCarbsG: number
+  avgFatG: number
+  avgFiberG: number
+  daysInRange: number
+  daysUnder: number
+  daysOver: number
+  lightestDay: { day: string; kcal: number } | null
+  heaviestDay: { day: string; kcal: number } | null
+  weight: WeightSpan | null
+  dailyStats: DailyStat[]
+}
+
+export interface PeriodsResponse {
+  unit: PeriodUnit
+  buckets: PeriodBucket[]
+  targets: DayTargets | null
+}
+
+/** GET /stats/breakdown — a range seen as one shape rather than day by day. */
+export interface BreakdownResponse {
+  from: string
+  to: string
+  days: number
+  loggedDays: number
+  entries: number
+  totalKcal: number
+  /** Percent of calendar days with at least one entry. */
+  coverage: number
+  mealSplit: MealShare[]
+  /** Sunday-first, matching WEEKDAY_INITIALS. */
+  weekdayPattern: { dow: number; avgKcal: number; loggedDays: number }[]
+  topFoods: (TopFood & { days: number; share: number })[]
+  streak: { current: number; longest: number; lastLoggedDay: string | null }
 }
 
 export interface WeightLog {

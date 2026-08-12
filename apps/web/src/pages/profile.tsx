@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
 import {
-  ArrowLeft,
   BellRing,
   CreditCard,
   LogOut,
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
+import { TopBar } from '@/components/layout/top-bar'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -164,18 +164,8 @@ export default function ProfilePage() {
 
   return (
     <AppShell>
-      <header className="mb-3 flex items-center gap-2">
-        <Button
-          variant="secondary"
-          size="icon"
-          className="bg-card shadow-soft size-11 shrink-0 rounded-full"
-          onClick={() => navigate(-1)}
-          aria-label="Torna indietro"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
-        <h1 className="text-lg font-bold">Profilo</h1>
-      </header>
+      {/* The one screen with no avatar in the bar: it would link to itself. */}
+      <TopBar title="Area personale" back avatar={false} />
 
       <Panel className="flex items-center gap-3">
         <UserAvatar

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
+import { TopBar } from '@/components/layout/top-bar'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { UserAvatar } from '@/components/user-avatar'
 import { Button } from '@/components/ui/button'
@@ -165,30 +166,28 @@ export default function GroceryPage() {
 
   return (
     <AppShell>
-      <header className="flex items-end justify-between px-1">
-        <div className="min-w-0">
-          <p className="text-primary-strong truncate text-micro font-bold tracking-[0.16em] uppercase">
-            {eyebrow}
-          </p>
-          <h1 className="font-display text-display-sm leading-tight font-bold">Spesa</h1>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            asChild
-            variant="secondary"
-            size="icon"
-            className="rounded-full"
-            aria-label="Scansioni"
-          >
-            <Link to="/scans">
-              <History />
-            </Link>
-          </Button>
-          <span className="bg-primary text-primary-foreground tabular rounded-full px-3 py-1.5 text-xs font-bold">
-            {activeCount} da prendere
-          </span>
-        </div>
-      </header>
+      <TopBar
+        eyebrow={eyebrow}
+        title="Spesa"
+        action={
+          <>
+            <span className="bg-primary text-primary-foreground tabular shrink-0 rounded-full px-2.5 py-1.5 text-micro font-bold">
+              {activeCount} da prendere
+            </span>
+            <Button
+              asChild
+              variant="secondary"
+              size="icon"
+              className="shrink-0 rounded-full"
+              aria-label="Scansioni"
+            >
+              <Link to="/scans">
+                <History />
+              </Link>
+            </Button>
+          </>
+        }
+      />
 
       <div className="relative mt-4">
         <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2" />

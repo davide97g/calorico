@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Barcode, Camera, Loader2, ScanLine, Search } from 'lucide-react'
+import { Barcode, Camera, Loader2, ScanLine, Search } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
+import { TopBar } from '@/components/layout/top-bar'
 import { UserAvatar } from '@/components/user-avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,24 +29,8 @@ export default function ScansPage() {
 
   return (
     <AppShell>
-      <header className="flex items-center gap-3 px-1">
-        <Button
-          variant="secondary"
-          size="icon"
-          className="rounded-full"
-          onClick={() => navigate(-1)}
-          aria-label="Indietro"
-        >
-          <ArrowLeft />
-        </Button>
-        <div className="min-w-0">
-          <h1 className="text-lg font-bold">Scansioni</h1>
-          {/* The order is not obvious from the rows, so it is spelled out. */}
-          <p className="text-muted-foreground text-micro">
-            Dalle più frequenti e recenti
-          </p>
-        </div>
-      </header>
+      {/* The order is not obvious from the rows, so the eyebrow spells it out. */}
+      <TopBar title="Scansioni" eyebrow="Più frequenti e recenti" back />
 
       <div className="relative mt-3">
         <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2" />

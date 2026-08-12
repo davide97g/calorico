@@ -5,6 +5,7 @@ import { db } from '../db/index.js'
 import { favorites, foods, type Food, type NewFood } from '../db/schema.js'
 import { fetchByBarcode, searchOff } from '../lib/off.js'
 import { recordScan } from '../lib/scan-log.js'
+import { recordFoodTouch } from '../lib/food-touch.js'
 import { cacheFoods } from '../lib/food-cache.js'
 import { foodPortions, rankedDiaryFoods } from '../lib/history.js'
 import {
@@ -23,6 +24,12 @@ const recentQuery = z.object({
   /** The meal being logged, which the ranking weights towards. */
   meal: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(30),
+  /**
+   * `all` also returns foods this user has met without logging — scanned,
+   * opened from search, created by hand. Those carry no portion, so the callers
+   * that log with one tap stay on the default. See lib/history.ts.
+   */
+  include: z.enum(['logged', 'all']).default('logged'),
 })
 
 /** Also the shape POST /api/diary/batch accepts for an AI-estimated food. */
@@ -83,9 +90,9 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
 
     // A GET with a side effect, deliberately: this route is only ever reached
     // from the scanner sheets, so it is the one honest place to record that a
-    // scan happened. Logging is best-effort and never fails the lookup.
-    const logScan = (food: Food) =>
-      recordScan(
+    // scan happened. Both writes are best-effort and never fail the lookup.
+    const logScan = async (food: Food) => {
+      await recordScan(
         request.user.sub,
         {
           kind: 'barcode',
@@ -96,6 +103,10 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
         },
         request.log,
       )
+      // The scan feed is the family's; this is the scanner's own recents, and a
+      // product scanned then abandoned has to still be there tomorrow.
+      await recordFoodTouch(request.user.sub, food.id, request.log)
+    }
 
     const [local] = await db
       .select()
@@ -127,11 +138,17 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
    *
    * Ordered by how well remembered a food is, not by when it was last touched —
    * plain recency buries the daily yogurt under one-off entries within a week.
-   * Pass `meal` and the meal being logged is weighted up. See lib/history.ts.
+   * Pass `meal` and the meal being logged is weighted up; pass `include=all` and
+   * the foods this user has only met — scanned, opened, created — come too, each
+   * with a null portion. See lib/history.ts.
    */
   app.get('/recent', async (request) => {
-    const { meal, limit } = recentQuery.parse(request.query)
-    const ranked = await rankedDiaryFoods(request.user.sub, { limit, meal })
+    const { meal, limit, include } = recentQuery.parse(request.query)
+    const ranked = await rankedDiaryFoods(request.user.sub, {
+      limit,
+      meal,
+      include,
+    })
     if (ranked.length === 0) return { items: [] }
 
     const rows = await db
@@ -187,6 +204,9 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
         createdBy: request.user.sub,
       })
       .returning()
+    // Typing a food in by hand is the strongest possible "I mean to eat this",
+    // so it lands in recents before it is ever logged.
+    if (created) await recordFoodTouch(request.user.sub, created.id, request.log)
     return reply.code(201).send(created)
   })
 
@@ -194,6 +214,12 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
     const [food] = await db.select().from(foods).where(eq(foods.id, id)).limit(1)
     if (!food) return reply.code(404).send({ error: 'not_found' })
+
+    // Another deliberate side effect on a GET, and the one that covers the rest
+    // of the ways a food is met: every path that ends in "look at this food"
+    // — a search hit, a scan, a food just created — passes through here, and
+    // this is the only place that sees all of them. Best-effort, as ever.
+    await recordFoodTouch(request.user.sub, food.id, request.log)
 
     // No photos here. This route is on the path of every re-log, and fetching a
     // product's label shots from Open Food Facts on the way is a network round

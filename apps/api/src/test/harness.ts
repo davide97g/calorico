@@ -14,6 +14,7 @@ const TABLES = [
   'scan_events',
   'grocery_items',
   'favorites',
+  'food_touches',
   'diary_entries',
   'weight_logs',
   'food_images',

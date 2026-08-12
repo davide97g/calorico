@@ -4,6 +4,7 @@ import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRecentFoods } from '@/hooks/use-diary'
 import { useQuickLog } from '@/hooks/use-quick-log'
+import { rememberedPortion } from '@/lib/portion'
 import { MEAL_LABELS, currentMeal, grams, kcal } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { RecentFood } from '@/lib/types'
@@ -58,7 +59,7 @@ export function QuickLog({ day }: { day: string }) {
                 onLog={() =>
                   log({
                     food,
-                    quantityG: food.lastQuantityG,
+                    quantityG: rememberedPortion(food).grams,
                     day,
                     meal,
                   })
@@ -79,6 +80,10 @@ function QuickLogChip({
   busy: boolean
   onLog: () => void
 }) {
+  // This strip asks for logged foods only, so the portion is all but always the
+  // remembered one; the fallback is here so the type never has to be lied about.
+  const { grams: portion } = rememberedPortion(food)
+
   return (
     <button
       type="button"
@@ -89,7 +94,7 @@ function QuickLogChip({
         'transition-transform active:scale-[0.97] disabled:opacity-60',
       )}
       // The portion is half of what this button does, so it is in the label.
-      aria-label={`Registra ${food.name}, ${grams(food.lastQuantityG)} ${food.unit}`}
+      aria-label={`Registra ${food.name}, ${grams(portion)} ${food.unit}`}
     >
       {busy ? (
         <span className="bg-secondary flex size-9 shrink-0 items-center justify-center rounded-md">
@@ -103,8 +108,8 @@ function QuickLogChip({
           {food.name}
         </span>
         <span className="text-muted-foreground tabular block truncate text-micro">
-          {grams(food.lastQuantityG)} {food.unit} ·{' '}
-          {kcal((food.kcal100 * food.lastQuantityG) / 100)} kcal
+          {grams(portion)} {food.unit} ·{' '}
+          {kcal((food.kcal100 * portion) / 100)} kcal
         </span>
       </span>
     </button>

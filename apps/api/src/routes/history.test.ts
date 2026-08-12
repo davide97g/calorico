@@ -331,11 +331,21 @@ describe.skipIf(!hasDb)('recent foods', () => {
       items: {
         id: string
         name: string
-        lastQuantityG: number
+        lastQuantityG: number | null
         topQuantities: number[]
         times: number
       }[]
     }
+  }
+
+  /** Opening a food's page is what records an encounter — see routes/foods.ts. */
+  const openFood = async (id: string) => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/foods/${id}`,
+      headers: auth(user),
+    })
+    expect(res.statusCode).toBe(200)
   }
 
   it('ranks a daily habit above a food logged more often last season', async () => {
@@ -412,5 +422,56 @@ describe.skipIf(!hasDb)('recent foods', () => {
     })
     expect(res.statusCode).toBe(200)
     expect((res.json() as { items: unknown[] }).items).toEqual([])
+  })
+
+  it('offers a food that was only looked at, with no portion to promise', async () => {
+    const tuna = await addFood('Tonno in scatola')
+    await openFood(tuna.id)
+
+    // The default is for the strip and the sheet, which log with one tap.
+    expect((await recent()).items).toEqual([])
+
+    const [item] = (await recent('?include=all')).items
+    expect(item!.name).toBe('Tonno in scatola')
+    expect(item!.lastQuantityG).toBeNull()
+    expect(item!.topQuantities).toEqual([])
+    expect(item!.times).toBe(0)
+  })
+
+  it('ranks a food that was eaten above one that was only looked at', async () => {
+    const oats = await addFood('Fiocchi di avena')
+    const tuna = await addFood('Tonno in scatola')
+    await seedEntries(oats.id, oats.name, [{ age: 2, quantityG: 60 }])
+    await openFood(tuna.id)
+
+    const { items } = await recent('?include=all')
+    expect(items.map((item) => item.name)).toEqual([
+      'Fiocchi di avena',
+      'Tonno in scatola',
+    ])
+  })
+
+  it('keeps the portions of a food both eaten and looked at', async () => {
+    const yogurt = await addFood('Yogurt greco')
+    await seedEntries(yogurt.id, yogurt.name, [{ age: 3, quantityG: 180 }])
+    await openFood(yogurt.id)
+
+    const { items } = await recent('?include=all')
+    expect(items).toHaveLength(1)
+    expect(items[0]!.lastQuantityG).toBe(180)
+    expect(items[0]!.times).toBe(1)
+  })
+
+  it('puts a food created by hand in the list before it is ever logged', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/foods',
+      headers: auth(user),
+      payload: { name: 'Insalata della nonna', kcal100: 120 },
+    })
+    expect(res.statusCode).toBe(201)
+
+    const { items } = await recent('?include=all')
+    expect(items.map((item) => item.name)).toEqual(['Insalata della nonna'])
   })
 })

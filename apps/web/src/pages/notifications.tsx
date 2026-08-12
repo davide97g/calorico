@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft,
   BellRing,
   Check,
   Clock,
@@ -15,6 +13,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
+import { TopBar } from '@/components/layout/top-bar'
 import { ReminderRow } from '@/components/notifications/reminder-row'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
@@ -59,7 +58,6 @@ import type { ReminderPreset } from '@/lib/types'
  * a phone that stays quiet.
  */
 export default function NotificationsPage() {
-  const navigate = useNavigate()
   const settings = useNotificationSettings()
   const enable = useEnableNotifications()
   const disable = useDisableNotifications()
@@ -174,10 +172,7 @@ export default function NotificationsPage() {
   if (settings.isLoading || !data) {
     return (
       <AppShell>
-        <header className="mb-3 flex items-center gap-2">
-          <BackButton onClick={() => navigate(-1)} />
-          <h1 className="text-lg font-bold">Promemoria</h1>
-        </header>
+        <TopBar title="Promemoria" back />
         <Skeleton className="h-28 rounded-lg" />
         <Skeleton className="mt-3 h-40 rounded-lg" />
       </AppShell>
@@ -215,10 +210,7 @@ export default function NotificationsPage() {
 
   return (
     <AppShell>
-      <header className="mb-3 flex items-center gap-2">
-        <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-lg font-bold">Promemoria</h1>
-      </header>
+      <TopBar title="Promemoria" back />
 
       <Panel>
         <PanelHeader
@@ -721,20 +713,6 @@ function DiagnosticRow({
         ) : null}
       </div>
     </li>
-  )
-}
-
-function BackButton({ onClick }: { onClick: () => void }) {
-  return (
-    <Button
-      variant="secondary"
-      size="icon"
-      className="bg-card shadow-soft size-11 shrink-0 rounded-full"
-      onClick={onClick}
-      aria-label="Torna indietro"
-    >
-      <ArrowLeft className="size-4" />
-    </Button>
   )
 }
 
