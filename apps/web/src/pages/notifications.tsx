@@ -581,6 +581,16 @@ function DiagnosticsPanel({
                 }
               />
             ) : null}
+            {/* The count is the answer to "lo richiede ogni volta": one prompt
+                ever, and everything after it honoured, is what this row reads
+                when the app is behaving. */}
+            <DiagnosticRow
+              label={`Permesso richiesto ${diagnostics.promptsDrawn} ${
+                diagnostics.promptsDrawn === 1 ? 'volta' : 'volte'
+              } su questo dispositivo`}
+              ok={diagnostics.promptsDrawn <= 1}
+              detail={promptCountDetail(diagnostics)}
+            />
           </>
         ) : null}
         <DiagnosticRow
@@ -620,6 +630,33 @@ function DiagnosticsPanel({
       ) : null}
     </Panel>
   )
+}
+
+/**
+ * What the prompt count means, in the two cases where it is not self-evident.
+ *
+ * The count starts from the build that introduced it, which has to be said out
+ * loud: a device that answered the prompt months ago reads zero, and that is
+ * right rather than a missing permission.
+ */
+function promptCountDetail({ promptsDrawn, lastPromptAt, permission }: PushDiagnostics) {
+  if (promptsDrawn === 0) {
+    return permission === 'granted'
+      ? 'Nessuna richiesta da quando l’app tiene il conto: il permesso di prima è ancora valido.'
+      : 'Il conto parte da questa versione dell’app.'
+  }
+  const last = lastPromptAt
+    ? new Date(lastPromptAt).toLocaleString('it-IT', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null
+  if (promptsDrawn === 1) {
+    return last ? `Una sola volta, il ${last}.` : undefined
+  }
+  return `Ultima volta il ${last ?? '—'}. Più di una richiesta significa che il permesso è stato perso e richiesto di nuovo.`
 }
 
 function DiagnosticRow({

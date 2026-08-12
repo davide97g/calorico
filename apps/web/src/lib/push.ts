@@ -112,6 +112,10 @@ export function requestPushPermission(): Promise<NotificationPermission> {
     return Promise.resolve(Notification.permission)
   }
 
+  // Past this line a prompt is genuinely drawn, so this is the one place that can
+  // count them. See countPrompt.
+  countPrompt()
+
   return new Promise((resolve) => {
     let settled = false
     const done = (permission: NotificationPermission) => {
@@ -380,6 +384,58 @@ export function rememberEndpoint(endpoint: string | null) {
   }
 }
 
+/** How many system prompts this device has been shown, and when the last was. */
+const PROMPT_COUNT_KEY = 'calorico.push.prompts'
+const PROMPT_LAST_KEY = 'calorico.push.prompts.last'
+
+/**
+ * Records that the system prompt was drawn.
+ *
+ * "It asks again every time" is a claim about a whole life of the app — launches,
+ * force-quits, a switch turned off in the evening and on in the morning — and no
+ * test on a laptop can settle it for an iPhone. So the device keeps the count
+ * itself: one is a permission asked once and honoured ever since, and anything
+ * climbing is the bug, on the hardware, in a number rather than an impression.
+ *
+ * Counted here rather than at the call sites because this is the only line in the
+ * app past which a prompt is certain: every earlier return answers from a
+ * permission that was already settled.
+ */
+function countPrompt() {
+  try {
+    const next = promptsDrawn() + 1
+    localStorage.setItem(PROMPT_COUNT_KEY, String(next))
+    localStorage.setItem(PROMPT_LAST_KEY, new Date().toISOString())
+  } catch {
+    // Counting is diagnostics; it must never be the reason a prompt is not shown.
+  }
+}
+
+/**
+ * How many times this device has been shown the prompt since the count began.
+ *
+ * It starts at zero on a build that has this counter, so it measures from the
+ * fix onwards — which is the window anyone is asking about — and not the
+ * permissions a phone answered last year.
+ */
+export function promptsDrawn(): number {
+  try {
+    const raw = Number(localStorage.getItem(PROMPT_COUNT_KEY))
+    return Number.isInteger(raw) && raw > 0 ? raw : 0
+  } catch {
+    return 0
+  }
+}
+
+/** When the last prompt was drawn, for telling "once, ages ago" from "just now". */
+export function lastPromptAt(): string | null {
+  try {
+    return localStorage.getItem(PROMPT_LAST_KEY)
+  } catch {
+    return null
+  }
+}
+
 /**
  * Everything that has to line up for a notification to arrive, in one object.
  *
@@ -411,6 +467,13 @@ export interface PushDiagnostics {
    */
   endpointTail: string | null
   endpointStable: boolean
+  /**
+   * How many times this device has been shown the system prompt, and when the
+   * last one was. The answer to "does it ask again every time", read off the
+   * phone rather than inferred.
+   */
+  promptsDrawn: number
+  lastPromptAt: string | null
 }
 
 export async function pushDiagnostics(): Promise<PushDiagnostics> {
@@ -443,6 +506,8 @@ export async function pushDiagnostics(): Promise<PushDiagnostics> {
     endpointStable: !subscription || !remembered
       ? true
       : subscription.endpoint === remembered,
+    promptsDrawn: promptsDrawn(),
+    lastPromptAt: lastPromptAt(),
   }
 }
 

@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import { scanEvents } from '../db/schema.js'
+import { diaryEntries, scanEvents, type DiaryEntry } from '../db/schema.js'
 import { groceryVisibility } from './family.js'
 
 /**
@@ -27,10 +27,10 @@ import { groceryVisibility } from './family.js'
  */
 const HALF_LIFE_DAYS = 30
 
-const decayed = (at: SQL) =>
+const decayed = (at: SQL, halfLifeDays = HALF_LIFE_DAYS) =>
   sql`power(
     0.5,
-    extract(epoch from (now() - ${at})) / ${HALF_LIFE_DAYS * 86400}
+    extract(epoch from (now() - ${at})) / ${halfLifeDays * 86400}
   )`
 
 /** `%` and `_` are ordinary characters in a shopping list, not wildcards. */

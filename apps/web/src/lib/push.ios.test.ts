@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   currentSubscription,
+  promptsDrawn,
   rememberEndpoint,
   rememberedEndpoint,
   resubscribeToPush,
@@ -230,6 +231,9 @@ describe('an installed iPhone, over a whole life of the app', () => {
     // it can no longer reach.
     expect(phone.endpointsIssued()).toBe(1)
     expect(rememberedEndpoint()).toBe(first.endpoint)
+    // And the count the phone shows in Diagnostica agrees with the browser: this
+    // is the number the user reads to settle it on their own hardware.
+    expect(promptsDrawn()).toBe(1)
   })
 
   it('reports the same device to the server on every launch', async () => {
@@ -266,6 +270,36 @@ describe('an installed iPhone, over a whole life of the app', () => {
     expect(repaired.endpoint).toBeTruthy()
     expect(phone.prompts()).toBe(2)
     expect(phone.permission()).toBe('granted')
+  })
+})
+
+describe('the count the phone reports', () => {
+  it('counts a prompt only when one is really drawn', async () => {
+    const phone = installedIphone()
+
+    await subscribeToPush(PUBLIC_KEY)
+    expect(promptsDrawn()).toBe(1)
+
+    // Asking again with the answer already given draws nothing, so it counts
+    // nothing: a counter that ticked here would cry wolf on a healthy app.
+    await subscribeToPush(PUBLIC_KEY)
+    await subscribeToPush(PUBLIC_KEY)
+    phone.relaunch()
+    await resubscribeToPush(PUBLIC_KEY)
+
+    expect(promptsDrawn()).toBe(1)
+    expect(phone.prompts()).toBe(1)
+  })
+
+  it('ticks once per permission genuinely lost', async () => {
+    const phone = installedIphone()
+    await subscribeToPush(PUBLIC_KEY)
+
+    await phone.dropSubscription()
+    await subscribeToPush(PUBLIC_KEY)
+
+    expect(promptsDrawn()).toBe(2)
+    expect(phone.prompts()).toBe(2)
   })
 })
 
