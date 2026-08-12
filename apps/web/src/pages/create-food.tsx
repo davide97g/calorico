@@ -33,6 +33,9 @@ export default function CreateFoodPage() {
     carbs100: '',
     fat100: '',
     fiber100: '',
+    sugars100: '',
+    satFat100: '',
+    salt100: '',
     servingSizeG: '',
     isLiquid: false,
   })
@@ -53,6 +56,9 @@ export default function CreateFoodPage() {
         carbs100: numeric(form.carbs100),
         fat100: numeric(form.fat100),
         fiber100: form.fiber100 ? numeric(form.fiber100) : undefined,
+        sugars100: form.sugars100 ? numeric(form.sugars100) : undefined,
+        satFat100: form.satFat100 ? numeric(form.satFat100) : undefined,
+        salt100: form.salt100 ? numeric(form.salt100) : undefined,
         servingSizeG: form.servingSizeG
           ? numeric(form.servingSizeG)
           : undefined,
@@ -157,6 +163,30 @@ export default function CreateFoodPage() {
             <Input
               value={form.fiber100}
               onChange={(e) => set('fiber100', e.target.value)}
+              inputMode="decimal"
+              className="h-11 rounded-md"
+            />
+          </Field>
+          <Field label="Zuccheri (g)">
+            <Input
+              value={form.sugars100}
+              onChange={(e) => set('sugars100', e.target.value)}
+              inputMode="decimal"
+              className="h-11 rounded-md"
+            />
+          </Field>
+          <Field label="Grassi saturi (g)">
+            <Input
+              value={form.satFat100}
+              onChange={(e) => set('satFat100', e.target.value)}
+              inputMode="decimal"
+              className="h-11 rounded-md"
+            />
+          </Field>
+          <Field label="Sale (g)">
+            <Input
+              value={form.salt100}
+              onChange={(e) => set('salt100', e.target.value)}
               inputMode="decimal"
               className="h-11 rounded-md"
             />

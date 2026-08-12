@@ -211,6 +211,9 @@ describe('scaleNutriments', () => {
       carbsG: 60,
       fatG: 18,
       fiberG: 5,
+      sugarsG: null,
+      satFatG: null,
+      saltG: null,
     })
   })
 
@@ -223,6 +226,31 @@ describe('scaleNutriments', () => {
 
   it('keeps a missing fibre value missing instead of turning it into 0', () => {
     expect(scaleNutriments({ ...per100, fiber100: null }, 100).fiberG).toBeNull()
+  })
+
+  it('scales sugars, sat fat and salt the same way as fibre', () => {
+    expect(
+      scaleNutriments(
+        { ...per100, sugars100: 10, satFat100: 4, salt100: 0.8 },
+        50,
+      ),
+    ).toEqual({
+      kcal: 125,
+      proteinG: 6,
+      carbsG: 15,
+      fatG: 4.5,
+      fiberG: 1.3,
+      sugarsG: 5,
+      satFatG: 2,
+      saltG: 0.4,
+    })
+  })
+
+  it('keeps missing sugars, sat fat and salt missing instead of turning them into 0', () => {
+    const scaled = scaleNutriments(per100, 100)
+    expect(scaled.sugarsG).toBeNull()
+    expect(scaled.satFatG).toBeNull()
+    expect(scaled.saltG).toBeNull()
   })
 })
 

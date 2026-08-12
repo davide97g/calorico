@@ -80,9 +80,21 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
         acc.carbsG += e.carbsG
         acc.fatG += e.fatG
         acc.fiberG += e.fiberG ?? 0
+        acc.sugarsG += e.sugarsG ?? 0
+        acc.satFatG += e.satFatG ?? 0
+        acc.saltG += e.saltG ?? 0
         return acc
       },
-      { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 },
+      {
+        kcal: 0,
+        proteinG: 0,
+        carbsG: 0,
+        fatG: 0,
+        fiberG: 0,
+        sugarsG: 0,
+        satFatG: 0,
+        saltG: 0,
+      },
     )
 
     const byMeal = {
@@ -102,6 +114,9 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
         carbsG: Math.round(totals.carbsG * 10) / 10,
         fatG: Math.round(totals.fatG * 10) / 10,
         fiberG: Math.round(totals.fiberG * 10) / 10,
+        sugarsG: Math.round(totals.sugarsG * 10) / 10,
+        satFatG: Math.round(totals.satFatG * 10) / 10,
+        saltG: Math.round(totals.saltG * 10) / 10,
       },
       targets: profile
         ? {
@@ -244,6 +259,18 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
           existing.fiberG == null
             ? null
             : (existing.fiberG / existing.quantityG) * 100,
+        sugars100:
+          existing.sugarsG == null
+            ? null
+            : (existing.sugarsG / existing.quantityG) * 100,
+        satFat100:
+          existing.satFatG == null
+            ? null
+            : (existing.satFatG / existing.quantityG) * 100,
+        salt100:
+          existing.saltG == null
+            ? null
+            : (existing.saltG / existing.quantityG) * 100,
       }
       macros = scaleNutriments(per100, body.quantityG)
     }
@@ -308,6 +335,9 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
         carbsG: e.carbsG,
         fatG: e.fatG,
         fiberG: e.fiberG,
+        sugarsG: e.sugarsG,
+        satFatG: e.satFatG,
+        saltG: e.saltG,
       })),
     )
 

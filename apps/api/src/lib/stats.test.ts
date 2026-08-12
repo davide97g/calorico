@@ -34,6 +34,9 @@ const day = (
   carbsG: kcal / 8,
   fatG: kcal / 20,
   fiberG: 2,
+  sugarsG: 8,
+  satFatG: 3,
+  saltG: 1.2,
   entries,
 })
 
@@ -66,6 +69,9 @@ describe('bucketPeriods', () => {
     expect(bucket.loggedDays).toBe(2)
     expect(bucket.avgKcal).toBe(1900)
     expect(bucket.totalKcal).toBe(3800)
+    expect(bucket.avgSugarsG).toBe(8)
+    expect(bucket.avgSatFatG).toBe(3)
+    expect(bucket.avgSaltG).toBe(1.2)
   })
 
   it('keeps the bucket key even when the range starts mid-bucket', () => {

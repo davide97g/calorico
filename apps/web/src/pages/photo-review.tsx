@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { WhenBar } from '@/components/food/when-picker'
 import { useAddEntries } from '@/hooks/use-diary'
+import { useCreateMeal } from '@/hooks/use-meals'
 import { ApiError } from '@/lib/api'
 import { isFutureDay, labelForDay, todayISO } from '@/lib/date'
 import { currentMeal, kcal as fmtKcal, MEAL_LABELS } from '@/lib/format'
@@ -80,6 +81,11 @@ export default function PhotoReviewPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const addEntries = useAddEntries()
+  const createMeal = useCreateMeal()
+  const [remember, setRemember] = useState(false)
+  const [plateName, setPlateName] = useState(
+    () => MEAL_LABELS[(params.get('meal') as Meal | null) ?? currentMeal()],
+  )
 
   const [when, setWhen] = useState<When>({
     day: params.get('day') ?? todayISO(),
@@ -134,7 +140,21 @@ export default function PhotoReviewPage() {
     addEntries.mutate(
       { day: when.day, meal: when.meal, items },
       {
-        onSuccess: () => {
+        onSuccess: (res) => {
+          if (remember) {
+            const mealItems = res.entries.flatMap((e) =>
+              e.foodId
+                ? [{ foodId: e.foodId, quantityG: e.quantityG }]
+                : [],
+            )
+            if (mealItems.length > 0) {
+              createMeal.mutate({
+                name: plateName.trim() || MEAL_LABELS[when.meal],
+                meal: when.meal,
+                items: mealItems,
+              })
+            }
+          }
           toast.success(
             isFutureDay(when.day)
               ? `${items.length} alimenti pianificati: ${labelForDay(when.day).toLowerCase()} · ${MEAL_LABELS[when.meal]}`
@@ -346,6 +366,24 @@ export default function PhotoReviewPage() {
               : `${unresolved.length} voci non hanno dati nutrizionali: scegli un alimento oppure rimuovile.`}
           </p>
         )}
+        <label className="mb-2 flex items-center gap-2 px-1">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="accent-primary size-4 rounded"
+          />
+          <span className="text-sm font-medium">Ricorda questo pasto</span>
+        </label>
+        {remember ? (
+          <Input
+            value={plateName}
+            onChange={(e) => setPlateName(e.target.value)}
+            placeholder={MEAL_LABELS[when.meal]}
+            className="mb-2 h-11 rounded-md"
+            aria-label="Nome del piatto"
+          />
+        ) : null}
         <Button
           className="shadow-float h-13 w-full rounded-full text-base font-semibold"
           onClick={handleSave}

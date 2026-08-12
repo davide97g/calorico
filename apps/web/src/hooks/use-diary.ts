@@ -292,8 +292,20 @@ export function useDeleteEntry() {
               carbsG: acc.carbsG + e.carbsG,
               fatG: acc.fatG + e.fatG,
               fiberG: acc.fiberG + (e.fiberG ?? 0),
+              sugarsG: acc.sugarsG + (e.sugarsG ?? 0),
+              satFatG: acc.satFatG + (e.satFatG ?? 0),
+              saltG: acc.saltG + (e.saltG ?? 0),
             }),
-            { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 },
+            {
+              kcal: 0,
+              proteinG: 0,
+              carbsG: 0,
+              fatG: 0,
+              fiberG: 0,
+              sugarsG: 0,
+              satFatG: 0,
+              saltG: 0,
+            },
           ),
         })
       }

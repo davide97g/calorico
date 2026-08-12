@@ -40,6 +40,9 @@ type DailyRow = {
   carbs_g: number
   fat_g: number
   fiber_g: number
+  sugars_g: number
+  sat_fat_g: number
+  salt_g: number
   entries: number
 } & Record<string, unknown>
 
@@ -52,6 +55,9 @@ type MealRow = {
   carbs_g: number
   fat_g: number
   fiber_g: number
+  sugars_g: number
+  sat_fat_g: number
+  salt_g: number
   entries: number
 } & Record<string, unknown>
 
@@ -112,6 +118,9 @@ function dailyRows(userId: string, from: string, to: string) {
       coalesce(sum(e.carbs_g), 0)::float as carbs_g,
       coalesce(sum(e.fat_g), 0)::float as fat_g,
       coalesce(sum(e.fiber_g), 0)::float as fiber_g,
+      coalesce(sum(e.sugars_g), 0)::float as sugars_g,
+      coalesce(sum(e.sat_fat_g), 0)::float as sat_fat_g,
+      coalesce(sum(e.salt_g), 0)::float as salt_g,
       count(e.id)::int as entries
     from generate_series(${from}::date, ${to}::date, interval '1 day') as d(day)
     left join diary_entries e
@@ -144,6 +153,9 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
       carbsG: round1(r.carbs_g),
       fatG: round1(r.fat_g),
       fiberG: round1(r.fiber_g),
+      sugarsG: round1(r.sugars_g),
+      satFatG: round1(r.sat_fat_g),
+      saltG: round1(r.salt_g),
       entries: r.entries,
     }))
 
@@ -192,6 +204,9 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
           coalesce(sum(e.carbs_g), 0)::float as carbs_g,
           coalesce(sum(e.fat_g), 0)::float as fat_g,
           coalesce(sum(e.fiber_g), 0)::float as fiber_g,
+          coalesce(sum(e.sugars_g), 0)::float as sugars_g,
+          coalesce(sum(e.sat_fat_g), 0)::float as sat_fat_g,
+          coalesce(sum(e.salt_g), 0)::float as salt_g,
           count(*)::int as entries
         from diary_entries e
         where e.user_id = ${userId} and e.day = ${target}::date
@@ -274,6 +289,9 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
         carbsG: round1(sum((m) => m.carbs_g)),
         fatG: round1(sum((m) => m.fat_g)),
         fiberG: round1(sum((m) => m.fiber_g)),
+        sugarsG: round1(sum((m) => m.sugars_g)),
+        satFatG: round1(sum((m) => m.sat_fat_g)),
+        saltG: round1(sum((m) => m.salt_g)),
         entries: sum((m) => m.entries),
       },
       byMeal: mealShares(
@@ -337,6 +355,9 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
           coalesce(sum(e.carbs_g), 0)::float as carbs_g,
           coalesce(sum(e.fat_g), 0)::float as fat_g,
           coalesce(sum(e.fiber_g), 0)::float as fiber_g,
+          coalesce(sum(e.sugars_g), 0)::float as sugars_g,
+          coalesce(sum(e.sat_fat_g), 0)::float as sat_fat_g,
+          coalesce(sum(e.salt_g), 0)::float as salt_g,
           count(e.id)::int as entries
         from generate_series(${from}::date, ${to}::date, interval '1 day') as d(day)
         left join diary_entries e
@@ -362,6 +383,9 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
         carbsG: r.carbs_g,
         fatG: r.fat_g,
         fiberG: r.fiber_g,
+        sugarsG: r.sugars_g,
+        satFatG: r.sat_fat_g,
+        saltG: r.salt_g,
         entries: r.entries,
       }),
     )

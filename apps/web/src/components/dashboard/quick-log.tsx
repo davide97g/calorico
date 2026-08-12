@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 import { Loader2, RotateCcw } from 'lucide-react'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
+import { SavedMealChip } from '@/components/food/saved-meal-row'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRecentFoods } from '@/hooks/use-diary'
+import { useLogMeal, useSavedMeals } from '@/hooks/use-meals'
 import { useQuickLog } from '@/hooks/use-quick-log'
 import { rememberedPortion } from '@/lib/portion'
 import { MEAL_LABELS, currentMeal, grams, kcal } from '@/lib/format'
@@ -11,6 +13,7 @@ import type { RecentFood } from '@/lib/types'
 
 /** Enough to cover a normal week of habits without becoming a second search. */
 const SHOWN = 10
+const PIATTI = 5
 
 /**
  * The warm path onto the dashboard: the foods this user actually eats, each with
@@ -23,13 +26,18 @@ const SHOWN = 10
 export function QuickLog({ day }: { day: string }) {
   const meal = currentMeal()
   const { data, isLoading } = useRecentFoods(meal)
+  const piatti = useSavedMeals(meal)
   const { log, loggingFoodId } = useQuickLog()
+  const logMeal = useLogMeal()
 
   const items = data?.items.slice(0, SHOWN) ?? []
+  const saved =
+    piatti.data?.items.filter((p) => p.meal === meal).slice(0, PIATTI) ?? []
 
   // Nothing logged yet: the strip has nothing to remember, and an empty rail
   // teaching the feature would push the diary further down the screen.
-  if (!isLoading && items.length === 0) return null
+  if (!isLoading && !piatti.isLoading && items.length === 0 && saved.length === 0)
+    return null
 
   return (
     <section>
@@ -47,25 +55,37 @@ export function QuickLog({ day }: { day: string }) {
       </header>
 
       <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {isLoading
+        {isLoading || piatti.isLoading
           ? Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-[60px] w-[10.5rem] shrink-0 rounded-lg" />
             ))
-          : items.map((food) => (
-              <QuickLogChip
-                key={food.id}
-                food={food}
-                busy={loggingFoodId === food.id}
-                onLog={() =>
-                  log({
-                    food,
-                    quantityG: rememberedPortion(food).grams,
-                    day,
-                    meal,
-                  })
-                }
-              />
-            ))}
+          : (
+            <>
+              {saved.map((plate) => (
+                <SavedMealChip
+                  key={plate.id}
+                  meal={plate}
+                  busy={logMeal.isPending && logMeal.variables?.id === plate.id}
+                  onLog={() => logMeal.mutate({ id: plate.id, day, meal })}
+                />
+              ))}
+              {items.map((food) => (
+                <QuickLogChip
+                  key={food.id}
+                  food={food}
+                  busy={loggingFoodId === food.id}
+                  onLog={() =>
+                    log({
+                      food,
+                      quantityG: rememberedPortion(food).grams,
+                      day,
+                      meal,
+                    })
+                  }
+                />
+              ))}
+            </>
+          )}
       </div>
     </section>
   )

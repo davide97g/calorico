@@ -147,6 +147,18 @@ export default function TodayPage() {
               total={totals.kcal}
               onDelete={handleDelete}
               onCopyYesterday={handleCopyYesterday}
+              onCopyMeal={(meal) =>
+                copyDay.mutate(
+                  { from: addDaysISO(day, -1), to: day, meal },
+                  {
+                    onSuccess: (res) =>
+                      res.copied > 0
+                        ? toast.success(`${res.copied} voci copiate`)
+                        : toast.info('Quel pasto ieri era vuoto'),
+                    onError: () => toast.error('Copia non riuscita'),
+                  },
+                )
+              }
               copying={copyDay.isPending}
             />
 

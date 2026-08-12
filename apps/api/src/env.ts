@@ -142,6 +142,11 @@ const schema = z.object({
    */
   MAX_REMINDERS_PER_USER: z.coerce.number().int().min(1).max(50).default(12),
   /**
+   * How many named plates one account may keep. Generous for a person who
+   * repeats a dozen breakfasts and lunches; closed for a script.
+   */
+  MAX_MEALS_PER_USER: z.coerce.number().int().min(1).max(100).default(40),
+  /**
    * How late a reminder may still go out. It covers a restart, a deploy or a
    * clock that drifted across the minute the reminder was due; past it the
    * notification is stale enough to be noise and is dropped for the day.

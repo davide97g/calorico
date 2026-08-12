@@ -342,6 +342,9 @@ export const diaryEntries = pgTable(
     carbsG: real('carbs_g').notNull().default(0),
     fatG: real('fat_g').notNull().default(0),
     fiberG: real('fiber_g'),
+    sugarsG: real('sugars_g'),
+    satFatG: real('sat_fat_g'),
+    saltG: real('salt_g'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -625,6 +628,48 @@ export const reminders = pgTable(
   ],
 )
 
+/**
+ * A named plate this user logs as one tap: breakfast-as-usual, the lunch they
+ * cook on Tuesdays. Logging it writes one diary row per ingredient — entries
+ * stay editable and top-foods still work. The `meal` column is the default
+ * slot for ranking, not a lock: logging onto dinner still lands on dinner.
+ */
+export const meals = pgTable(
+  'meals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    meal: mealEnum('meal').notNull().default('snack'),
+    lastLoggedAt: timestamp('last_logged_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('meals_user_idx').on(t.userId, t.lastLoggedAt)],
+)
+
+export const mealItems = pgTable(
+  'meal_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    mealId: uuid('meal_id')
+      .notNull()
+      .references(() => meals.id, { onDelete: 'cascade' }),
+    foodId: uuid('food_id')
+      .notNull()
+      .references(() => foods.id, { onDelete: 'cascade' }),
+    quantityG: real('quantity_g').notNull(),
+    sort: integer('sort').notNull().default(0),
+  },
+  (t) => [index('meal_items_meal_idx').on(t.mealId, t.sort)],
+)
+
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(profiles, {
     fields: [users.id],
@@ -637,6 +682,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   scans: many(scanEvents),
   reminders: many(reminders),
   pushSubscriptions: many(pushSubscriptions),
+  meals: many(meals),
 }))
 
 export const remindersRelations = relations(reminders, ({ one }) => ({
@@ -700,6 +746,25 @@ export const diaryEntriesRelations = relations(diaryEntries, ({ one }) => ({
   }),
 }))
 
+export const mealsRelations = relations(meals, ({ one, many }) => ({
+  user: one(users, {
+    fields: [meals.userId],
+    references: [users.id],
+  }),
+  items: many(mealItems),
+}))
+
+export const mealItemsRelations = relations(mealItems, ({ one }) => ({
+  meal: one(meals, {
+    fields: [mealItems.mealId],
+    references: [meals.id],
+  }),
+  food: one(foods, {
+    fields: [mealItems.foodId],
+    references: [foods.id],
+  }),
+}))
+
 export const groceryItemsRelations = relations(groceryItems, ({ one }) => ({
   food: one(foods, {
     fields: [groceryItems.foodId],
@@ -734,3 +799,5 @@ export type Reminder = typeof reminders.$inferSelect
 export type NewReminder = typeof reminders.$inferInsert
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect
 export type AppRelease = typeof appReleases.$inferSelect
+export type SavedMeal = typeof meals.$inferSelect
+export type MealItem = typeof mealItems.$inferSelect

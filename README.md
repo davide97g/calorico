@@ -44,7 +44,7 @@ Food data comes from two sources:
 - Meal photos: one shot becomes food + estimated quantity per item, reviewed and
   corrected before it reaches the diary — capped per account, see
   [Meal photos](#meal-photos) and [Premium](#premium)
-- Custom foods, favourites, recent foods, copy-a-previous-day
+- Custom foods, favourites, recent foods, saved plates, copy-a-previous-day
 - One emoji per food in every list and grouped view, guessed from the name; real
   product photos appear only on the detail pages, under **Foto** — packshot,
   ingredients and nutrition-label shots (see [Photos](#photos))
@@ -234,8 +234,8 @@ three copies of one screen:
 
 | Tab | Reads | What it answers |
 | --- | --- | --- |
-| **Giorno** | `GET /api/stats/day?day=`, `GET /api/stats/daily` | The detailed one. Meal split, macros against target, the five foods that carried the day, and the day's total against **yesterday**, against the **last 7 days** and against **that weekday's usual cost** |
-| **Settimana** | `GET /api/stats/periods?unit=week`, `GET /api/stats/breakdown` | Eight weeks side by side, the selected one broken into its seven tappable days, days-in-band, macro averages, the weekday pattern and the weight it moved |
+| **Giorno** | `GET /api/stats/day?day=`, `GET /api/stats/daily` | The detailed one. Meal split, macros against target, fibre / sugars / sat fat / salt, the five foods that carried the day, and the day's total against **yesterday**, against the **last 7 days** and against **that weekday's usual cost** |
+| **Settimana** | `GET /api/stats/periods?unit=week`, `GET /api/stats/breakdown` | Eight weeks side by side, the selected one broken into its seven tappable days, days-in-band, macro averages plus fibre / sugars / sat fat / salt, the weekday pattern and the weight it moved |
 | **Mese** | `GET /api/stats/periods?unit=month`, `GET /api/stats/breakdown` | Smoothed on purpose: six monthly averages, coverage, adherence, recap and top foods. By then the question is not "which day" but "was this month better" |
 
 Three rules run through all of it:
@@ -729,6 +729,7 @@ Worth knowing:
 | `VAPID_PRIVATE_KEY` | —                           | Required together with the public key         |
 | `VAPID_SUBJECT`   | —                              | Contact for the push services: `mailto:` or an https URL |
 | `MAX_REMINDERS_PER_USER` | `12`                    | Reminders one account may keep                |
+| `MAX_MEALS_PER_USER` | `40`                    | Named plates one account may keep             |
 | `REMINDER_GRACE_MINUTES` | `10`                    | How late a reminder may still be delivered    |
 | `WEB_ORIGIN`      | —                              | Internal URL of the web container (`http://web`); where the API reads `/version.json` to notify devices of a new build. Unset switches release notices off |
 | `RELEASE_NOTICE_DELAY_MINUTES` | `10`              | How long a new build waits before its notice goes out |

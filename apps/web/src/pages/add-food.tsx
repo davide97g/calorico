@@ -5,10 +5,12 @@ import {
   Camera,
   Clock,
   Loader2,
+  MoreHorizontal,
   PlusCircle,
   ScanBarcode,
   Search,
   Star,
+  Utensils,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
@@ -16,6 +18,7 @@ import { FoodRow } from '@/components/food/food-row'
 import { HistoryBadge } from '@/components/food/history-badge'
 import { BarcodeScanner } from '@/components/food/barcode-scanner'
 import { PhotoMealSheet } from '@/components/food/photo-meal-sheet'
+import { SavedMealListRow } from '@/components/food/saved-meal-row'
 import { WhenBar } from '@/components/food/when-picker'
 import { Panel } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
@@ -23,12 +26,31 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   useBarcodeLookup,
   useFavoriteFoods,
   useFoodSearch,
   useRecentFoods,
   useVisionStatus,
 } from '@/hooks/use-diary'
+import {
+  useDeleteMeal,
+  useLogMeal,
+  useSavedMeals,
+  useUpdateMeal,
+} from '@/hooks/use-meals'
 import { useGroceryOffer } from '@/hooks/use-grocery'
 import { ApiError } from '@/lib/api'
 import { todayISO } from '@/lib/date'
@@ -80,6 +102,13 @@ export default function AddFoodPage() {
    */
   const recent = useRecentFoods(meal, 'all')
   const favorites = useFavoriteFoods()
+  const piatti = useSavedMeals(meal)
+  const logMeal = useLogMeal()
+  const deleteMeal = useDeleteMeal()
+  const updateMeal = useUpdateMeal()
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(
+    null,
+  )
   const barcode = useBarcodeLookup()
   const offerGrocery = useGroceryOffer()
 
@@ -215,6 +244,13 @@ export default function AddFoodPage() {
               <Star className="size-3.5" />
               Preferiti
             </TabsTrigger>
+            <TabsTrigger
+              value="piatti"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full text-xs data-[state=active]:shadow-none"
+            >
+              <Utensils className="size-3.5" />
+              Piatti
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="recent">
@@ -246,6 +282,73 @@ export default function AddFoodPage() {
               empty="Segna un alimento con la stella per ritrovarlo qui."
               linkFor={(food) => foodLink(food.id)}
             />
+          </TabsContent>
+          <TabsContent value="piatti">
+            {piatti.isLoading ? (
+              <Panel className="mt-2 flex flex-col gap-2 p-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 rounded-md" />
+                ))}
+              </Panel>
+            ) : !piatti.data?.items.length ? (
+              <Panel className="mt-2 p-6">
+                <p className="text-muted-foreground text-center text-sm">
+                  Salva una colazione o un pranzo dal diario: lo ritrovi qui in
+                  un tap.
+                </p>
+              </Panel>
+            ) : (
+              <Panel className="mt-2 p-2">
+                <ul>
+                  {piatti.data.items.map((plate) => (
+                    <li key={plate.id}>
+                      <SavedMealListRow
+                        meal={plate}
+                        busy={
+                          logMeal.isPending && logMeal.variables?.id === plate.id
+                        }
+                        onLog={() =>
+                          logMeal.mutate({ id: plate.id, day, meal })
+                        }
+                        trailing={
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full"
+                                aria-label={`Opzioni per ${plate.name}`}
+                              >
+                                <MoreHorizontal className="size-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setRenaming({ id: plate.id, name: plate.name })
+                                }
+                              >
+                                Rinomina
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() =>
+                                  deleteMeal.mutate(plate.id, {
+                                    onSuccess: () =>
+                                      toast.success('Piatto rimosso'),
+                                  })
+                                }
+                              >
+                                Elimina
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+            )}
           </TabsContent>
         </Tabs>
       )}
@@ -288,6 +391,49 @@ export default function AddFoodPage() {
           meal={meal}
         />
       ) : null}
+
+      <Dialog
+        open={renaming != null}
+        onOpenChange={(open) => {
+          if (!open) setRenaming(null)
+        }}
+      >
+        <DialogContent className="max-w-sm rounded-xl">
+          <DialogHeader>
+            <DialogTitle>Rinomina piatto</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={renaming?.name ?? ''}
+            onChange={(e) =>
+              setRenaming((current) =>
+                current ? { ...current, name: e.target.value } : current,
+              )
+            }
+            className="h-12 rounded-md"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button
+              className="h-12 w-full rounded-full font-semibold"
+              disabled={!renaming?.name.trim() || updateMeal.isPending}
+              onClick={() => {
+                if (!renaming?.name.trim()) return
+                updateMeal.mutate(
+                  { id: renaming.id, name: renaming.name.trim() },
+                  {
+                    onSuccess: () => {
+                      toast.success('Piatto rinominato')
+                      setRenaming(null)
+                    },
+                  },
+                )
+              }}
+            >
+              Salva
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   )
 }

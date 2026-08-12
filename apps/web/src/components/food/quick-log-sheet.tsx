@@ -14,12 +14,14 @@ import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { ScanSheet } from '@/components/food/scan-sheet'
 import { WhenBar } from '@/components/food/when-picker'
 import { useRecentFoods } from '@/hooks/use-diary'
+import { useLogMeal, useSavedMeals } from '@/hooks/use-meals'
 import { useQuickLog } from '@/hooks/use-quick-log'
 import { todayISO } from '@/lib/date'
 import { rememberedPortion } from '@/lib/portion'
 import { currentMeal, grams, kcal } from '@/lib/format'
 import type { When } from '@/lib/when'
 import type { RecentFood } from '@/lib/types'
+import { SavedMealListRow } from '@/components/food/saved-meal-row'
 
 /**
  * The bar's primary action: log a food that has been logged before.
@@ -46,7 +48,9 @@ export function QuickLogSheet({
   const [logged, setLogged] = useState<string[]>([])
 
   const { data, isLoading } = useRecentFoods(when.meal)
+  const piatti = useSavedMeals(when.meal)
   const { log, loggingFoodId } = useQuickLog()
+  const logMeal = useLogMeal()
 
   // A sheet reopened an hour later is a new decision, not the old draft.
   useEffect(() => {
@@ -57,6 +61,7 @@ export function QuickLogSheet({
   }, [open])
 
   const items = data?.items ?? []
+  const saved = piatti.data?.items ?? []
 
   const handleLog = (food: RecentFood) => {
     log({
@@ -95,13 +100,30 @@ export function QuickLogSheet({
                   <Skeleton key={i} className="h-16 rounded-lg" />
                 ))}
               </div>
-            ) : items.length === 0 ? (
+            ) : items.length === 0 && saved.length === 0 ? (
               <p className="text-muted-foreground px-1 py-8 text-center text-sm">
                 Qui finiscono gli alimenti che registri, con la porzione che usi.
                 Cercane uno per iniziare.
               </p>
             ) : (
               <ul className="flex flex-col gap-1">
+                {saved.map((plate) => (
+                  <li key={plate.id}>
+                    <SavedMealListRow
+                      meal={plate}
+                      busy={
+                        logMeal.isPending && logMeal.variables?.id === plate.id
+                      }
+                      onLog={() => {
+                        logMeal.mutate({
+                          id: plate.id,
+                          day: when.day,
+                          meal: when.meal,
+                        })
+                      }}
+                    />
+                  </li>
+                ))}
                 {items.map((food) => (
                   <li key={food.id}>
                     <QuickLogRow

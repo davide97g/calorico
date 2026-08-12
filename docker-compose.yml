@@ -65,6 +65,7 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       MAX_REMINDERS_PER_USER: ${MAX_REMINDERS_PER_USER:-12}
+      MAX_MEALS_PER_USER: ${MAX_MEALS_PER_USER:-40}
       REMINDER_GRACE_MINUTES: ${REMINDER_GRACE_MINUTES:-10}
       # Where the API reads /version.json to spot a new deploy and notify the
       # devices still on the old build. The service name on the internal network,

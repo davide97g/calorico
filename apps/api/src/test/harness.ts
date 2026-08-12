@@ -15,6 +15,8 @@ const TABLES = [
   'grocery_items',
   'favorites',
   'food_touches',
+  'meal_items',
+  'meals',
   'diary_entries',
   'weight_logs',
   'food_images',

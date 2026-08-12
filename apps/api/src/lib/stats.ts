@@ -23,6 +23,9 @@ export interface StatsDay {
   carbsG: number
   fatG: number
   fiberG: number
+  sugarsG: number
+  satFatG: number
+  saltG: number
   entries: number
 }
 
@@ -70,6 +73,9 @@ export interface PeriodBucket {
   avgCarbsG: number
   avgFatG: number
   avgFiberG: number
+  avgSugarsG: number
+  avgSatFatG: number
+  avgSaltG: number
   /** Logged days inside / below / above the target band. */
   daysInRange: number
   daysUnder: number
@@ -163,6 +169,9 @@ export function bucketPeriods(
       avgCarbsG: r1(avg((d) => d.carbsG)),
       avgFatG: r1(avg((d) => d.fatG)),
       avgFiberG: r1(avg((d) => d.fiberG)),
+      avgSugarsG: r1(avg((d) => d.sugarsG)),
+      avgSatFatG: r1(avg((d) => d.satFatG)),
+      avgSaltG: r1(avg((d) => d.saltG)),
       daysInRange: band
         ? logged.filter((d) => d.kcal >= band.min && d.kcal <= band.max).length
         : 0,

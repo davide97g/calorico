@@ -304,11 +304,22 @@ export function PeriodReport({
                 value={`${grams(selected?.avgFiberG ?? 0)} g`}
               />
               <StatCell
-                label="Totale periodo"
-                value={`${kcal(selected?.totalKcal ?? 0)} kcal`}
-                hint={`${selected?.entries ?? 0} voci`}
+                label="Zuccheri / giorno"
+                value={`${grams(selected?.avgSugarsG ?? 0)} g`}
+              />
+              <StatCell
+                label="Saturi / giorno"
+                value={`${grams(selected?.avgSatFatG ?? 0)} g`}
+              />
+              <StatCell
+                label="Sale / giorno"
+                value={`${grams(selected?.avgSaltG ?? 0)} g`}
               />
             </dl>
+            <p className="text-muted-foreground mt-2 text-micro">
+              Totale periodo {kcal(selected?.totalKcal ?? 0)} kcal ·{' '}
+              {selected?.entries ?? 0} voci
+            </p>
           </Panel>
 
           <Panel>

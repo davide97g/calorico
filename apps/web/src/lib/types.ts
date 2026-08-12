@@ -149,6 +149,9 @@ export interface DiaryEntry {
   carbsG: number
   fatG: number
   fiberG: number | null
+  sugarsG: number | null
+  satFatG: number | null
+  saltG: number | null
   imageUrl?: string | null
   unit?: string
   servingSizeG?: number | null
@@ -160,6 +163,9 @@ export interface Totals {
   carbsG: number
   fatG: number
   fiberG: number
+  sugarsG: number
+  satFatG: number
+  saltG: number
 }
 
 export interface DayTargets {
@@ -272,6 +278,9 @@ export interface PeriodBucket {
   avgCarbsG: number
   avgFatG: number
   avgFiberG: number
+  avgSugarsG: number
+  avgSatFatG: number
+  avgSaltG: number
   daysInRange: number
   daysUnder: number
   daysOver: number
@@ -460,6 +469,9 @@ export interface Nutrients100 {
   carbs100: number
   fat100: number
   fiber100: number | null
+  sugars100?: number | null
+  satFat100?: number | null
+  salt100?: number | null
 }
 
 /** One food the photo analysis found, with catalogue candidates attached. */
@@ -493,12 +505,41 @@ export interface NewFoodInput {
   carbs100: number
   fat100: number
   fiber100?: number
+  sugars100?: number
+  satFat100?: number
+  salt100?: number
   isLiquid: boolean
 }
 
 export type BatchEntryInput =
   | { foodId: string; quantityG: number }
   | { newFood: NewFoodInput; quantityG: number }
+
+/** One ingredient of a saved plate, as GET /meals returns it. */
+export interface SavedMealItem {
+  id: string
+  foodId: string
+  quantityG: number
+  sort: number
+  name: string
+  brand: string | null
+  unit: string
+  category: string | null
+  imageUrl: string | null
+  kcal100: number
+}
+
+/** A named plate this user logs as one tap. */
+export interface SavedMeal {
+  id: string
+  name: string
+  meal: Meal
+  lastLoggedAt: string | null
+  createdAt: string
+  updatedAt: string
+  kcal: number
+  items: SavedMealItem[]
+}
 
 export type ReminderKind = 'meal' | 'review' | 'weight' | 'custom'
 

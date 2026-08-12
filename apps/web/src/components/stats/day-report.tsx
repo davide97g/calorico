@@ -240,15 +240,21 @@ export function DayReport({ day, onSelectDay }: DayReportProps) {
                 />
               </div>
             </div>
-            <dl className="mt-4 grid grid-cols-3 gap-2">
+            <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <StatCell label="Fibre" value={`${grams(totals?.fiberG ?? 0)} g`} />
-              <StatCell label="Voci" value={totals?.entries ?? 0} />
               <StatCell
-                label="Ripartizione"
-                value={`${splitLabel(totals)}`}
-                hint="C/G/P sulle kcal"
+                label="Zuccheri"
+                value={`${grams(totals?.sugarsG ?? 0)} g`}
               />
+              <StatCell
+                label="Saturi"
+                value={`${grams(totals?.satFatG ?? 0)} g`}
+              />
+              <StatCell label="Sale" value={`${grams(totals?.saltG ?? 0)} g`} />
             </dl>
+            <p className="text-muted-foreground mt-2 text-micro">
+              Ripartizione C/G/P: {splitLabel(totals)}
+            </p>
           </Panel>
 
           <Panel>

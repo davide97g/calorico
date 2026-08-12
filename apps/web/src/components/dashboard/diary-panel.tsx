@@ -1,10 +1,12 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { CopyPlus, Plus, Trash2 } from 'lucide-react'
+import { BookmarkPlus, CopyPlus, Plus, Trash2 } from 'lucide-react'
 import { Panel } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
+import { SaveMealDialog } from '@/components/food/save-meal-dialog'
 import { MEAL_ACCENT, MEAL_ICON } from '@/components/food/meal-icon'
+import { mealItemsFromEntries } from '@/hooks/use-meals'
 import { MEAL_LABELS, MEAL_ORDER, grams, kcal } from '@/lib/format'
 import { isFutureDay } from '@/lib/date'
 import { cn } from '@/lib/utils'
@@ -17,6 +19,8 @@ interface DiaryPanelProps {
   onDelete: (entry: DiaryEntry) => void
   /** Offered inside the panel, but only while the day is still empty. */
   onCopyYesterday: () => void
+  /** Copies one meal from yesterday onto this day. */
+  onCopyMeal: (meal: Meal) => void
   copying?: boolean
 }
 
@@ -31,6 +35,7 @@ export function DiaryPanel({
   total,
   onDelete,
   onCopyYesterday,
+  onCopyMeal,
   copying,
 }: DiaryPanelProps) {
   const empty = MEAL_ORDER.every((meal) => !byMeal[meal]?.length)
@@ -56,6 +61,8 @@ export function DiaryPanel({
             day={day}
             entries={byMeal[meal] ?? []}
             onDelete={onDelete}
+            onCopyMeal={empty ? undefined : onCopyMeal}
+            copying={copying}
           />
         ))}
 
@@ -83,14 +90,20 @@ function MealGroup({
   day,
   entries,
   onDelete,
+  onCopyMeal,
+  copying,
 }: {
   meal: Meal
   day: string
   entries: DiaryEntry[]
   onDelete: (entry: DiaryEntry) => void
+  onCopyMeal?: (meal: Meal) => void
+  copying?: boolean
 }) {
   const Icon = MEAL_ICON[meal]
   const total = entries.reduce((sum, e) => sum + e.kcal, 0)
+  const [saving, setSaving] = useState(false)
+  const saveItems = mealItemsFromEntries(entries)
 
   return (
     <div
@@ -120,6 +133,16 @@ function MealGroup({
         <span className="tabular text-muted-foreground ml-auto text-micro font-medium">
           {kcal(total)} kcal
         </span>
+        {saveItems.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setSaving(true)}
+            className="hover:bg-secondary active:bg-secondary text-muted-foreground flex size-11 shrink-0 items-center justify-center rounded-full transition-colors"
+            aria-label={`Salva ${MEAL_LABELS[meal]} come piatto`}
+          >
+            <BookmarkPlus className="size-4" strokeWidth={2.4} />
+          </button>
+        ) : null}
         <Link
           to={`/add?meal=${meal}&day=${day}`}
           className="hover:bg-secondary active:bg-secondary text-muted-foreground flex size-11 shrink-0 items-center justify-center rounded-full transition-colors"
@@ -167,7 +190,25 @@ function MealGroup({
             </li>
           ))}
         </ul>
+      ) : onCopyMeal ? (
+        <button
+          type="button"
+          onClick={() => onCopyMeal(meal)}
+          disabled={copying}
+          className="text-muted-foreground hover:bg-secondary/60 active:bg-secondary mx-1 mb-1 flex h-9 w-[calc(100%-0.5rem)] items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-colors"
+        >
+          <CopyPlus className="size-3.5" strokeWidth={2.4} />
+          Copia da ieri
+        </button>
       ) : null}
+
+      <SaveMealDialog
+        open={saving}
+        onOpenChange={setSaving}
+        meal={meal}
+        items={saveItems}
+        defaultName={MEAL_LABELS[meal]}
+      />
     </div>
   )
 }
