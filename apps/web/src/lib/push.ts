@@ -135,39 +135,73 @@ export function requestPushPermission(): Promise<NotificationPermission> {
   })
 }
 
-/** How long to wait for a worker that is still installing on a first run. */
-const SW_WAIT_MS = 5_000
+/** How long to wait for a worker to finish installing. */
+const SW_WAIT_MS = 8_000
+
+/** The generated worker, same URL initPwa registers. See lib/pwa.ts. */
+const SW_URL = '/sw.js'
 
 /**
- * The registration, with an active worker, waited for rather than demanded.
+ * The registration, with an active worker — registered here if there is none.
  *
- * `navigator.serviceWorker.ready` never resolves when no worker was ever
- * registered — which is exactly the dev build, where vite-plugin-pwa is off. So
- * it is raced against a timeout: that covers the first run, where initPwa
- * registers on load and the user can reach this screen before it finished,
- * without hanging forever where there is nothing to wait for.
+ * Waiting for a worker to appear is not enough. iOS discards the service worker
+ * registration of a home-screen app that has not been opened for a while, and an
+ * app opened after a week has none until something registers it again: a tap that
+ * only waits reports "notifications are not available in this version", which is
+ * both wrong and a dead end. So this registers on the spot. initPwa does it on
+ * load as well; `register` on an existing registration is a no-op, so the two
+ * cannot fight.
  *
- * A registration without an active worker is not good enough to ask about push:
- * `pushManager` answers from the worker, and on an iOS cold start it reports no
- * subscription while the worker is still coming up. Believing that answer is
- * what makes an app re-subscribe on every launch.
+ * Then it waits for a worker to be *active*, because `pushManager` answers from
+ * the worker: on a cold start it reports no subscription while the worker is
+ * still coming up, and believing that answer is what makes an app subscribe all
+ * over again.
  */
 async function registration(): Promise<ServiceWorkerRegistration> {
+  if (!('serviceWorker' in navigator)) throw new PushError('no_service_worker')
+
   const existing = await navigator.serviceWorker.getRegistration('/')
   if (existing?.active) return existing
 
-  const ready = await Promise.race([
-    navigator.serviceWorker.ready,
-    new Promise<null>((resolve) => {
-      window.setTimeout(() => resolve(null), SW_WAIT_MS)
+  let reg = existing ?? null
+  if (!reg) {
+    try {
+      reg = await navigator.serviceWorker.register(SW_URL, { scope: '/' })
+    } catch {
+      // The worker could not be fetched or parsed: offline on a first run, or a
+      // deploy that never shipped it.
+      throw new PushError('no_service_worker')
+    }
+  }
+
+  if (await waitForActive(reg)) return reg
+  // Registered, but nothing has taken charge in time. Worth returning rather than
+  // refusing: pushManager fails with a reason of its own, and the alternative is
+  // blaming a build that is fine.
+  return reg
+}
+
+/** Whether a worker reached 'activated' for this registration, in time. */
+async function waitForActive(reg: ServiceWorkerRegistration): Promise<boolean> {
+  if (reg.active) return true
+
+  const pending = reg.installing ?? reg.waiting
+
+  return await Promise.race([
+    // Resolves once *some* worker controls this scope, which is the real answer.
+    navigator.serviceWorker.ready.then(() => true),
+    new Promise<boolean>((resolve) => {
+      if (!pending) return
+      pending.addEventListener('statechange', () => {
+        if (pending.state === 'activated') resolve(true)
+        // This candidate died; there is nothing left to wait for.
+        if (pending.state === 'redundant') resolve(false)
+      })
+    }),
+    new Promise<boolean>((resolve) => {
+      window.setTimeout(() => resolve(false), SW_WAIT_MS)
     }),
   ])
-
-  if (ready) return ready
-  // A registration that exists but never activated is still worth trying: it
-  // fails with a reason of its own rather than being reported as "no worker".
-  if (existing) return existing
-  throw new PushError('no_service_worker')
 }
 
 /** Extra looks at `getSubscription()` before believing a `null`. */
@@ -451,6 +485,13 @@ export interface PushDiagnostics {
   standalone: boolean
   /** A worker is registered for the origin, so a push has somewhere to land. */
   serviceWorker: boolean
+  /**
+   * Which worker the registration actually has, since "registered" and "able to
+   * receive a push" are not the same state: only an active one answers, and iOS
+   * discards the registration of an app left unopened, so this is the difference
+   * between a worker coming up and one that is not there at all.
+   */
+  serviceWorkerState: 'active' | 'installing' | 'waiting' | 'none'
   notificationApi: boolean
   pushApi: boolean
   permission: NotificationPermission
@@ -481,9 +522,14 @@ export async function pushDiagnostics(): Promise<PushDiagnostics> {
     typeof navigator !== 'undefined' && 'serviceWorker' in navigator
 
   let registered = false
+  let state: PushDiagnostics['serviceWorkerState'] = 'none'
   if (hasServiceWorker) {
     try {
-      registered = Boolean(await navigator.serviceWorker.getRegistration('/'))
+      const reg = await navigator.serviceWorker.getRegistration('/')
+      registered = Boolean(reg)
+      if (reg?.active) state = 'active'
+      else if (reg?.installing) state = 'installing'
+      else if (reg?.waiting) state = 'waiting'
     } catch {
       registered = false
     }
@@ -496,6 +542,7 @@ export async function pushDiagnostics(): Promise<PushDiagnostics> {
     ios: isIos(),
     standalone: isStandalone(),
     serviceWorker: registered,
+    serviceWorkerState: state,
     notificationApi: 'Notification' in window,
     pushApi: 'PushManager' in window,
     permission: pushPermission(),

@@ -554,13 +554,19 @@ function DiagnosticsPanel({
                   : undefined
               }
             />
+            {/* Registered is not the same as able to receive: only an active
+                worker answers, and iOS drops the registration of an app left
+                unopened for days. The state is on screen because it is the
+                difference between "coming up" and "not there". */}
             <DiagnosticRow
-              label="Service worker registrato"
-              ok={diagnostics.serviceWorker}
+              label={`Service worker: ${serviceWorkerLabel[diagnostics.serviceWorkerState]}`}
+              ok={diagnostics.serviceWorkerState === 'active'}
               detail={
-                diagnostics.serviceWorker
+                diagnostics.serviceWorkerState === 'active'
                   ? undefined
-                  : 'Ricarica l’app: il worker si registra all’avvio.'
+                  : diagnostics.serviceWorkerState === 'none'
+                    ? 'Nessun worker registrato. Attivando le notifiche viene registrato subito; se non basta, chiudi e riapri l’app.'
+                    : 'Sta partendo: attendi qualche secondo e aggiorna.'
               }
             />
             <DiagnosticRow
@@ -630,6 +636,13 @@ function DiagnosticsPanel({
       ) : null}
     </Panel>
   )
+}
+
+const serviceWorkerLabel: Record<PushDiagnostics['serviceWorkerState'], string> = {
+  active: 'attivo',
+  installing: 'in installazione',
+  waiting: 'in attesa',
+  none: 'non registrato',
 }
 
 /**

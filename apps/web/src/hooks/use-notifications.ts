@@ -355,7 +355,10 @@ export function pushErrorMessage(error: unknown) {
     case 'needs_install':
       return 'Su iPhone e iPad aggiungi prima Calorico alla schermata Home: Safari consegna le notifiche solo all’app installata.'
     case 'no_service_worker':
-      return 'Le notifiche non sono disponibili in questa versione dell’app.'
+      // Never "not available in this version": the build is fine, the worker is
+      // not running yet. On iOS that happens to an app left unopened for days,
+      // and closing and reopening it is what fixes it.
+      return 'Il servizio di notifica non è ancora attivo. Chiudi e riapri Calorico dalla schermata Home, poi riprova.'
     default:
       return 'Non è stato possibile attivare le notifiche. Riprova.'
   }
