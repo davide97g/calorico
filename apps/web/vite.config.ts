@@ -152,9 +152,22 @@ export default defineConfig({
         // and shipping them inside the app's precache would mean a new deploy of
         // the privacy notice forcing every installed diary to re-download its
         // worker.
+        // Anything nginx does not serve at its own URL has to be left out, or
+        // the worker never installs at all: workbox fetches every precached
+        // entry during install and one failure rejects the whole thing. iOS then
+        // discards the registration, which reads as "no service worker" — no
+        // push, no offline shell, and nothing on screen to say why.
+        //
+        // 404.html is the one that bit: `location = /404.html { internal; }`
+        // makes it unreachable from outside on purpose, so precaching it broke
+        // every install. privacy.html and termini.html 301 to their canonical
+        // URLs, which is why they are here too. scripts/verify-precache.mjs
+        // checks the whole manifest against a deployment so this cannot ship
+        // quietly again.
         globIgnores: [
           '**/splash/**',
           'push-sw.js',
+          '404.html',
           'privacy.html',
           'termini.html',
           'marketing.css',
