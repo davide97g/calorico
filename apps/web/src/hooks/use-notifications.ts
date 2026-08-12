@@ -4,10 +4,9 @@ import { api } from '@/lib/api'
 import { BUILD_ID } from '@/lib/build'
 import {
   PushError,
-  currentSubscription,
-  pushPermission,
-  pushSupported,
-  subscribeToPush,
+  rememberEndpoint,
+  rememberedEndpoint,
+  resubscribeToPush,
   unsubscribeFromPush,
   type PushSubscriptionPayload,
 } from '@/lib/push'
@@ -20,16 +19,48 @@ import type {
 
 export const notificationKey = ['notifications'] as const
 
-export function useNotificationSettings() {
+export function useNotificationSettings({ enabled = true } = {}) {
   return useQuery({
     queryKey: notificationKey,
     queryFn: () => api<NotificationSettings>('/notifications'),
+    enabled,
   })
 }
 
 /** The browser's own zone, which is the only place the server can learn it. */
 function browserTimezone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Rome'
+}
+
+/**
+ * Hands a subscription to the server, and takes the one it replaces out.
+ *
+ * The endpoint is remembered locally afterwards because the browser can hand out
+ * a different one for the same device — iOS does it after some restarts — and
+ * the row behind the old endpoint would stay on the account as a device the
+ * scheduler tries forever and never reaches. The delete is best-effort: it is
+ * housekeeping, and failing it must not stop this device from registering.
+ */
+async function registerDevice(subscription: PushSubscriptionPayload) {
+  const previous = rememberedEndpoint()
+  if (previous && previous !== subscription.endpoint) {
+    await api('/notifications/subscribe', {
+      method: 'DELETE',
+      body: { endpoint: previous },
+    }).catch(() => {})
+  }
+
+  const result = await api<{ devices: number }>('/notifications/subscribe', {
+    method: 'POST',
+    body: {
+      ...subscription,
+      userAgent: navigator.userAgent,
+      buildId: BUILD_ID,
+    },
+  })
+
+  rememberEndpoint(subscription.endpoint)
+  return result
 }
 
 /**
@@ -49,14 +80,7 @@ export function useEnableNotifications() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (subscription: PushSubscriptionPayload) => {
-      await api('/notifications/subscribe', {
-        method: 'POST',
-        body: {
-          ...subscription,
-          userAgent: navigator.userAgent,
-          buildId: BUILD_ID,
-        },
-      })
+      await registerDevice(subscription)
       return api<{ enabled: boolean; timezone: string }>('/notifications', {
         method: 'PATCH',
         body: { enabled: true, timezone: browserTimezone() },
@@ -70,8 +94,12 @@ export function useEnableNotifications() {
 
 /**
  * Turns them off and unregisters this browser, rather than only flipping the
- * flag: a subscription left behind is a device that starts getting reminders
- * again the moment anything re-enables them.
+ * flag: a subscription left behind on the server is a device that starts getting
+ * reminders again the moment anything re-enables them.
+ *
+ * The browser's own subscription survives on iOS, where it is the permission —
+ * see `unsubscribeFromPush`. Turning reminders back on then costs a tap and no
+ * prompt.
  */
 export function useDisableNotifications() {
   const queryClient = useQueryClient()
@@ -84,6 +112,7 @@ export function useDisableNotifications() {
           body: { endpoint },
         }).catch(() => {})
       }
+      rememberEndpoint(null)
       return api('/notifications', {
         method: 'PATCH',
         body: { enabled: false },
@@ -116,70 +145,82 @@ export function useUpdateNotificationSettings() {
 export { browserTimezone }
 
 /**
- * Re-registers this browser when the account wants reminders but this device is
- * not subscribed — a browser may drop a subscription on its own, and the only
- * symptom is silence. Cheap enough to run every time the screen is opened.
+ * Takes this device off the account it is signed in to.
+ *
+ * Called on sign-out, while the token is still good: the endpoint belongs to the
+ * browser, not to the account, so a row left behind would send the next person to
+ * use this phone the previous one's reminders. The browser's own subscription is
+ * left alone — on iOS it is the permission (see push.ts), and the next account to
+ * sign in here reuses it without a prompt.
  */
-export function useRepairSubscription() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (publicKey: string) => {
-      if (!pushSupported() || pushPermission() !== 'granted') return false
-      if (await currentSubscription()) return false
-      const subscription = await subscribeToPush(publicKey)
-      await api('/notifications/subscribe', {
-        method: 'POST',
-        body: {
-          ...subscription,
-          userAgent: navigator.userAgent,
-          buildId: BUILD_ID,
-        },
-      })
-      return true
-    },
-    onSuccess: (repaired) => {
-      if (repaired) {
-        void queryClient.invalidateQueries({ queryKey: notificationKey })
-      }
-    },
-    // A repair that cannot run is not an error the user asked for.
-    onError: () => {},
-  })
+export async function unregisterDevice() {
+  const endpoint = rememberedEndpoint()
+  rememberEndpoint(null)
+  if (!endpoint) return
+  await api('/notifications/subscribe', {
+    method: 'DELETE',
+    body: { endpoint },
+  }).catch(() => {})
 }
 
 /**
- * One report per page load is enough, and the flag lives outside the hook so
+ * Which account this device has already synced for in this page session.
+ *
+ * One sync per account is enough, and the flag lives outside the hook so
  * StrictMode's double effect and a re-render cannot turn it into two requests.
+ * Keyed by user rather than a bare boolean: signing out and in as somebody else
+ * never reloads the page, and that second account has a device list of its own.
  */
-let buildReported = false
+let syncedFor: string | null = null
 
 /**
- * Tells the server which build this device is running.
+ * Keeps this device on the account's list, once per session, from anywhere in the
+ * app.
  *
- * That is what keeps the release notification honest: a phone that already
- * picked up the new worker on its own — the app was in the background, the
- * update applied silently — must not be told there is a new version. The server
- * only pushes to subscriptions whose last reported build is not the deployed
- * one, so the report is the difference between a useful notice and a nag.
+ * Two jobs, and they need the same subscription, so they are one request.
  *
- * Only meaningful for a browser that holds a push subscription; there is nothing
- * to record against otherwise. Failures are ignored: the next session reports
- * again, and at worst the device gets one notification it did not need.
+ * It re-registers a device that has fallen off — the browser dropped its
+ * subscription, or handed out a new endpoint — which used to be repaired only by
+ * opening the reminders screen. Nobody opens a settings screen to find out why
+ * nothing is arriving; they conclude the app is broken. And it reports the build
+ * this device runs, which is what keeps the release notification honest: the
+ * server only pushes "new version" to subscriptions whose last reported build is
+ * not the deployed one, so a phone that already updated itself in the background
+ * is not told about it.
+ *
+ * Nothing here can ask for permission — `resubscribeToPush` is the silent
+ * variant — so a session that starts with the permission never granted, or
+ * revoked by iOS, does nothing at all and leaves the tap on the reminders screen
+ * to do the asking.
  */
-export function useReportBuild(enabled: boolean) {
+export function useSyncDevice(userId: string | null) {
+  const queryClient = useQueryClient()
+  const settings = useNotificationSettings({ enabled: Boolean(userId) })
+  const armed = Boolean(settings.data?.enabled)
+  const publicKey = settings.data?.push.publicKey ?? null
+  const knownDevices = settings.data?.devices
+
   useEffect(() => {
-    if (!enabled || buildReported) return
-    buildReported = true
+    if (!userId || !armed || !publicKey) return
+    if (syncedFor === userId) return
+    syncedFor = userId
 
     void (async () => {
-      const subscription = await currentSubscription()
+      const subscription = await resubscribeToPush(publicKey)
+      // No subscription and no way to make one unattended: there is nothing to
+      // register the build against either.
       if (!subscription) return
-      await api('/notifications/version', {
-        method: 'POST',
-        body: { endpoint: subscription.endpoint, buildId: BUILD_ID },
-      }).catch(() => {})
+      // Failures are ignored: the next session tries again, and the worst case is
+      // one notification this device did not need.
+      const result = await registerDevice(subscription).catch(() => null)
+      // Only when the list actually moved — a settings screen open right now has
+      // to stop saying this device is missing, and every other session has no
+      // news worth a second request.
+      if (result && result.devices !== knownDevices) {
+        void queryClient.invalidateQueries({ queryKey: notificationKey })
+      }
     })()
-  }, [enabled])
+  }, [userId, armed, publicKey, knownDevices, queryClient])
 }
 
 export interface ReminderInput {

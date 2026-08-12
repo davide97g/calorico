@@ -6,13 +6,23 @@
  * every failure is a named code the settings screen can explain, never a thrown
  * Error with a message nobody reads.
  *
- * One rule shapes the whole file: **the permission prompt must be asked
- * straight out of the tap**. Safari only shows it while the user gesture is
- * still live, and it does not report the difference — a request made one await
- * too late resolves to 'default' with no prompt ever drawn, which looks exactly
- * like a broken app. So `subscribeToPush` asks for permission as its first
- * statement and the caller must call it directly from the event handler, never
- * from inside something that awaits first (a react-query `mutationFn` does).
+ * Two rules shape the whole file, both of them iOS's.
+ *
+ * **The permission prompt must be asked straight out of the tap.** Safari only
+ * shows it while the user gesture is still live, and it does not report the
+ * difference — a request made one await too late resolves to 'default' with no
+ * prompt ever drawn, which looks exactly like a broken app. So `subscribeToPush`
+ * asks for permission as its first statement and the caller must call it
+ * directly from the event handler, never from inside something that awaits first
+ * (a react-query `mutationFn` does). Everything that runs on its own — a repair
+ * on page load — goes through `resubscribeToPush`, which can never prompt.
+ *
+ * **On iOS the push subscription _is_ the permission.** WebKit stores the two
+ * together for an installed web app: drop the subscription and the app is back
+ * to "not asked", so the next time reminders are turned on the system prompt
+ * appears again. That is why turning notifications off leaves the iOS
+ * subscription alone (see `unsubscribeFromPush`) and why nothing here
+ * re-subscribes unless it has to.
  */
 
 export type PushFailure =
@@ -125,17 +135,22 @@ export function requestPushPermission(): Promise<NotificationPermission> {
 const SW_WAIT_MS = 5_000
 
 /**
- * The registration, waited for rather than demanded.
+ * The registration, with an active worker, waited for rather than demanded.
  *
  * `navigator.serviceWorker.ready` never resolves when no worker was ever
  * registered — which is exactly the dev build, where vite-plugin-pwa is off. So
  * it is raced against a timeout: that covers the first run, where initPwa
  * registers on load and the user can reach this screen before it finished,
  * without hanging forever where there is nothing to wait for.
+ *
+ * A registration without an active worker is not good enough to ask about push:
+ * `pushManager` answers from the worker, and on an iOS cold start it reports no
+ * subscription while the worker is still coming up. Believing that answer is
+ * what makes an app re-subscribe on every launch.
  */
 async function registration(): Promise<ServiceWorkerRegistration> {
   const existing = await navigator.serviceWorker.getRegistration('/')
-  if (existing) return existing
+  if (existing?.active) return existing
 
   const ready = await Promise.race([
     navigator.serviceWorker.ready,
@@ -144,17 +159,60 @@ async function registration(): Promise<ServiceWorkerRegistration> {
     }),
   ])
 
-  if (!ready) throw new PushError('no_service_worker')
-  return ready
+  if (ready) return ready
+  // A registration that exists but never activated is still worth trying: it
+  // fails with a reason of its own rather than being reported as "no worker".
+  if (existing) return existing
+  throw new PushError('no_service_worker')
 }
 
+/** Extra looks at `getSubscription()` before believing a `null`. */
+const SUBSCRIPTION_ATTEMPTS = 3
+const SUBSCRIPTION_RETRY_MS = 250
+
+/**
+ * This browser's subscription, or null.
+ *
+ * The retries are for WebKit: an installed iOS app that has just been launched
+ * can answer `null` for a subscription it still holds, and every caller here
+ * reads that as "this device is not registered" — one of them then subscribes
+ * again, which is a brand new endpoint, a dead row on the server, and on iOS a
+ * permission prompt the user has already answered. A few hundred milliseconds
+ * of patience is the whole fix.
+ */
 export async function currentSubscription(): Promise<PushSubscription | null> {
   if (!pushSupported()) return null
+
+  let reg: ServiceWorkerRegistration
   try {
-    const reg = await navigator.serviceWorker.getRegistration('/')
-    return (await reg?.pushManager.getSubscription()) ?? null
+    reg = await registration()
   } catch {
     return null
+  }
+
+  try {
+    return await patientSubscription(reg)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * `getSubscription()`, asked more than once before its `null` is believed.
+ *
+ * Every caller that acts on a missing subscription goes through here. Asking the
+ * registration directly is the mistake this exists to prevent: one cold-start
+ * `null` taken at face value is a second endpoint, a device row the server can
+ * never reach, and on iOS a permission the app has to ask for all over again.
+ */
+async function patientSubscription(reg: ServiceWorkerRegistration) {
+  for (let attempt = 1; ; attempt += 1) {
+    const found = await reg.pushManager.getSubscription()
+    if (found) return found
+    if (attempt >= SUBSCRIPTION_ATTEMPTS) return null
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, SUBSCRIPTION_RETRY_MS * attempt)
+    })
   }
 }
 
@@ -173,20 +231,66 @@ export async function subscribeToPush(
   if (needsInstallFirst()) throw new PushError('needs_install')
   if (!pushSupported()) throw new PushError('unsupported')
 
+  // An app that was already allowed may be holding a subscription it has not
+  // admitted to yet; one that is being allowed right now cannot be.
+  const held = pushPermission() === 'granted'
+
   // First statement that touches the platform, and nothing is awaited before
   // it: the gesture that called us is still live here and nowhere later.
   const permission = await requestPushPermission()
   if (permission === 'denied') throw new PushError('denied')
   if (permission !== 'granted') throw new PushError('dismissed')
 
+  return ensureSubscription(publicKey, held)
+}
+
+/**
+ * The same thing, for code that no tap is waiting on.
+ *
+ * Runs on page load to put a device back on the list after the browser quietly
+ * dropped its subscription. Two things make it different from `subscribeToPush`:
+ * it never asks for permission, so it cannot draw a prompt out of nowhere, and
+ * it answers null instead of throwing — iOS refuses to subscribe outside a
+ * gesture, and that refusal is a normal outcome here, not an error worth a
+ * message.
+ */
+export async function resubscribeToPush(
+  publicKey: string,
+): Promise<PushSubscriptionPayload | null> {
+  if (needsInstallFirst() || !pushSupported()) return null
+  if (pushPermission() !== 'granted') return null
+
+  try {
+    return await ensureSubscription(publicKey, true)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Reuses the subscription this browser already holds, and only makes a new one
+ * when there is none. Assumes permission is settled — its callers do that part.
+ *
+ * `mayHold` says whether a subscription could plausibly exist, and buys it the
+ * patient lookup. It is false for exactly one case — a permission granted a
+ * moment ago, which cannot have a subscription behind it yet — where waiting
+ * would only make the first tap feel slow.
+ */
+async function ensureSubscription(
+  publicKey: string,
+  mayHold: boolean,
+): Promise<PushSubscriptionPayload> {
   const reg = await registration()
   const key = urlBase64ToUint8Array(publicKey)
 
-  const existing = await reg.pushManager.getSubscription()
+  const existing = mayHold
+    ? await patientSubscription(reg)
+    : await reg.pushManager.getSubscription()
   if (existing) {
-    // A subscription signed with a rotated key can never be delivered to, so
-    // it is dropped rather than reported.
     if (sameKey(existing, key)) return toPayload(existing)
+    // A subscription signed with a rotated key can never be delivered to, so it
+    // is dropped rather than reported — on iOS at the cost of the permission,
+    // which is still better than a device that is silent for good.
     await existing.unsubscribe().catch(() => {})
   }
 
@@ -227,13 +331,53 @@ export async function showLocalNotification(): Promise<void> {
   })
 }
 
-/** Drops this browser's subscription. Returns the endpoint that was removed. */
+/**
+ * Gives up this browser's registration. Returns the endpoint to unregister
+ * server-side, which is the half that always happens.
+ *
+ * On iOS the local subscription is deliberately left alive. WebKit keeps the
+ * permission and the subscription as one thing for an installed web app, so
+ * dropping it here would send the app back to "never asked" — and the user who
+ * turns reminders off in the evening and on again the next morning would be
+ * answering the system prompt every time. Nothing is delivered either way once
+ * the server has forgotten the endpoint.
+ */
 export async function unsubscribeFromPush(): Promise<string | null> {
   const subscription = await currentSubscription()
-  if (!subscription) return null
+  if (!subscription) return rememberedEndpoint()
   const { endpoint } = subscription
-  await subscription.unsubscribe().catch(() => {})
+  if (!isIos()) await subscription.unsubscribe().catch(() => {})
   return endpoint
+}
+
+/** Where the endpoint last handed to the server is remembered. */
+const ENDPOINT_KEY = 'calorico.push.endpoint'
+
+/**
+ * The endpoint this browser last registered, as far as it knows.
+ *
+ * The browser can hand out a new endpoint for the same device — iOS does it
+ * after some restarts — and the old one stays on the server as a device the
+ * scheduler keeps trying and never reaches. Remembering it locally is the only
+ * way to know which row to take out.
+ */
+export function rememberedEndpoint(): string | null {
+  try {
+    return localStorage.getItem(ENDPOINT_KEY)
+  } catch {
+    // Private mode, or storage the user has blocked: the app still works, it
+    // just cannot clean up after a rotated endpoint.
+    return null
+  }
+}
+
+export function rememberEndpoint(endpoint: string | null) {
+  try {
+    if (endpoint) localStorage.setItem(ENDPOINT_KEY, endpoint)
+    else localStorage.removeItem(ENDPOINT_KEY)
+  } catch {
+    // Nothing to do; see rememberedEndpoint.
+  }
 }
 
 /**
@@ -256,6 +400,17 @@ export interface PushDiagnostics {
   permission: NotificationPermission
   /** This browser holds a push subscription right now. */
   subscribed: boolean
+  /**
+   * The tail of the endpoint this browser holds, and whether it is still the one
+   * the server was given.
+   *
+   * These two are how the churn that iOS is prone to becomes visible on a phone:
+   * an endpoint that reads differently after a force-quit, or one that no longer
+   * matches what was registered, is a device the reminders are being sent to and
+   * no longer arrive at.
+   */
+  endpointTail: string | null
+  endpointStable: boolean
 }
 
 export async function pushDiagnostics(): Promise<PushDiagnostics> {
@@ -271,6 +426,9 @@ export async function pushDiagnostics(): Promise<PushDiagnostics> {
     }
   }
 
+  const subscription = await currentSubscription()
+  const remembered = rememberedEndpoint()
+
   return {
     ios: isIos(),
     standalone: isStandalone(),
@@ -278,7 +436,13 @@ export async function pushDiagnostics(): Promise<PushDiagnostics> {
     notificationApi: 'Notification' in window,
     pushApi: 'PushManager' in window,
     permission: pushPermission(),
-    subscribed: Boolean(await currentSubscription()),
+    subscribed: Boolean(subscription),
+    endpointTail: subscription ? subscription.endpoint.slice(-10) : null,
+    // Nothing registered yet is not a mismatch; a mismatch is an endpoint that
+    // moved out from under a registration.
+    endpointStable: !subscription || !remembered
+      ? true
+      : subscription.endpoint === remembered,
   }
 }
 

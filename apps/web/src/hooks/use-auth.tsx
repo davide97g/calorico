@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, getToken, setToken } from '@/lib/api'
+import { unregisterDevice } from '@/hooks/use-notifications'
 import type { AuthResponse, Profile, User } from '@/lib/types'
 
 interface MeResponse {
@@ -86,6 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }),
         ),
       logout: () => {
+        // Before the token goes: the reminder subscription is this browser's, so
+        // leaving it registered would send the next account to sign in here the
+        // previous one's reminders. Fire-and-forget — sign-out must not wait on
+        // the network, and the request carries the token it still has.
+        void unregisterDevice()
         setToken(null)
         setTokenState(null)
         queryClient.clear()

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -30,7 +30,6 @@ import {
   useDisableNotifications,
   useEnableNotifications,
   useNotificationSettings,
-  useRepairSubscription,
   useTestNotification,
   useUpdateNotificationSettings,
   useUpdateReminder,
@@ -64,7 +63,6 @@ export default function NotificationsPage() {
   const settings = useNotificationSettings()
   const enable = useEnableNotifications()
   const disable = useDisableNotifications()
-  const repair = useRepairSubscription()
   const updateSettings = useUpdateNotificationSettings()
   const createReminder = useCreateReminder()
   const updateReminder = useUpdateReminder()
@@ -74,7 +72,6 @@ export default function NotificationsPage() {
 
   const data = settings.data
   const publicKey = data?.push.publicKey ?? null
-  const repaired = useRef(false)
   /** True while the browser is being asked for permission and a subscription. */
   const [arming, setArming] = useState(false)
   const [diagnostics, setDiagnostics] = useState<PushDiagnostics | null>(null)
@@ -93,25 +90,6 @@ export default function NotificationsPage() {
   useEffect(() => {
     void refreshDiagnostics()
   }, [refreshDiagnostics, data?.devices])
-
-  /**
-   * A browser can drop its push subscription on its own, and the account keeps
-   * looking armed. Opening this screen is the natural moment to notice and fix
-   * it, once per visit.
-   *
-   * Not gated on the account having no device: the case that needs repairing most
-   * is the *second* browser, where the account is armed, some other device is
-   * registered, and this one is silently not. `useRepairSubscription` does
-   * nothing unless permission is already granted and there is no subscription, so
-   * running it always is safe — and a permission never asked still needs the tap
-   * below, since no browser draws that prompt outside a gesture.
-   */
-  useEffect(() => {
-    if (repaired.current) return
-    if (!data?.enabled || !publicKey) return
-    repaired.current = true
-    repair.mutate(publicKey)
-  }, [data?.enabled, publicKey, repair])
 
   /**
    * Arms this browser: permission, subscription, then the server.
@@ -589,6 +567,20 @@ function DiagnosticsPanel({
               label="Iscrizione push su questo dispositivo"
               ok={diagnostics.subscribed}
             />
+            {/* The one line that tells a working iPhone from one that quietly
+                re-subscribes at every launch: the code reads the same after a
+                force-quit, and matches the registration the server holds. */}
+            {diagnostics.subscribed ? (
+              <DiagnosticRow
+                label={`Iscrizione invariata (…${diagnostics.endpointTail})`}
+                ok={diagnostics.endpointStable}
+                detail={
+                  diagnostics.endpointStable
+                    ? undefined
+                    : 'Il browser ha cambiato iscrizione: verrà registrata di nuovo alla prossima apertura.'
+                }
+              />
+            ) : null}
           </>
         ) : null}
         <DiagnosticRow
