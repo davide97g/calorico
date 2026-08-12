@@ -33,13 +33,13 @@ export function QuickLog({ day }: { day: string }) {
   return (
     <section>
       <header className="mb-2 flex items-baseline justify-between px-1">
-        <h2 className="flex items-center gap-1.5 text-[13px] font-bold">
+        <h2 className="flex items-center gap-1.5 text-sm font-bold">
           <RotateCcw className="text-primary-strong size-3.5" strokeWidth={2.4} />
           Di nuovo in {MEAL_LABELS[meal].toLowerCase()}
         </h2>
         <Link
           to={`/add?day=${day}&meal=${meal}`}
-          className="text-primary-strong text-[11px] font-bold"
+          className="text-primary-strong text-micro font-bold"
         >
           Cerca altro
         </Link>
@@ -48,7 +48,7 @@ export function QuickLog({ day }: { day: string }) {
       <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {isLoading
           ? Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-[60px] w-[10.5rem] shrink-0 rounded-[22px]" />
+              <Skeleton key={i} className="h-[60px] w-[10.5rem] shrink-0 rounded-lg" />
             ))
           : items.map((food) => (
               <QuickLogChip
@@ -85,24 +85,24 @@ function QuickLogChip({
       onClick={onLog}
       disabled={busy}
       className={cn(
-        'bg-card shadow-soft flex min-h-[60px] w-[10.5rem] shrink-0 items-center gap-2.5 rounded-[22px] p-2 text-left',
+        'bg-card shadow-soft flex min-h-[60px] w-[10.5rem] shrink-0 items-center gap-2.5 rounded-lg p-2 text-left',
         'transition-transform active:scale-[0.97] disabled:opacity-60',
       )}
       // The portion is half of what this button does, so it is in the label.
       aria-label={`Registra ${food.name}, ${grams(food.lastQuantityG)} ${food.unit}`}
     >
       {busy ? (
-        <span className="bg-secondary flex size-9 shrink-0 items-center justify-center rounded-xl">
+        <span className="bg-secondary flex size-9 shrink-0 items-center justify-center rounded-md">
           <Loader2 className="text-primary-strong size-4 animate-spin" />
         </span>
       ) : (
         <FoodEmojiTile name={food.name} category={food.category} size="sm" />
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-semibold">
+        <span className="block truncate text-sm font-semibold">
           {food.name}
         </span>
-        <span className="text-muted-foreground tabular block truncate text-[11px]">
+        <span className="text-muted-foreground tabular block truncate text-micro">
           {grams(food.lastQuantityG)} {food.unit} ·{' '}
           {kcal((food.kcal100 * food.lastQuantityG) / 100)} kcal
         </span>

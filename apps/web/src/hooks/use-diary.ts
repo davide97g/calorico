@@ -11,6 +11,7 @@ import type {
   DiaryDay,
   DiaryEntry,
   Food,
+  FoodPortions,
   Meal,
   MealAnalysis,
   Profile,
@@ -29,6 +30,7 @@ export const queryKeys = {
   search: (q: string) => ['foods', 'search', q] as const,
   food: (id: string) => ['foods', id] as const,
   recent: (meal?: Meal) => ['foods', 'recent', meal ?? 'any'] as const,
+  portions: (id: string) => ['foods', 'portions', id] as const,
   favorites: () => ['foods', 'favorites'] as const,
   suggestedTargets: () => ['profile', 'suggested'] as const,
 }
@@ -93,6 +95,18 @@ export function useRecentFoods(meal?: Meal) {
   })
 }
 
+/**
+ * The portions this user weighs out for one food. Feeds the chips under the
+ * quantity field, so the usual amount is a tap rather than a retype.
+ */
+export function useFoodPortions(foodId: string | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.portions(foodId ?? ''),
+    queryFn: () => api<FoodPortions>(`/foods/${foodId}/portions`),
+    enabled: Boolean(foodId),
+  })
+}
+
 export function useFavoriteFoods() {
   return useQuery({
     queryKey: queryKeys.favorites(),
@@ -108,8 +122,9 @@ function useInvalidateDiary() {
       queryKey: day ? queryKeys.diary(day) : ['diary'],
     })
     void queryClient.invalidateQueries({ queryKey: ['stats'] })
-    // Every meal's ranking moved, and so did the portion it remembers.
+    // Every meal's ranking moved, and so did the portions it remembers.
     void queryClient.invalidateQueries({ queryKey: ['foods', 'recent'] })
+    void queryClient.invalidateQueries({ queryKey: ['foods', 'portions'] })
   }
 }
 

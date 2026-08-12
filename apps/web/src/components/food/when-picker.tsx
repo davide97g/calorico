@@ -111,7 +111,7 @@ export function WhenSheet({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="mx-auto max-h-[94dvh] max-w-[440px] rounded-t-[28px]">
+      <DrawerContent className="mx-auto max-h-[94dvh] max-w-[440px] rounded-t-xl">
         <DrawerHeader className="shrink-0">
           <DrawerTitle>Quando lo mangi?</DrawerTitle>
           <DrawerDescription>
@@ -123,13 +123,13 @@ export function WhenSheet({
           {/* The manual date sits with the section label, not at the far end
               of the rail: an escape hatch nobody scrolls to is not one. */}
           <div className="mb-2 flex items-center justify-between px-1">
-            <p className="text-muted-foreground text-[11px] font-bold tracking-wide uppercase">
+            <p className="text-muted-foreground text-micro font-bold tracking-wide uppercase">
               Giorno
             </p>
             <button
               type="button"
               onClick={openDateField}
-              className="text-primary-strong flex h-8 items-center gap-1.5 text-[11px] font-bold"
+              className="text-primary-strong flex h-8 items-center gap-1.5 text-micro font-bold"
             >
               <CalendarPlus className="size-4" strokeWidth={2.4} />
               Altra data
@@ -151,7 +151,7 @@ export function WhenSheet({
                   aria-checked={active}
                   onClick={() => setDay(d)}
                   className={cn(
-                    'flex w-[4.75rem] shrink-0 snap-start flex-col items-center gap-0.5 rounded-[20px] py-2.5 transition-colors active:scale-[0.97]',
+                    'flex w-[4.75rem] shrink-0 snap-start flex-col items-center gap-0.5 rounded-lg py-2.5 transition-colors active:scale-[0.97]',
                     active
                       ? 'bg-primary text-primary-foreground shadow-float'
                       : 'bg-secondary text-secondary-foreground',
@@ -159,18 +159,18 @@ export function WhenSheet({
                 >
                   <span
                     className={cn(
-                      'text-[10px] font-bold',
+                      'text-micro font-bold',
                       active ? 'opacity-80' : 'text-muted-foreground',
                     )}
                   >
                     {offsetLabel(d)}
                   </span>
-                  <span className="font-display tabular text-[26px] leading-none font-extrabold">
+                  <span className="font-display tabular text-display-sm leading-none font-extrabold">
                     {shortDayLabel(d)}
                   </span>
                   <span
                     className={cn(
-                      'text-[10px] font-semibold',
+                      'text-micro font-semibold',
                       active ? 'opacity-80' : 'text-muted-foreground',
                     )}
                   >
@@ -197,7 +197,7 @@ export function WhenSheet({
             className="size-px overflow-hidden opacity-0"
           />
 
-          <p className="text-muted-foreground mt-4 mb-2 px-1 text-[11px] font-bold tracking-wide uppercase">
+          <p className="text-muted-foreground mt-4 mb-2 px-1 text-micro font-bold tracking-wide uppercase">
             Pasto
           </p>
           <div
@@ -216,7 +216,7 @@ export function WhenSheet({
                   aria-checked={active}
                   onClick={() => setMeal(m)}
                   className={cn(
-                    'flex min-h-16 items-center gap-2.5 rounded-[20px] px-3 text-left transition-colors active:scale-[0.98]',
+                    'flex min-h-16 items-center gap-2.5 rounded-lg px-3 text-left transition-colors active:scale-[0.98]',
                     active
                       ? 'bg-primary text-primary-foreground shadow-float'
                       : 'bg-secondary text-secondary-foreground',
@@ -230,12 +230,12 @@ export function WhenSheet({
                     strokeWidth={2.3}
                   />
                   <span className="min-w-0">
-                    <span className="block text-[13px] font-bold">
+                    <span className="block text-sm font-bold">
                       {MEAL_LABELS[m]}
                     </span>
                     <span
                       className={cn(
-                        'block text-[10px] font-semibold',
+                        'block text-micro font-semibold',
                         active ? 'opacity-80' : 'text-muted-foreground',
                       )}
                     >
@@ -250,10 +250,10 @@ export function WhenSheet({
 
         <div className="bg-background border-border/60 shrink-0 border-t px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <p className="mb-3 flex items-baseline justify-between gap-2 px-1">
-            <span className="text-[13px] font-bold">
+            <span className="text-sm font-bold">
               {labelForDay(day)} · {MEAL_LABELS[meal]}
             </span>
-            <span className="text-muted-foreground truncate text-[11px] font-semibold">
+            <span className="text-muted-foreground truncate text-micro font-semibold">
               {longDayLabel(day)}
             </span>
           </p>
@@ -303,7 +303,7 @@ export function WhenBar({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          'flex min-h-14 w-full items-center gap-3 rounded-[22px] p-2.5 text-left transition-transform active:scale-[0.99]',
+          'flex min-h-14 w-full items-center gap-3 rounded-lg p-2.5 text-left transition-transform active:scale-[0.99]',
           inset ? 'bg-secondary/70' : 'bg-card shadow-soft',
           className,
         )}
@@ -321,16 +321,16 @@ export function WhenBar({
           <Icon className="size-4.5" strokeWidth={2.3} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="text-muted-foreground block text-[10px] font-bold tracking-wide uppercase">
+          <span className="text-muted-foreground block text-micro font-bold tracking-wide uppercase">
             {planned ? 'Pianificato' : 'Quando'}
           </span>
-          <span className="block truncate text-[14px] font-bold">
+          <span className="block truncate text-sm font-semibold">
             {labelForDay(value.day)} · {MEAL_LABELS[value.meal]}
           </span>
         </span>
         <span
           className={cn(
-            'flex h-9 shrink-0 items-center rounded-full px-3.5 text-[11px] font-bold',
+            'flex h-9 shrink-0 items-center rounded-full px-3.5 text-micro font-bold',
             planned
               ? 'bg-secondary text-secondary-foreground'
               : 'bg-accent text-accent-foreground',

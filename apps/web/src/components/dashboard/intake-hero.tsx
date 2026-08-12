@@ -55,7 +55,7 @@ export function IntakeHero({
   return (
     <section
       className={cn(
-        'bg-primary text-primary-foreground shadow-float relative overflow-hidden rounded-[32px] p-5',
+        'bg-primary text-primary-foreground shadow-float relative overflow-hidden rounded-xl p-5',
         over && 'ring-1 ring-inset',
         over && (tone === 'good' ? 'ring-over-good' : 'ring-over-warn'),
       )}
@@ -71,23 +71,23 @@ export function IntakeHero({
 
       <div className="relative">
         <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[13px] font-semibold">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
             <Flame className="size-4" strokeWidth={2.4} />
             {label}
           </h2>
-          <span className="bg-primary-foreground/12 tabular rounded-full px-2.5 py-1 text-[11px] font-bold">
+          <span className="bg-primary-foreground/12 tabular rounded-full px-2.5 py-1 text-micro font-bold">
             {percent}%
           </span>
         </div>
 
         <p className="mt-4 flex items-end gap-2">
-          <span className="font-display tabular text-[64px] leading-[0.82] font-extrabold tracking-[-0.03em]">
+          <span className="font-display tabular text-hero leading-[0.82] font-extrabold tracking-[-0.03em]">
             {over ? '+' : ''}
             {kcal(shown)}
           </span>
           <span className="pb-1.5 text-sm font-bold">kcal</span>
         </p>
-        <p className="text-primary-foreground/80 mt-2 text-[13px] font-semibold">
+        <p className="text-primary-foreground/80 mt-2 text-sm font-medium">
           {over
             ? tone === 'good'
               ? 'oltre il target, surplus in corso'
@@ -111,7 +111,7 @@ export function IntakeHero({
               aria-hidden
             />
           </div>
-          <div className="text-primary-foreground/75 tabular mt-2 flex justify-between text-[11px] font-semibold">
+          <div className="text-primary-foreground/75 tabular mt-2 flex justify-between text-micro font-semibold">
             <span>
               {kcal(consumed)} {planned ? 'pianificate' : 'consumate'}
             </span>

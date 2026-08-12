@@ -18,8 +18,8 @@ export default function FoodInfoPage() {
     return (
       <AppShell nav={false}>
         <Skeleton className="h-10 w-24 rounded-full" />
-        <Skeleton className="mt-4 h-44 rounded-[28px]" />
-        <Skeleton className="mt-3 h-72 rounded-[28px]" />
+        <Skeleton className="mt-4 h-44 rounded-lg" />
+        <Skeleton className="mt-3 h-72 rounded-lg" />
       </AppShell>
     )
   }
@@ -39,7 +39,7 @@ export default function FoodInfoPage() {
   return (
     <AppShell nav={false}>
       <header className="mb-3 flex items-center">
-        <Button variant="secondary" size="icon" className="bg-card shadow-soft size-10 rounded-full" onClick={() => navigate(-1)} aria-label="Torna indietro">
+        <Button variant="secondary" size="icon" className="bg-card shadow-soft size-11 rounded-full" onClick={() => navigate(-1)} aria-label="Torna indietro">
           <ArrowLeft className="size-4" />
         </Button>
       </header>
@@ -48,7 +48,7 @@ export default function FoodInfoPage() {
         <div className="flex items-start gap-3">
           <FoodEmojiTile name={food.name} category={food.category} size="lg" />
           <div className="min-w-0">
-            <p className="text-primary-strong text-[11px] font-bold tracking-wide uppercase">Scheda alimento</p>
+            <p className="text-primary-strong text-micro font-bold tracking-wide uppercase">Scheda alimento</p>
             <h1 className="mt-1 text-xl leading-tight font-bold tracking-tight">{food.name}</h1>
             <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
               {food.category ?? 'Alimento'}{food.brand ? ` · ${food.brand}` : ''}
@@ -77,7 +77,7 @@ export default function FoodInfoPage() {
       </Panel>
 
       {food.barcode ? (
-        <p className="text-muted-foreground mt-3 flex items-center justify-center gap-1.5 text-[11px]">
+        <p className="text-muted-foreground mt-3 flex items-center justify-center gap-1.5 text-micro">
           <Barcode className="size-3.5" /> Dati forniti da {source}
         </p>
       ) : null}

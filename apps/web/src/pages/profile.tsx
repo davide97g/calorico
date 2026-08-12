@@ -168,13 +168,13 @@ export default function ProfilePage() {
         <Button
           variant="secondary"
           size="icon"
-          className="bg-card shadow-soft size-10 shrink-0 rounded-full"
+          className="bg-card shadow-soft size-11 shrink-0 rounded-full"
           onClick={() => navigate(-1)}
           aria-label="Torna indietro"
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <h1 className="text-[17px] font-bold">Profilo</h1>
+        <h1 className="text-lg font-bold">Profilo</h1>
       </header>
 
       <Panel className="flex items-center gap-3">
@@ -201,11 +201,11 @@ export default function ProfilePage() {
                       key={member.id}
                       user={member}
                       size="sm"
-                      fallbackClassName="text-[9px]"
+                      fallbackClassName="text-micro"
                     />
                   ))}
                   {family.members.length > 4 ? (
-                    <AvatarGroupCount className="size-6 text-[10px]">
+                    <AvatarGroupCount className="size-6 text-micro">
                       +{family.members.length - 4}
                     </AvatarGroupCount>
                   ) : null}
@@ -364,7 +364,7 @@ export default function ProfilePage() {
             <legend className="text-muted-foreground mb-1.5 text-xs font-medium">
               Sesso
             </legend>
-            <div className="bg-muted grid grid-cols-2 gap-1 rounded-2xl p-1">
+            <div className="bg-muted grid grid-cols-2 gap-1 rounded-md p-1">
               {(Object.keys(SEX_LABELS) as Sex[]).map((sex) => (
                 <SegmentOption
                   key={sex}
@@ -376,7 +376,7 @@ export default function ProfilePage() {
                 />
               ))}
             </div>
-            <p className="text-muted-foreground mt-1.5 text-[11px] leading-relaxed">
+            <p className="text-muted-foreground mt-1.5 text-micro leading-relaxed">
               Entra nel calcolo di calorie e proteine consigliate.
             </p>
           </fieldset>
@@ -395,7 +395,7 @@ export default function ProfilePage() {
                   updateProfile.mutate({ birthDate: v })
                 }
               }}
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </label>
 
@@ -409,10 +409,10 @@ export default function ProfilePage() {
                 updateProfile.mutate({ activityLevel: v as ActivityLevel })
               }
             >
-              <SelectTrigger className="h-11 rounded-2xl">
+              <SelectTrigger className="h-11 rounded-md">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl">
+              <SelectContent className="rounded-md">
                 {Object.entries(ACTIVITY_LABELS).map(([key, label]) => (
                   <SelectItem
                     key={key}
@@ -434,10 +434,10 @@ export default function ProfilePage() {
               value={profile.goal}
               onValueChange={(v) => updateProfile.mutate({ goal: v as Goal })}
             >
-              <SelectTrigger className="h-11 rounded-2xl">
+              <SelectTrigger className="h-11 rounded-md">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl">
+              <SelectContent className="rounded-md">
                 {Object.entries(GOAL_LABELS).map(([key, label]) => (
                   <SelectItem key={key} value={key}>
                     {label}
@@ -461,7 +461,7 @@ export default function ProfilePage() {
                   }
                 }}
                 inputMode="decimal"
-                className="h-11 rounded-2xl"
+                className="h-11 rounded-md"
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -477,7 +477,7 @@ export default function ProfilePage() {
                   }
                 }}
                 inputMode="decimal"
-                className="h-11 rounded-2xl"
+                className="h-11 rounded-md"
               />
             </label>
           </div>
@@ -500,7 +500,7 @@ export default function ProfilePage() {
           <legend className="text-muted-foreground mb-2 text-xs">
             Tema dell'app
           </legend>
-          <div className="bg-muted grid grid-cols-3 gap-1 rounded-2xl p-1">
+          <div className="bg-muted grid grid-cols-3 gap-1 rounded-md p-1">
             <SegmentOption
               label="Chiaro"
               icon={<Sun className="size-4" />}
@@ -584,7 +584,7 @@ export default function ProfilePage() {
             }}
           />
         </div>
-        <p className="text-muted-foreground mt-2 text-[11px] leading-relaxed">
+        <p className="text-muted-foreground mt-2 text-micro leading-relaxed">
           Uscire da tutti i dispositivi invalida ogni accesso già fatto, utile se
           hai perso il telefono.
         </p>
@@ -617,7 +617,7 @@ function SegmentOption({
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+      className={`flex h-11 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
         selected
           ? 'bg-card text-foreground shadow-soft'
           : 'text-muted-foreground hover:text-foreground'
@@ -654,18 +654,18 @@ function ProteinSuggestion({
   const aligned = Math.abs(current - proteinG) <= 3
 
   return (
-    <div className="bg-muted mt-3 flex items-center gap-3 rounded-2xl p-3">
+    <div className="bg-muted mt-3 flex items-center gap-3 rounded-md p-3">
       <div className="min-w-0 flex-1">
         <p className="text-xs font-semibold">
           Proteine consigliate: {proteinG} g
         </p>
-        <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
+        <p className="text-muted-foreground mt-0.5 text-micro leading-relaxed">
           {grams(perKg)} g per kg su {grams(weightKg)} kg —{' '}
           {GOAL_LABELS[goal].toLowerCase()}, con la tua età, sesso e attività.
         </p>
       </div>
       {aligned ? (
-        <span className="text-primary-strong shrink-0 text-[11px] font-semibold">
+        <span className="text-primary-strong shrink-0 text-micro font-semibold">
           Allineato
         </span>
       ) : (
@@ -705,7 +705,7 @@ function TargetField({
         placeholder={String(current)}
         onChange={(e) => onChange(e.target.value)}
         inputMode="numeric"
-        className="h-11 rounded-2xl font-semibold"
+        className="h-11 rounded-md font-semibold"
       />
     </label>
   )

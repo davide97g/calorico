@@ -176,10 +176,10 @@ export default function NotificationsPage() {
       <AppShell>
         <header className="mb-3 flex items-center gap-2">
           <BackButton onClick={() => navigate(-1)} />
-          <h1 className="text-[17px] font-bold">Promemoria</h1>
+          <h1 className="text-lg font-bold">Promemoria</h1>
         </header>
-        <Skeleton className="h-28 rounded-[28px]" />
-        <Skeleton className="mt-3 h-40 rounded-[28px]" />
+        <Skeleton className="h-28 rounded-lg" />
+        <Skeleton className="mt-3 h-40 rounded-lg" />
       </AppShell>
     )
   }
@@ -217,7 +217,7 @@ export default function NotificationsPage() {
     <AppShell>
       <header className="mb-3 flex items-center gap-2">
         <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold">Promemoria</h1>
+        <h1 className="text-lg font-bold">Promemoria</h1>
       </header>
 
       <Panel>
@@ -260,9 +260,9 @@ export default function NotificationsPage() {
 
         {data.enabled ? (
           <>
-            <div className="bg-muted mt-3 flex items-center gap-2.5 rounded-2xl p-3">
+            <div className="bg-muted mt-3 flex items-center gap-2.5 rounded-md p-3">
               <Smartphone className="text-muted-foreground size-4 shrink-0" />
-              <p className="min-w-0 flex-1 text-[11px] leading-relaxed">
+              <p className="min-w-0 flex-1 text-micro leading-relaxed">
                 {data.devices === 0
                   ? 'Nessun dispositivo registrato: i promemoria non possono arrivare.'
                   : deviceMissing
@@ -284,9 +284,9 @@ export default function NotificationsPage() {
             </div>
 
             {savedTimezone !== localTimezone ? (
-              <div className="bg-muted mt-2 flex items-center gap-2.5 rounded-2xl p-3">
+              <div className="bg-muted mt-2 flex items-center gap-2.5 rounded-md p-3">
                 <Globe2 className="text-muted-foreground size-4 shrink-0" />
-                <p className="min-w-0 flex-1 text-[11px] leading-relaxed">
+                <p className="min-w-0 flex-1 text-micro leading-relaxed">
                   Gli orari sono letti su <strong>{savedTimezone}</strong>, ma
                   questo dispositivo è su <strong>{localTimezone}</strong>.
                 </p>
@@ -358,13 +358,13 @@ export default function NotificationsPage() {
             {suggestions.map((preset) => (
               <li
                 key={preset.key}
-                className="bg-muted flex items-center gap-3 rounded-2xl p-3"
+                className="bg-muted flex items-center gap-3 rounded-md p-3"
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold">
                     {preset.label} · {clockTime(preset.atMinutes)}
                   </p>
-                  <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
+                  <p className="text-muted-foreground mt-0.5 text-micro leading-relaxed">
                     {weekdaysLabel(preset.weekdays)}. {preset.description}
                   </p>
                 </div>
@@ -389,7 +389,7 @@ export default function NotificationsPage() {
           icon={<Clock />}
           title="I tuoi promemoria"
           action={
-            <span className="text-muted-foreground text-[11px]">
+            <span className="text-muted-foreground text-micro">
               {data.reminders.length}/{data.maxReminders}
             </span>
           }
@@ -422,7 +422,7 @@ export default function NotificationsPage() {
           </ul>
         )}
         {!data.enabled && data.reminders.length > 0 ? (
-          <p className="text-muted-foreground mt-3 text-[11px] leading-relaxed">
+          <p className="text-muted-foreground mt-3 text-micro leading-relaxed">
             Le notifiche sono spente: questi promemoria restano salvati ma non
             vengono inviati.
           </p>
@@ -507,7 +507,7 @@ function DiagnosticsPanel({
           </Button>
         }
       />
-      <p className="text-muted-foreground mt-2 text-[11px] leading-relaxed">
+      <p className="text-muted-foreground mt-2 text-micro leading-relaxed">
         Serve tutto quanto segue perché una notifica arrivi. La prima riga con ✗
         è il motivo del silenzio.
       </p>
@@ -602,7 +602,7 @@ function DiagnosticsPanel({
       {/* Which build this device is actually running. The avviso di nuova
           versione is sent only to the devices behind the deployed build, so when
           it does not arrive this is the first thing to compare with the server. */}
-      <p className="text-muted-foreground mt-3 text-[11px] leading-relaxed">
+      <p className="text-muted-foreground mt-3 text-micro leading-relaxed">
         Versione installata su questo dispositivo:{' '}
         <span className="font-medium tabular-nums">{BUILD_ID}</span>
       </p>
@@ -621,7 +621,7 @@ function DiagnosticsPanel({
             <BellRing className="size-4" />
             Prova senza il server
           </Button>
-          <p className="text-muted-foreground mt-2 text-[11px] leading-relaxed">
+          <p className="text-muted-foreground mt-2 text-micro leading-relaxed">
             Mostra una notifica dal dispositivo stesso. Se questa arriva e quella
             di prova no, il problema è nella consegna: chiavi, iscrizione o
             server.
@@ -678,9 +678,9 @@ function DiagnosticRow({
         {ok ? <Check className="size-3" /> : <X className="size-3" />}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] leading-relaxed font-medium">{label}</p>
+        <p className="text-micro leading-relaxed font-medium">{label}</p>
         {detail ? (
-          <p className="text-muted-foreground text-[11px] leading-relaxed">
+          <p className="text-muted-foreground text-micro leading-relaxed">
             {detail}
           </p>
         ) : null}
@@ -694,7 +694,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
     <Button
       variant="secondary"
       size="icon"
-      className="bg-card shadow-soft size-10 shrink-0 rounded-full"
+      className="bg-card shadow-soft size-11 shrink-0 rounded-full"
       onClick={onClick}
       aria-label="Torna indietro"
     >
@@ -705,9 +705,9 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-muted mt-3 flex items-start gap-2.5 rounded-2xl p-3">
+    <div className="bg-muted mt-3 flex items-start gap-2.5 rounded-md p-3">
       <TriangleAlert className="text-muted-foreground mt-px size-4 shrink-0" />
-      <p className="text-[11px] leading-relaxed">{children}</p>
+      <p className="text-micro leading-relaxed">{children}</p>
     </div>
   )
 }
@@ -755,7 +755,7 @@ function CustomReminderForm({
               value={time}
               onChange={(e) => setTime(e.target.value)}
               aria-label="Ora"
-              className="tabular h-11 w-[108px] shrink-0 rounded-2xl font-semibold"
+              className="tabular h-11 w-[108px] shrink-0 rounded-md font-semibold"
             />
             <Input
               value={label}
@@ -763,7 +763,7 @@ function CustomReminderForm({
               placeholder="Bevi un bicchiere d'acqua"
               onChange={(e) => setLabel(e.target.value)}
               aria-label="Testo del promemoria"
-              className="h-11 min-w-0 flex-1 rounded-2xl"
+              className="h-11 min-w-0 flex-1 rounded-md"
             />
           </div>
           <Button type="submit" className="w-full rounded-full" disabled={!canSubmit}>

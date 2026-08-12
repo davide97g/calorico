@@ -112,7 +112,7 @@ export default function OnboardingPage() {
                 type="button"
                 onClick={() => setForm((f) => ({ ...f, sex: s }))}
                 className={cn(
-                  'rounded-2xl py-3 text-sm font-medium transition-colors',
+                  'rounded-md py-3 text-sm font-medium transition-colors',
                   form.sex === s
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary text-secondary-foreground',
@@ -133,7 +133,7 @@ export default function OnboardingPage() {
               onChange={(e) =>
                 setForm((f) => ({ ...f, birthDate: e.target.value }))
               }
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </label>
 
@@ -166,7 +166,7 @@ export default function OnboardingPage() {
               type="button"
               onClick={() => setForm((f) => ({ ...f, activityLevel: level }))}
               className={cn(
-                'flex flex-col items-start rounded-2xl px-4 py-2.5 text-left transition-colors',
+                'flex flex-col items-start rounded-md px-4 py-2.5 text-left transition-colors',
                 form.activityLevel === level
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-secondary-foreground',
@@ -199,7 +199,7 @@ export default function OnboardingPage() {
               type="button"
               onClick={() => setForm((f) => ({ ...f, goal }))}
               className={cn(
-                'rounded-2xl px-2 py-3 text-xs font-medium transition-colors',
+                'rounded-md px-2 py-3 text-xs font-medium transition-colors',
                 form.goal === goal
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-secondary-foreground',
@@ -217,7 +217,7 @@ export default function OnboardingPage() {
             <span className="bg-primary-foreground/12 flex size-8 items-center justify-center rounded-full">
               <Sparkles className="size-4" />
             </span>
-            <h2 className="text-[15px] font-semibold">Il tuo piano</h2>
+            <h2 className="text-base font-semibold">Il tuo piano</h2>
           </div>
           <div className="mt-3 flex items-center gap-4">
             <MacroDonut
@@ -228,7 +228,7 @@ export default function OnboardingPage() {
               withLabels={false}
             />
             <div>
-              <p className="tabular text-[32px] leading-none font-extrabold">
+              <p className="tabular text-display-sm leading-none font-extrabold">
                 {kcal(preview.targetKcal)}
                 <span className="ml-1 text-sm font-semibold">kcal</span>
               </p>
@@ -258,7 +258,7 @@ export default function OnboardingPage() {
           <Button
             type="button"
             variant="secondary"
-            className="h-10 shrink-0 rounded-xl px-3"
+            className="h-10 shrink-0 rounded-md px-3"
             onClick={() => void handleCameraPermission()}
             disabled={cameraEnabled || requestingCamera}
           >
@@ -290,14 +290,14 @@ function NumField({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-muted-foreground text-[11px] font-medium">
+      <span className="text-muted-foreground text-micro font-medium">
         {label}
       </span>
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         inputMode="decimal"
-        className="h-11 rounded-2xl font-semibold"
+        className="h-11 rounded-md font-semibold"
       />
     </label>
   )

@@ -102,13 +102,13 @@ function MacroCell({ macro, value, target }: MacroBarProps) {
 
   return (
     <div>
-      <p className="text-muted-foreground truncate text-[11px] font-medium">
+      <p className="text-muted-foreground truncate text-micro font-medium">
         {meta.label}
       </p>
-      <p className="font-display tabular mt-1 text-[22px] leading-none font-extrabold">
+      <p className="font-display tabular mt-1 text-2xl leading-none font-extrabold">
         {over ? '+' : ''}
         {grams(Math.abs(left))}
-        <span className="text-muted-foreground ml-0.5 text-[11px] font-bold">
+        <span className="text-muted-foreground ml-0.5 text-micro font-bold">
           g
         </span>
       </p>
@@ -121,7 +121,7 @@ function MacroCell({ macro, value, target }: MacroBarProps) {
           style={{ width: `${Math.min(100, filled)}%` }}
         />
       </div>
-      <p className="text-muted-foreground tabular mt-1.5 text-[10px] font-medium">
+      <p className="text-muted-foreground tabular mt-1.5 text-micro font-medium">
         {grams(value)}/{grams(target)}
       </p>
     </div>

@@ -57,7 +57,7 @@ export function ReminderRow({ reminder, onChange, onDelete }: ReminderRowProps) 
             }
           }}
           aria-label={`Ora di ${reminder.label}`}
-          className="tabular h-11 w-[108px] shrink-0 rounded-2xl font-semibold"
+          className="tabular h-11 w-[108px] shrink-0 rounded-md font-semibold"
         />
         <Input
           defaultValue={reminder.label}
@@ -71,7 +71,7 @@ export function ReminderRow({ reminder, onChange, onDelete }: ReminderRowProps) 
             if (label !== reminder.label) onChange({ label })
           }}
           aria-label="Nome del promemoria"
-          className="h-11 min-w-0 flex-1 rounded-2xl"
+          className="h-11 min-w-0 flex-1 rounded-md"
         />
         <Switch
           checked={reminder.enabled}
@@ -102,7 +102,7 @@ export function ReminderRow({ reminder, onChange, onDelete }: ReminderRowProps) 
               onClick={() => toggleDay(day)}
               aria-pressed={selected}
               aria-label={WEEKDAY_NAMES[day]}
-              className={`focus-visible:outline-ring size-8 rounded-full text-[11px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 ${
+              className={`focus-visible:outline-ring size-8 rounded-full text-micro font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 ${
                 selected
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground'
@@ -112,14 +112,14 @@ export function ReminderRow({ reminder, onChange, onDelete }: ReminderRowProps) 
             </button>
           )
         })}
-        <span className="text-muted-foreground ml-auto self-center text-[11px]">
+        <span className="text-muted-foreground ml-auto self-center text-micro">
           {weekdaysLabel(reminder.weekdays)}
         </span>
       </div>
 
       {reminder.kind === 'custom' ? null : (
         <div className="mt-2.5 flex items-center justify-between gap-3">
-          <span className="text-muted-foreground text-[11px] leading-relaxed">
+          <span className="text-muted-foreground text-micro leading-relaxed">
             {SKIP_HINT[reminder.kind]}
           </span>
           <Switch

@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { PieChart, Scale, TrendingDown, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
-import { ActionTiles } from '@/components/dashboard/action-tiles'
 import { AddFoodAction } from '@/components/dashboard/add-food-action'
 import { DaySwitcher } from '@/components/dashboard/day-switcher'
 import { DiaryPanel } from '@/components/dashboard/diary-panel'
@@ -89,9 +88,9 @@ export default function TodayPage() {
       <div className="mt-3 flex flex-col gap-3">
         {isLoading || !targets || !totals ? (
           <>
-            <Skeleton className="h-[220px] rounded-[32px]" />
-            <Skeleton className="h-[72px] rounded-3xl" />
-            <Skeleton className="h-[124px] rounded-[28px]" />
+            <Skeleton className="h-[220px] rounded-xl" />
+            <Skeleton className="h-[72px] rounded-lg" />
+            <Skeleton className="h-[124px] rounded-lg" />
           </>
         ) : (
           <>
@@ -116,12 +115,6 @@ export default function TodayPage() {
 
             <AddFoodAction day={day} />
 
-            <ActionTiles
-              day={day}
-              onCopyYesterday={handleCopyYesterday}
-              copying={copyDay.isPending}
-            />
-
             <Panel>
               <PanelHeader
                 icon={<PieChart />}
@@ -142,6 +135,8 @@ export default function TodayPage() {
               byMeal={data.byMeal}
               total={totals.kcal}
               onDelete={handleDelete}
+              onCopyYesterday={handleCopyYesterday}
+              copying={copyDay.isPending}
             />
 
             <WeightPanel weight={weight} goal={profile?.goal} />
@@ -177,7 +172,7 @@ function WeightPanel({
       <PanelHeader icon={<Scale />} title="Peso" to="/weight" />
       <div className="mt-3 flex items-end justify-between">
         <div>
-          <p className="font-display tabular text-[26px] leading-none font-extrabold">
+          <p className="font-display tabular text-display-sm leading-none font-extrabold">
             {weight?.latest ? `${weight.latest.weightKg}` : '—'}
             {weight?.latest ? (
               <span className="text-muted-foreground ml-1 text-sm font-bold">

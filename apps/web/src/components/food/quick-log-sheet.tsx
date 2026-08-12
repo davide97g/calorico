@@ -70,7 +70,7 @@ export function QuickLogSheet({
   return (
     <>
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="mx-auto flex max-h-[92dvh] max-w-[440px] flex-col rounded-t-[28px]">
+        <DrawerContent className="mx-auto flex max-h-[92dvh] max-w-[440px] flex-col rounded-t-xl">
           <DrawerHeader className="shrink-0">
             <DrawerTitle>Registra in fretta</DrawerTitle>
             <DrawerDescription>
@@ -86,7 +86,7 @@ export function QuickLogSheet({
             {isLoading ? (
               <div className="flex flex-col gap-2">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-16 rounded-[22px]" />
+                  <Skeleton key={i} className="h-16 rounded-lg" />
                 ))}
               </div>
             ) : items.length === 0 ? (
@@ -105,7 +105,7 @@ export function QuickLogSheet({
                       onLog={() => handleLog(food)}
                       onAdjust={() =>
                         leave(
-                          `/food/${food.id}?day=${when.day}&meal=${when.meal}`,
+                          `/food/${food.id}?day=${when.day}&meal=${when.meal}&q=${food.lastQuantityG}`,
                         )
                       }
                     />
@@ -173,15 +173,15 @@ function QuickLogRow({
         type="button"
         onClick={onLog}
         disabled={busy}
-        className="hover:bg-secondary/60 active:bg-secondary flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-[22px] p-2 text-left transition-colors disabled:opacity-60"
+        className="hover:bg-secondary/60 active:bg-secondary flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-lg p-2 text-left transition-colors disabled:opacity-60"
         aria-label={`Registra ${food.name}, ${grams(food.lastQuantityG)} ${food.unit}`}
       >
         {busy ? (
-          <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-xl">
+          <span className="bg-secondary flex size-11 shrink-0 items-center justify-center rounded-md">
             <Loader2 className="text-primary-strong size-4 animate-spin" />
           </span>
         ) : done ? (
-          <span className="bg-primary text-primary-foreground flex size-11 shrink-0 items-center justify-center rounded-xl">
+          <span className="bg-primary text-primary-foreground flex size-11 shrink-0 items-center justify-center rounded-md">
             <Check className="size-5" strokeWidth={2.6} />
           </span>
         ) : (

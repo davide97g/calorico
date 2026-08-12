@@ -6,12 +6,18 @@ import { AppShell } from '@/components/layout/app-shell'
 import { MacroDonut } from '@/components/charts/macro-donut'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { FoodGallery } from '@/components/food/food-gallery'
+import { PortionChips, portionOptions } from '@/components/food/portion-chips'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WhenBar } from '@/components/food/when-picker'
-import { useAddEntry, useFood, useToggleFavorite } from '@/hooks/use-diary'
+import {
+  useAddEntry,
+  useFood,
+  useFoodPortions,
+  useToggleFavorite,
+} from '@/hooks/use-diary'
 import { isFutureDay, todayISO } from '@/lib/date'
 import { currentMeal, grams, kcal } from '@/lib/format'
 import { saveActionLabel, savedToastMessage, type When } from '@/lib/when'
@@ -24,6 +30,7 @@ export default function FoodDetailPage() {
   const [params] = useSearchParams()
 
   const { data: food, isLoading } = useFood(id)
+  const { data: portions } = useFoodPortions(id)
   const addEntry = useAddEntry()
   const toggleFavorite = useToggleFavorite()
 
@@ -32,12 +39,15 @@ export default function FoodDetailPage() {
     meal: (params.get('meal') as Meal | null) ?? currentMeal(),
   })
   /**
-   * The portion to open on, best guess first: the one this user last ate — the
-   * screens that know it put it in `?q=` — then the pack's serving, then 100 g.
+   * The portion to open on, best guess first: the one the screen that sent us
+   * here already knew (`?q=`), then the one this user last ate, then the pack's
+   * serving, then 100 g. Typing wins over all of them — `quantity` below.
    */
-  const remembered = Number(params.get('q'))
+  const fromLink = Number(params.get('q'))
   const defaultQuantity =
-    remembered > 0 ? remembered : (food?.servingSizeG ?? 100)
+    fromLink > 0
+      ? fromLink
+      : (portions?.lastQuantityG ?? food?.servingSizeG ?? 100)
   const [quantity, setQuantity] = useState<string | null>(null)
   // The field shows the real default rather than hiding it in a placeholder —
   // an empty-looking input while the values below compute on 100 g is a lie.
@@ -59,19 +69,10 @@ export default function FoodDetailPage() {
     }
   }, [food, grams_])
 
-  const quickPortions = useMemo(() => {
-    if (!food) return []
-    const options = new Set<number>([100])
-    if (food.servingSizeG) options.add(food.servingSizeG)
-    if (food.isLiquid) {
-      options.add(200)
-      options.add(250)
-    } else {
-      options.add(50)
-      options.add(150)
-    }
-    return [...options].sort((a, b) => a - b)
-  }, [food])
+  const quickPortions = useMemo(
+    () => (food ? portionOptions(food, portions) : []),
+    [food, portions],
+  )
 
   const handleSave = () => {
     if (!food) return
@@ -95,8 +96,8 @@ export default function FoodDetailPage() {
     return (
       <AppShell nav={false}>
         <Skeleton className="h-10 w-24 rounded-full" />
-        <Skeleton className="mt-4 h-40 rounded-[28px]" />
-        <Skeleton className="mt-3 h-56 rounded-[28px]" />
+        <Skeleton className="mt-4 h-40 rounded-lg" />
+        <Skeleton className="mt-3 h-56 rounded-lg" />
       </AppShell>
     )
   }
@@ -107,7 +108,7 @@ export default function FoodDetailPage() {
         <Button
           variant="secondary"
           size="icon"
-          className="bg-card shadow-soft size-10 rounded-full"
+          className="bg-card shadow-soft size-11 rounded-full"
           onClick={() => navigate(-1)}
           aria-label="Torna indietro"
         >
@@ -116,7 +117,7 @@ export default function FoodDetailPage() {
         <Button
           variant="secondary"
           size="icon"
-          className="bg-card shadow-soft size-10 rounded-full"
+          className="bg-card shadow-soft size-11 rounded-full"
           onClick={() =>
             toggleFavorite.mutate({ id: food.id, next: !food.isFavorite })
           }
@@ -152,7 +153,7 @@ export default function FoodDetailPage() {
         </div>
         <Link
           to={`/food/${food.id}/info`}
-          className="bg-secondary/70 mt-4 flex h-11 items-center justify-between rounded-2xl px-3 text-xs font-semibold transition-colors active:scale-[0.98]"
+          className="bg-secondary/70 mt-4 flex h-11 items-center justify-between rounded-md px-3 text-xs font-semibold transition-colors active:scale-[0.98]"
         >
           <span className="flex items-center gap-2">
             <Info className="text-primary-strong size-4" />
@@ -174,7 +175,7 @@ export default function FoodDetailPage() {
               onChange={(e) => setQuantity(e.target.value)}
               onFocus={(e) => e.currentTarget.select()}
               inputMode="decimal"
-              className="h-13 rounded-2xl pr-12 text-base font-bold"
+              className="h-13 rounded-md pr-12 text-base font-bold"
               aria-label={`Quantità in ${food.unit}`}
             />
             <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-sm font-semibold">
@@ -183,26 +184,13 @@ export default function FoodDetailPage() {
           </div>
         </div>
 
-        <div className="mt-2 flex flex-wrap gap-2">
-          {quickPortions.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setQuantity(String(p))}
-              className={cn(
-                'h-11 rounded-full px-4 text-xs font-semibold transition-colors',
-                grams_ === p
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground',
-              )}
-            >
-              {p} {food.unit}
-              {food.servingSizeG === p && food.servingLabel
-                ? ' · porzione'
-                : ''}
-            </button>
-          ))}
-        </div>
+        <PortionChips
+          className="mt-2"
+          options={quickPortions}
+          value={grams_}
+          unit={food.unit}
+          onSelect={(next) => setQuantity(String(next))}
+        />
 
         {food.packageSizeG ? (
           <p className="text-muted-foreground mt-3 px-1 text-xs">
@@ -222,8 +210,8 @@ export default function FoodDetailPage() {
         <div className="mt-4 grid grid-cols-[auto_1fr] items-center gap-4">
           <MacroDonut carbsG={macros.carbsG} fatG={macros.fatG} proteinG={macros.proteinG} size={108} />
           <div>
-            <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Energia</p>
-            <p className="font-display tabular mt-1 text-[38px] leading-none font-extrabold tracking-tight">
+            <p className="text-muted-foreground text-micro font-semibold tracking-wide uppercase">Energia</p>
+            <p className="font-display tabular mt-1 text-display leading-none font-extrabold tracking-tight">
               {kcal(macros.kcal)}
               <span className="text-muted-foreground ml-1 text-sm font-semibold">kcal</span>
             </p>
@@ -263,8 +251,8 @@ export default function FoodDetailPage() {
 function MacroCell({ label, value, accent }: { label: string; value: number; accent: 'carbs' | 'fat' | 'protein' }) {
   const dot = { carbs: 'bg-carbs', fat: 'bg-fat', protein: 'bg-protein' }
   return (
-    <div className="bg-secondary/65 min-w-0 rounded-xl px-2 py-2">
-      <dt className="text-muted-foreground flex items-center gap-1 text-[9px] leading-none font-medium">
+    <div className="bg-secondary/65 min-w-0 rounded-md px-2 py-2">
+      <dt className="text-muted-foreground flex items-center gap-1 text-micro leading-none font-medium">
         <span className={cn('size-1.5 shrink-0 rounded-full', dot[accent])} />
         <span className="truncate">{label}</span>
       </dt>

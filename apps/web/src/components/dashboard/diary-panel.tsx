@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Trash2 } from 'lucide-react'
+import { CopyPlus, Plus, Trash2 } from 'lucide-react'
 import { Panel } from '@/components/ui/panel'
+import { Button } from '@/components/ui/button'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { MEAL_ACCENT, MEAL_ICON } from '@/components/food/meal-icon'
 import { MEAL_LABELS, MEAL_ORDER, grams, kcal } from '@/lib/format'
@@ -14,6 +15,9 @@ interface DiaryPanelProps {
   byMeal: Record<Meal, DiaryEntry[]>
   total: number
   onDelete: (entry: DiaryEntry) => void
+  /** Offered inside the panel, but only while the day is still empty. */
+  onCopyYesterday: () => void
+  copying?: boolean
 }
 
 /**
@@ -21,14 +25,23 @@ interface DiaryPanelProps {
  * single row here; before it cost a full card, so a morning screen was four
  * cards of "nothing yet".
  */
-export function DiaryPanel({ day, byMeal, total, onDelete }: DiaryPanelProps) {
+export function DiaryPanel({
+  day,
+  byMeal,
+  total,
+  onDelete,
+  onCopyYesterday,
+  copying,
+}: DiaryPanelProps) {
+  const empty = MEAL_ORDER.every((meal) => !byMeal[meal]?.length)
+
   return (
     <section>
       <header className="mb-2 flex items-baseline justify-between px-1">
-        <h2 className="text-[13px] font-bold">
+        <h2 className="text-sm font-bold">
           {isFutureDay(day) ? 'Piano' : 'Diario'}
         </h2>
-        <span className="tabular text-muted-foreground text-[11px] font-semibold">
+        <span className="tabular text-muted-foreground text-micro font-medium">
           {kcal(total)} kcal {isFutureDay(day) ? 'pianificate' : 'registrate'}
         </span>
       </header>
@@ -45,6 +58,21 @@ export function DiaryPanel({ day, byMeal, total, onDelete }: DiaryPanelProps) {
             onDelete={onDelete}
           />
         ))}
+
+        {/* Repeating yesterday only makes sense while there is nothing here to
+            repeat it onto, so it lives with the empty day rather than taking a
+            permanent tile on the dashboard. */}
+        {empty ? (
+          <Button
+            variant="secondary"
+            className="mt-1 h-12 w-full rounded-full text-sm font-semibold"
+            onClick={onCopyYesterday}
+            disabled={copying}
+          >
+            <CopyPlus className="text-primary-strong size-4" />
+            {copying ? 'Copio…' : 'Copia il giorno prima'}
+          </Button>
+        ) : null}
       </Panel>
     </section>
   )
@@ -66,7 +94,7 @@ function MealGroup({
 
   return (
     <div
-      className="rounded-[22px] p-0.5 pb-1"
+      className="rounded-lg p-0.5 pb-1"
       style={
         {
           '--meal': MEAL_ACCENT[meal],
@@ -89,7 +117,7 @@ function MealGroup({
         </span>
         <h3 className="text-sm font-semibold">{MEAL_LABELS[meal]}</h3>
         {/* Always a number: an em dash next to the + button read as a stepper. */}
-        <span className="tabular text-muted-foreground ml-auto text-[11px] font-semibold">
+        <span className="tabular text-muted-foreground ml-auto text-micro font-medium">
           {kcal(total)} kcal
         </span>
         <Link
@@ -107,7 +135,7 @@ function MealGroup({
             <li key={entry.id} className="flex items-center gap-2">
               <Link
                 to={`/entry/${entry.id}?day=${day}`}
-                className="hover:bg-secondary/60 active:bg-secondary flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-2 transition-colors"
+                className="hover:bg-secondary/60 active:bg-secondary flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-2 transition-colors"
               >
                 <FoodEmojiTile name={entry.nameSnapshot} size="sm" />
                 <span className="min-w-0 flex-1">

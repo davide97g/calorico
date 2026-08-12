@@ -69,7 +69,7 @@ export function DeleteAccountDialog({
         Elimina account
       </Button>
 
-      <DialogContent className="rounded-3xl">
+      <DialogContent className="rounded-lg">
         <DialogHeader>
           <DialogTitle>Eliminare l&apos;account?</DialogTitle>
           <DialogDescription>
@@ -88,7 +88,7 @@ export function DeleteAccountDialog({
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </label>
 
@@ -100,7 +100,7 @@ export function DeleteAccountDialog({
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               autoCapitalize="characters"
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </label>
 

@@ -22,7 +22,7 @@ export function AppShell({
         className={cn(
           // Fixed height with an internal scroll area, so the bottom bar stays
           // pinned to the viewport instead of drifting below the content.
-          'bg-background shadow-float relative flex h-dvh w-full max-w-[440px] flex-col overflow-hidden sm:my-6 sm:h-[calc(100dvh-3rem)] sm:rounded-[40px]',
+          'bg-background shadow-float relative flex h-dvh w-full max-w-[440px] flex-col overflow-hidden sm:my-6 sm:h-[calc(100dvh-3rem)] sm:rounded-xl',
           className,
         )}
       >

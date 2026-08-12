@@ -70,22 +70,22 @@ export default function FamilyPage() {
         <Button
           variant="secondary"
           size="icon"
-          className="bg-card shadow-soft size-10 shrink-0 rounded-full"
+          className="bg-card shadow-soft size-11 shrink-0 rounded-full"
           onClick={() => navigate(-1)}
           aria-label="Torna indietro"
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <h1 className="text-[17px] font-bold">Famiglia</h1>
+        <h1 className="text-lg font-bold">Famiglia</h1>
       </header>
 
       {families.isLoading ? (
         <div className="flex flex-col gap-3">
-          <Skeleton className="h-40 rounded-[28px]" />
+          <Skeleton className="h-40 rounded-lg" />
         </div>
       ) : list.length === 0 ? (
         <Panel className="flex flex-col items-center px-6 py-10 text-center">
-          <span className="bg-primary/55 flex size-16 items-center justify-center rounded-[22px]">
+          <span className="bg-primary/55 flex size-16 items-center justify-center rounded-lg">
             <Users className="text-primary-foreground size-7" />
           </span>
           <h2 className="mt-4 text-base font-bold">Nessuna famiglia</h2>
@@ -117,7 +117,7 @@ export default function FamilyPage() {
             }}
             placeholder="Casa Rossi"
             maxLength={60}
-            className="mt-3 h-11 rounded-2xl"
+            className="mt-3 h-11 rounded-md"
           />
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Button
@@ -216,7 +216,7 @@ function FamilyCard({
               }
             }}
             maxLength={60}
-            className="h-10 rounded-2xl"
+            className="h-10 rounded-md"
           />
         ) : (
           <button
@@ -237,12 +237,12 @@ function FamilyCard({
       <ul className="mt-3 flex flex-col gap-2">
         {family.members.map((member) => (
           <li key={member.id} className="flex items-center gap-2.5">
-            <UserAvatar user={member} fallbackClassName="text-[11px]" />
+            <UserAvatar user={member} fallbackClassName="text-micro" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold">
                 {member.name}
               </span>
-              <span className="text-muted-foreground block text-[11px]">
+              <span className="text-muted-foreground block text-micro">
                 Dal {longDayLabel(dayOf(member.joinedAt))}
               </span>
             </span>
@@ -278,7 +278,7 @@ function FamilyCard({
         <PanelHeader icon={<Link2 />} title="Invito" />
         {current ? (
           <>
-            <div className="bg-secondary mt-3 flex items-center gap-2 rounded-2xl p-2 pl-3">
+            <div className="bg-secondary mt-3 flex items-center gap-2 rounded-md p-2 pl-3">
               <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
                 {inviteUrl(current.token)}
               </span>
@@ -292,7 +292,7 @@ function FamilyCard({
                 {copied ? <Check className="text-primary-strong" /> : <Copy />}
               </Button>
             </div>
-            <p className="text-muted-foreground mt-2 text-[11px]">
+            <p className="text-muted-foreground mt-2 text-micro">
               Valido fino al {dayTimeLabel(current.expiresAt)}. Chiunque abbia il
               link può unirsi.
             </p>
@@ -346,7 +346,7 @@ function FamilyCard({
       </Button>
 
       <Dialog open={confirmLeave} onOpenChange={setConfirmLeave}>
-        <DialogContent className="max-w-sm rounded-[28px]" showCloseButton={false}>
+        <DialogContent className="max-w-sm rounded-lg" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>Uscire da “{family.name}”?</DialogTitle>
             <DialogDescription>

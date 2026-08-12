@@ -39,9 +39,9 @@ export default function ScansPage() {
           <ArrowLeft />
         </Button>
         <div className="min-w-0">
-          <h1 className="text-[17px] font-bold">Scansioni</h1>
+          <h1 className="text-lg font-bold">Scansioni</h1>
           {/* The order is not obvious from the rows, so it is spelled out. */}
-          <p className="text-muted-foreground text-[11px]">
+          <p className="text-muted-foreground text-micro">
             Dalle più frequenti e recenti
           </p>
         </div>
@@ -64,12 +64,12 @@ export default function ScansPage() {
       {scans.isLoading ? (
         <div className="mt-3 flex flex-col gap-2">
           {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={index} className="h-[68px] rounded-[24px]" />
+            <Skeleton key={index} className="h-[68px] rounded-lg" />
           ))}
         </div>
       ) : items.length === 0 ? (
         <Panel className="mt-3 flex flex-col items-center px-6 py-12 text-center">
-          <span className="bg-primary/55 flex size-16 items-center justify-center rounded-[22px]">
+          <span className="bg-primary/55 flex size-16 items-center justify-center rounded-lg">
             <ScanLine className="text-primary-foreground size-7" />
           </span>
           <h2 className="mt-4 text-base font-bold">
@@ -127,7 +127,7 @@ function ScanRow({
 
   const body = (
     <>
-      <span className="bg-secondary flex size-10 shrink-0 items-center justify-center rounded-[16px]">
+      <span className="bg-secondary flex size-10 shrink-0 items-center justify-center rounded-md">
         <Icon className="text-muted-foreground size-5" />
       </span>
 
@@ -136,11 +136,11 @@ function ScanRow({
           {scan.nameSnapshot}
         </span>
         {scan.brandSnapshot ? (
-          <span className="text-muted-foreground block truncate text-[11px]">
+          <span className="text-muted-foreground block truncate text-micro">
             {scan.brandSnapshot}
           </span>
         ) : null}
-        <span className="text-muted-foreground mt-1 flex items-center gap-1.5 text-[11px]">
+        <span className="text-muted-foreground mt-1 flex items-center gap-1.5 text-micro">
           <UserAvatar
             user={scan.scannedBy}
             className="size-4"
@@ -164,7 +164,7 @@ function ScanRow({
   )
 
   const className =
-    'flex min-h-[72px] w-full items-center gap-3 rounded-[22px] px-2.5 py-2 text-left'
+    'flex min-h-[72px] w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left'
 
   if (!onOpen) return <div className={className}>{body}</div>
 

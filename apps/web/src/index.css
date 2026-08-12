@@ -4,7 +4,9 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 1.5rem;
+  /* Base of the radius ladder below. Every rung is derived from it, and nothing
+     in the app hard-codes a corner. */
+  --radius: 1.375rem;
   /* Height of the bottom bar without its safe-area padding. The scroll
      container reserves this instead of guessing with a fixed pb-* value. */
   --nav-h: 4.25rem;
@@ -164,16 +166,48 @@
   --color-meal-dinner: var(--meal-dinner);
   --color-meal-snack: var(--meal-snack);
 
-  --radius-sm: calc(var(--radius) - 8px);
-  --radius-md: calc(var(--radius) - 4px);
+  /* Four rungs, each with a job, and no fifth. The app used to mix ten corner
+     values — 14, 16, 20, 22, 24, 28, 32, 40 and the Tailwind defaults — which
+     is why nothing on a screen read as more important than anything else.
+
+       sm  8px  controls: menu rows, tooltips, swatches
+       md 12px  cells inside a card: tiles, chips with corners, stat boxes
+       lg 22px  the card itself: panels, list rows, buttons with corners
+       xl 32px  full surfaces: the hero, sheets, the shell
+
+     Anything round is `rounded-full`; that is a shape, not a rung. */
+  --radius-sm: calc(var(--radius) - 14px);
+  --radius-md: calc(var(--radius) - 10px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 10px);
 
   --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system,
     'Segoe UI', sans-serif;
   /* Reserved for figures: the number is the product, so it gets its own face. */
   --font-display: 'Bricolage Grotesque', 'Plus Jakarta Sans', ui-sans-serif,
     system-ui, sans-serif;
+
+  /* Type scale. Tailwind's own ladder (xs 12 · sm 14 · base 16 · lg 18 · xl 20
+     · 2xl 24) carries every piece of copy; these four are what it lacks.
+
+     `micro` is the floor and it is a floor: labels, meta and nav captions used
+     to be set at 9 and 10px, which is below what anyone reads on a phone and
+     falls apart at the largest Dynamic Type setting.
+
+     The three display sizes are for figures only — the kcal that a screen
+     exists to show. They pair with --font-display.
+
+     Weight carries hierarchy alongside size: 400–500 for copy, 600 for labels
+     and headers, 800 for figures. Setting body text bold, as this app once did
+     nearly everywhere, spends the signal and leaves nothing to emphasise with. */
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1.4;
+  --text-display-sm: 1.75rem;
+  --text-display-sm--line-height: 1;
+  --text-display: 2.375rem;
+  --text-display--line-height: 1;
+  --text-hero: 4rem;
+  --text-hero--line-height: 0.82;
 }
 
 @layer base {

@@ -49,14 +49,14 @@ export default function StatsPage() {
         <Button
           variant="secondary"
           size="icon"
-          className="bg-card shadow-soft size-10 rounded-full"
+          className="bg-card shadow-soft size-11 rounded-full"
           onClick={() => navigate(-1)}
           aria-label="Torna indietro"
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <h1 className="text-[17px] font-bold">Statistiche</h1>
-        <div className="size-10" />
+        <h1 className="text-lg font-bold">Statistiche</h1>
+        <div className="size-11" />
       </header>
 
       <Tabs
@@ -64,7 +64,7 @@ export default function StatsPage() {
         onValueChange={(v) => setRange(v as typeof range)}
         className="mb-3"
       >
-        <TabsList className="bg-card shadow-soft h-9 w-full rounded-full p-1">
+        <TabsList className="bg-card shadow-soft h-12 w-full rounded-full p-1">
           {RANGES.map((r) => (
             <TabsTrigger
               key={r.key}
@@ -79,9 +79,9 @@ export default function StatsPage() {
 
       {isLoading || !data ? (
         <div className="flex flex-col gap-3">
-          <Skeleton className="h-[200px] rounded-[28px]" />
-          <Skeleton className="h-[160px] rounded-[28px]" />
-          <Skeleton className="h-[200px] rounded-[28px]" />
+          <Skeleton className="h-[200px] rounded-lg" />
+          <Skeleton className="h-[160px] rounded-lg" />
+          <Skeleton className="h-[200px] rounded-lg" />
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -99,7 +99,7 @@ export default function StatsPage() {
             <p className="text-muted-foreground mt-2 text-xs">
               {selected ? longDayLabel(selected.day) : ''}
             </p>
-            <p className="tabular mt-1 text-[28px] leading-none font-extrabold">
+            <p className="tabular mt-1 text-display-sm leading-none font-extrabold">
               {kcal(selected?.kcal ?? 0)} kcal
             </p>
             <p className="text-muted-foreground mt-1 text-xs">
@@ -117,7 +117,7 @@ export default function StatsPage() {
                 style={{ width: `${consumedWidth}%` }}
               />
             </div>
-            <div className="text-muted-foreground mt-2 flex items-center justify-between text-[11px]">
+            <div className="text-muted-foreground mt-2 flex items-center justify-between text-micro">
               <span>0</span>
               <span className="flex items-center gap-1.5">
                 <span className="bg-ring-track inline-block size-2.5 rounded-[3px]" />
@@ -137,7 +137,7 @@ export default function StatsPage() {
                   proteinG={targets?.proteinG ?? 0}
                   size={92}
                 />
-                <figcaption className="text-muted-foreground flex items-center gap-1 text-[11px]">
+                <figcaption className="text-muted-foreground flex items-center gap-1 text-micro">
                   Consigliato <Info className="size-3" />
                 </figcaption>
               </figure>
@@ -149,7 +149,7 @@ export default function StatsPage() {
                   proteinG={selected?.proteinG ?? 0}
                   size={92}
                 />
-                <figcaption className="text-muted-foreground text-[11px]">
+                <figcaption className="text-muted-foreground text-micro">
                   Effettivo
                 </figcaption>
               </figure>
@@ -193,8 +193,8 @@ export default function StatsPage() {
 
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-secondary/60 rounded-2xl p-3">
-      <dt className="text-muted-foreground text-[11px]">{label}</dt>
+    <div className="bg-secondary/60 rounded-md p-3">
+      <dt className="text-muted-foreground text-micro">{label}</dt>
       <dd className="tabular mt-1 text-base font-bold">{value}</dd>
     </div>
   )

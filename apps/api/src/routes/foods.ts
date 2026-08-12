@@ -6,7 +6,7 @@ import { favorites, foods, type Food, type NewFood } from '../db/schema.js'
 import { fetchByBarcode, searchOff } from '../lib/off.js'
 import { recordScan } from '../lib/scan-log.js'
 import { cacheFoods } from '../lib/food-cache.js'
-import { rankedDiaryFoods } from '../lib/history.js'
+import { foodPortions, rankedDiaryFoods } from '../lib/history.js'
 import {
   hasConfidentGenericMatch,
   searchLocalFoods,
@@ -211,6 +211,16 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
       .limit(1)
 
     return { ...food, isFavorite: Boolean(fav) }
+  })
+
+  /**
+   * This user's portion history for one food. Its own route rather than a field
+   * on GET /:id: the food screen and the entry screen both want it, and neither
+   * should wait on it to render.
+   */
+  app.get('/:id/portions', async (request) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+    return foodPortions(request.user.sub, id)
   })
 
   app.put('/:id/favorite', async (request) => {

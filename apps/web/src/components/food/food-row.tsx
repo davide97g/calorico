@@ -7,7 +7,7 @@ export function FoodRow({ food, to }: { food: Food; to: string }) {
   return (
     <Link
       to={to}
-      className="hover:bg-secondary/70 flex items-center gap-3 rounded-2xl p-2 transition-colors"
+      className="hover:bg-secondary/70 flex items-center gap-3 rounded-md p-2 transition-colors"
     >
       <FoodEmojiTile name={food.name} category={food.category} />
 

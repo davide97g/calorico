@@ -44,7 +44,7 @@ export default function RegisterPage() {
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               autoComplete="name"
               required
-              className="h-12 rounded-2xl"
+              className="h-12 rounded-md"
             />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -57,7 +57,7 @@ export default function RegisterPage() {
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
               autoComplete="email"
               required
-              className="h-12 rounded-2xl"
+              className="h-12 rounded-md"
             />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -73,9 +73,9 @@ export default function RegisterPage() {
               autoComplete="new-password"
               required
               minLength={8}
-              className="h-12 rounded-2xl"
+              className="h-12 rounded-md"
             />
-            <span className="text-muted-foreground text-[11px]">
+            <span className="text-muted-foreground text-micro">
               Almeno 8 caratteri.
             </span>
           </label>

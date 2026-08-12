@@ -28,7 +28,7 @@ import {
   useRecentFoods,
   useVisionStatus,
 } from '@/hooks/use-diary'
-import { useAddGroceryItem } from '@/hooks/use-grocery'
+import { useGroceryOffer } from '@/hooks/use-grocery'
 import { ApiError } from '@/lib/api'
 import { todayISO } from '@/lib/date'
 import { currentMeal } from '@/lib/format'
@@ -74,7 +74,7 @@ export default function AddFoodPage() {
   const recent = useRecentFoods(meal)
   const favorites = useFavoriteFoods()
   const barcode = useBarcodeLookup()
-  const addGroceryItem = useAddGroceryItem()
+  const offerGrocery = useGroceryOffer()
 
   const foodLink = (id: string) => `/food/${id}?day=${day}&meal=${meal}`
   /** A food already eaten opens on the portion it was eaten in. */
@@ -83,15 +83,11 @@ export default function AddFoodPage() {
 
   const handleDetected = (code: string) => {
     barcode.mutate(code, {
-      onSuccess: async (food) => {
+      onSuccess: (food) => {
         setScannerOpen(false)
-        try {
-          await addGroceryItem.mutateAsync({ foodId: food.id })
-          toast.success(`${food.name} aggiunto alla spesa`)
-        } catch {
-          toast.error('Scansione riuscita, ma aggiunta alla spesa non riuscita')
-        }
         navigate(foodLink(food.id))
+        // The shopping list is a separate intention, so it is offered, not done.
+        offerGrocery(food, 'Scegli la porzione e salva.')
       },
       onError: (err) => {
         const message =
@@ -116,13 +112,13 @@ export default function AddFoodPage() {
         <Button
           variant="secondary"
           size="icon"
-          className="bg-card shadow-soft size-10 shrink-0 rounded-full"
+          className="bg-card shadow-soft size-11 shrink-0 rounded-full"
           onClick={() => navigate(-1)}
           aria-label="Torna indietro"
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <h1 className="text-[17px] font-bold">Aggiungi alimento</h1>
+        <h1 className="text-lg font-bold">Aggiungi alimento</h1>
       </header>
 
       <WhenBar value={{ day, meal }} onChange={setWhen} className="mb-3" />
@@ -158,7 +154,7 @@ export default function AddFoodPage() {
           {search.isPending ? (
             <div className="flex flex-col gap-2 p-1">
               {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 rounded-2xl" />
+                <Skeleton key={i} className="h-14 rounded-md" />
               ))}
             </div>
           ) : search.data?.items.length ? (
@@ -191,7 +187,7 @@ export default function AddFoodPage() {
         </Panel>
       ) : (
         <Tabs defaultValue="recent" className="mt-3">
-          <TabsList className="bg-card shadow-soft h-10 w-full rounded-full p-1">
+          <TabsList className="bg-card shadow-soft h-12 w-full rounded-full p-1">
             <TabsTrigger
               value="recent"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full text-xs data-[state=active]:shadow-none"
@@ -284,7 +280,7 @@ function FoodList({
     return (
       <Panel className="mt-2 flex flex-col gap-2 p-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-14 rounded-2xl" />
+          <Skeleton key={i} className="h-14 rounded-md" />
         ))}
       </Panel>
     )

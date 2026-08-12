@@ -164,8 +164,8 @@ export default function PhotoReviewPage() {
           <ChevronLeft className="size-5" strokeWidth={2.5} />
         </button>
         <div className="min-w-0">
-          <h1 className="truncate text-[17px] font-bold">Controlla il pasto</h1>
-          <p className="text-muted-foreground text-[11px] font-medium">
+          <h1 className="truncate text-lg font-bold">Controlla il pasto</h1>
+          <p className="text-muted-foreground text-micro font-medium">
             Stime da foto, da controllare
           </p>
         </div>
@@ -173,7 +173,7 @@ export default function PhotoReviewPage() {
 
       <WhenBar value={when} onChange={setWhen} className="mb-3" />
 
-      <p className="text-muted-foreground bg-secondary/60 mb-3 flex items-start gap-2 rounded-2xl px-3 py-2.5 text-[11px] font-medium">
+      <p className="text-muted-foreground bg-secondary/60 mb-3 flex items-start gap-2 rounded-md px-3 py-2.5 text-micro font-medium">
         <Sparkles className="text-primary-strong mt-0.5 size-3.5 shrink-0" strokeWidth={2.4} />
         Le quantità sono stimate dalla foto: controllale, sono la parte più
         facile da sbagliare.
@@ -184,7 +184,7 @@ export default function PhotoReviewPage() {
           const rowTotal = rowKcal(row)
           const picking = openPicker === row.key
           return (
-            <li key={row.key} className="bg-card shadow-soft rounded-[22px] p-3">
+            <li key={row.key} className="bg-card shadow-soft rounded-lg p-3">
               <div className="flex items-start gap-3">
                 <FoodEmojiTile
                   name={row.food?.name ?? row.label}
@@ -200,7 +200,7 @@ export default function PhotoReviewPage() {
                     <p className="truncate text-sm font-bold">
                       {row.food?.name ?? row.label}
                     </p>
-                    <p className="text-muted-foreground truncate text-[11px] font-medium">
+                    <p className="text-muted-foreground truncate text-micro font-medium">
                       {row.food
                         ? (row.food.brand ?? 'Dal database')
                         : 'Stima nutrizionale · tocca per cercare'}
@@ -222,7 +222,7 @@ export default function PhotoReviewPage() {
                         className="h-10 pr-8 text-sm font-semibold"
                         aria-label={`Quantità di ${row.label}`}
                       />
-                      <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[11px] font-semibold">
+                      <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-micro font-semibold">
                         {row.isLiquid ? 'ml' : 'g'}
                       </span>
                     </div>
@@ -242,7 +242,7 @@ export default function PhotoReviewPage() {
                   </div>
 
                   {row.confidence === 'low' && row.basis && (
-                    <p className="text-muted-foreground mt-2 flex items-start gap-1.5 text-[11px] font-medium">
+                    <p className="text-muted-foreground mt-2 flex items-start gap-1.5 text-micro font-medium">
                       <TriangleAlert className="mt-0.5 size-3 shrink-0" strokeWidth={2.4} />
                       <span>Stima incerta. {row.basis}</span>
                     </p>
@@ -253,7 +253,7 @@ export default function PhotoReviewPage() {
               {picking && (
                 <div className="border-border/70 mt-3 space-y-1 border-t pt-3">
                   {row.candidates.length === 0 && (
-                    <p className="text-muted-foreground px-1 text-[11px] font-medium">
+                    <p className="text-muted-foreground px-1 text-micro font-medium">
                       Nessuna corrispondenza nel database.
                     </p>
                   )}
@@ -266,7 +266,7 @@ export default function PhotoReviewPage() {
                         setOpenPicker(null)
                       }}
                       className={cn(
-                        'flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left',
+                        'flex w-full items-center gap-2 rounded-md px-2 py-2 text-left',
                         row.food?.id === candidate.id
                           ? 'bg-primary/10'
                           : 'hover:bg-secondary/60',
@@ -281,7 +281,7 @@ export default function PhotoReviewPage() {
                         <span className="block truncate text-xs font-semibold">
                           {candidate.name}
                         </span>
-                        <span className="text-muted-foreground block truncate text-[10px] font-medium">
+                        <span className="text-muted-foreground block truncate text-micro font-medium">
                           {candidate.brand ?? 'Generico'} ·{' '}
                           {fmtKcal(candidate.kcal100)} kcal/100
                           {candidate.isLiquid ? 'ml' : 'g'}
@@ -298,11 +298,11 @@ export default function PhotoReviewPage() {
                         setOpenPicker(null)
                       }}
                       className={cn(
-                        'flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left',
+                        'flex w-full items-center gap-2 rounded-md px-2 py-2 text-left',
                         row.food === null ? 'bg-primary/10' : 'hover:bg-secondary/60',
                       )}
                     >
-                      <span className="bg-secondary flex size-9 shrink-0 items-center justify-center rounded-xl">
+                      <span className="bg-secondary flex size-9 shrink-0 items-center justify-center rounded-md">
                         <Sparkles className="text-primary-strong size-4" strokeWidth={2.4} />
                       </span>
                       <span className="min-w-0 flex-1">
@@ -310,7 +310,7 @@ export default function PhotoReviewPage() {
                           Usa la stima ({fmtKcal(row.estimate.kcal100)} kcal/100
                           {row.isLiquid ? 'ml' : 'g'})
                         </span>
-                        <span className="text-muted-foreground block text-[10px] font-medium">
+                        <span className="text-muted-foreground block text-micro font-medium">
                           Salvato tra i tuoi alimenti
                         </span>
                       </span>
@@ -332,7 +332,7 @@ export default function PhotoReviewPage() {
 
       <Link
         to={`/add?day=${when.day}&meal=${when.meal}`}
-        className="text-muted-foreground border-border/70 mt-2 flex min-h-12 items-center justify-center gap-2 rounded-[22px] border border-dashed text-xs font-semibold"
+        className="text-muted-foreground border-border/70 mt-2 flex min-h-12 items-center justify-center gap-2 rounded-lg border border-dashed text-xs font-semibold"
       >
         <Plus className="size-4" strokeWidth={2.5} />
         Aggiungi quello che manca
@@ -340,7 +340,7 @@ export default function PhotoReviewPage() {
 
       <div className="sticky bottom-0 z-10 -mx-4 mt-4 bg-gradient-to-t from-background via-background to-transparent px-4 pt-7 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {unresolved.length > 0 && (
-          <p className="text-muted-foreground mb-2 text-center text-[11px] font-medium">
+          <p className="text-muted-foreground mb-2 text-center text-micro font-medium">
             {unresolved.length === 1
               ? 'Una voce non ha dati nutrizionali: scegli un alimento oppure rimuovila.'
               : `${unresolved.length} voci non hanno dati nutrizionali: scegli un alimento oppure rimuovile.`}

@@ -74,7 +74,7 @@ export function MacroDonut({
     return (
       <div
         style={{ width: size, height: size }}
-        className="border-border text-muted-foreground flex items-center justify-center rounded-full border-2 border-dashed text-[11px]"
+        className="border-border text-muted-foreground flex items-center justify-center rounded-full border-2 border-dashed text-micro"
       >
         —
       </div>

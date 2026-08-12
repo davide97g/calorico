@@ -48,7 +48,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
               required
-              className="h-12 rounded-2xl"
+              className="h-12 rounded-md"
             />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -62,7 +62,7 @@ export default function LoginPage() {
               autoComplete="current-password"
               required
               minLength={8}
-              className="h-12 rounded-2xl"
+              className="h-12 rounded-md"
             />
           </label>
 

@@ -53,7 +53,7 @@ export function PremiumSheet({
         if (!checkout.isPending) onOpenChange(next)
       }}
     >
-      <DrawerContent className="mx-auto max-h-[94dvh] max-w-[440px] rounded-t-[28px]">
+      <DrawerContent className="mx-auto max-h-[94dvh] max-w-[440px] rounded-t-xl">
         <DrawerHeader className="shrink-0">
           <DrawerTitle className="flex items-center gap-2">
             <Sparkles className="size-5 text-primary" strokeWidth={2.4} />
@@ -85,7 +85,7 @@ export function PremiumSheet({
                 type="button"
                 onClick={pay}
                 disabled={checkout.isPending}
-                className="min-h-14 w-full gap-2 rounded-[20px] text-sm font-bold"
+                className="min-h-14 w-full gap-2 rounded-lg text-sm font-bold"
               >
                 {checkout.isPending ? (
                   <Loader2 className="size-5 animate-spin" />
@@ -97,14 +97,14 @@ export function PremiumSheet({
                   : `Abbonati a ${price},00 €/mese`}
               </Button>
 
-              <p className="text-muted-foreground px-1 text-[11px] font-medium">
+              <p className="text-muted-foreground px-1 text-micro font-medium">
                 Pagamento sicuro con Stripe: la carta viene inserita sul loro
                 sito, non qui. Rinnovo mensile, disdici quando vuoi dal tuo
                 profilo.
               </p>
             </>
           ) : (
-            <p className="text-muted-foreground px-1 text-[11px] font-medium">
+            <p className="text-muted-foreground px-1 text-micro font-medium">
               I pagamenti non sono attivi su questo server, quindi Premium non è
               acquistabile.
             </p>

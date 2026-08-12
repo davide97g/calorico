@@ -47,17 +47,17 @@ export default function WeightPage() {
         <Button
           variant="secondary"
           size="icon"
-          className="bg-card shadow-soft size-10 shrink-0 rounded-full"
+          className="bg-card shadow-soft size-11 shrink-0 rounded-full"
           onClick={() => navigate(-1)}
           aria-label="Torna indietro"
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <h1 className="text-[17px] font-bold">Peso</h1>
+        <h1 className="text-lg font-bold">Peso</h1>
       </header>
 
       {isLoading || !data ? (
-        <Skeleton className="h-64 rounded-[28px]" />
+        <Skeleton className="h-64 rounded-lg" />
       ) : (
         <div className="flex flex-col gap-3">
           <Panel className="bg-primary text-primary-foreground">
@@ -65,10 +65,10 @@ export default function WeightPage() {
               <span className="bg-primary-foreground/12 flex size-8 items-center justify-center rounded-full">
                 <Scale className="size-4" />
               </span>
-              <h2 className="text-[15px] font-semibold">Peso attuale</h2>
+              <h2 className="text-base font-semibold">Peso attuale</h2>
             </div>
             <div className="mt-3 flex items-end justify-between">
-              <p className="tabular text-[40px] leading-none font-extrabold">
+              <p className="tabular text-display leading-none font-extrabold">
                 {data.latest ? data.latest.weightKg : '—'}
                 <span className="ml-1 text-base font-semibold">kg</span>
               </p>
@@ -99,11 +99,11 @@ export default function WeightPage() {
                 onChange={(e) => setValue(e.target.value)}
                 inputMode="decimal"
                 placeholder={data.latest ? String(data.latest.weightKg) : '75,0'}
-                className="h-12 rounded-2xl text-base font-semibold"
+                className="h-12 rounded-md text-base font-semibold"
                 aria-label="Peso in kg"
               />
               <Button
-                className="h-12 rounded-2xl px-6"
+                className="h-12 rounded-md px-6"
                 onClick={handleSave}
                 disabled={logWeight.isPending}
               >
@@ -144,8 +144,8 @@ export default function WeightPage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-secondary/60 rounded-2xl py-3">
-      <dt className="text-muted-foreground text-[11px]">{label}</dt>
+    <div className="bg-secondary/60 rounded-md py-3">
+      <dt className="text-muted-foreground text-micro">{label}</dt>
       <dd className="tabular mt-0.5 text-sm font-bold">{value}</dd>
     </div>
   )

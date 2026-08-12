@@ -167,10 +167,10 @@ export default function GroceryPage() {
     <AppShell>
       <header className="flex items-end justify-between px-1">
         <div className="min-w-0">
-          <p className="text-primary-strong truncate text-[11px] font-bold tracking-[0.16em] uppercase">
+          <p className="text-primary-strong truncate text-micro font-bold tracking-[0.16em] uppercase">
             {eyebrow}
           </p>
-          <h1 className="font-display text-[28px] leading-tight font-bold">Spesa</h1>
+          <h1 className="font-display text-display-sm leading-tight font-bold">Spesa</h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button
@@ -217,9 +217,9 @@ export default function GroceryPage() {
                     type="button"
                     onClick={() => addSuggestion(suggestion)}
                     disabled={addItem.isPending}
-                    className="hover:bg-secondary/70 flex w-full items-center gap-3 rounded-2xl p-2 text-left transition-colors"
+                    className="hover:bg-secondary/70 flex w-full items-center gap-3 rounded-md p-2 text-left transition-colors"
                   >
-                    <span className="bg-secondary text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-[14px]">
+                    <span className="bg-secondary text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md">
                       <History className="size-4" />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -252,7 +252,7 @@ export default function GroceryPage() {
                     type="button"
                     onClick={() => addFood(food)}
                     disabled={addItem.isPending}
-                    className="hover:bg-secondary/70 flex w-full items-center gap-3 rounded-2xl p-2 text-left transition-colors"
+                    className="hover:bg-secondary/70 flex w-full items-center gap-3 rounded-md p-2 text-left transition-colors"
                   >
                     <FoodEmojiTile name={food.name} category={food.category} size="sm" />
                     <span className="min-w-0 flex-1">
@@ -285,7 +285,7 @@ export default function GroceryPage() {
         {grocery.isLoading ? (
           <div className="flex flex-col gap-2">
             {Array.from({ length: 5 }).map((_, index) => (
-              <Skeleton key={index} className="h-[76px] rounded-[24px]" />
+              <Skeleton key={index} className="h-[76px] rounded-lg" />
             ))}
           </div>
         ) : items.length ? (
@@ -305,7 +305,7 @@ export default function GroceryPage() {
           </Panel>
         ) : (
           <Panel className="flex flex-col items-center px-6 py-12 text-center">
-            <span className="bg-primary/55 flex size-16 items-center justify-center rounded-[22px]">
+            <span className="bg-primary/55 flex size-16 items-center justify-center rounded-lg">
               <ShoppingBasket className="text-primary-foreground size-7" />
             </span>
             <h2 className="mt-4 text-base font-bold">Lista vuota</h2>
@@ -322,7 +322,7 @@ export default function GroceryPage() {
           if (!open) setDeleteTarget(null)
         }}
       >
-        <DialogContent className="max-w-sm rounded-[28px]" showCloseButton={false}>
+        <DialogContent className="max-w-sm rounded-lg" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>Eliminare “{deleteTarget?.nameSnapshot}”?</DialogTitle>
             <DialogDescription>
@@ -394,7 +394,7 @@ function GroceryRow({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-[22px]">
+    <div className="relative overflow-hidden rounded-lg">
       <div className="bg-destructive/12 text-destructive absolute inset-0 flex items-center justify-between px-5">
         <Trash2 className="size-5" />
         <Trash2 className="size-5" />
@@ -421,7 +421,7 @@ function GroceryRow({
         onPointerUp={finishSwipe}
         onPointerCancel={cancelSwipe}
         className={cn(
-          'bg-card relative flex min-h-[72px] touch-pan-y items-center gap-3 rounded-[22px] px-2.5 py-2 outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring',
+          'bg-card relative flex min-h-[72px] touch-pan-y items-center gap-3 rounded-lg px-2.5 py-2 outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring',
           item.completed && 'text-muted-foreground',
         )}
         style={{ transform: `translateX(${offset}px)` }}
@@ -441,13 +441,13 @@ function GroceryRow({
             {item.nameSnapshot}
           </span>
           {item.brandSnapshot ? (
-            <span className="text-muted-foreground block truncate text-[11px]">
+            <span className="text-muted-foreground block truncate text-micro">
               {item.brandSnapshot}
             </span>
           ) : null}
           {/* Only worth the extra line once the list is actually shared. */}
           {item.familyId && item.addedBy ? (
-            <span className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-[11px]">
+            <span className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-micro">
               <UserAvatar
                 user={item.addedBy}
                 className="size-4"

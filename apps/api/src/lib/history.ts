@@ -277,6 +277,60 @@ export async function rankedDiaryFoods(
   }))
 }
 
+export interface FoodPortions {
+  /** null when this user has never logged this food. */
+  lastQuantityG: number | null
+  topQuantities: number[]
+  times: number
+}
+
+/**
+ * One food's portion history: what this user weighed out last, and what they
+ * weigh out most. The portion field on the food screen opens on the first and
+ * offers the rest as chips, so the usual amount never has to be retyped.
+ *
+ * No meal weighting here, unlike the ranking above: 180 g of yogurt is 180 g of
+ * yogurt whether it was breakfast or supper.
+ */
+export async function foodPortions(
+  userId: string,
+  foodId: string,
+): Promise<FoodPortions> {
+  const rows = await db.execute(sql`
+    with per_quantity as (
+      select
+        ${diaryEntries.quantityG} as quantity_g,
+        count(*)::int as times,
+        sum(${decayed(sql`${diaryEntries.createdAt}`, DIARY_HALF_LIFE_DAYS)})
+          as weight,
+        max(${diaryEntries.createdAt}) as last_at
+      from ${diaryEntries}
+      where ${diaryEntries.userId} = ${userId}
+        and ${diaryEntries.foodId} = ${foodId}
+      group by ${diaryEntries.quantityG}
+    )
+    select
+      coalesce(sum(times), 0)::int as times,
+      (array_agg(quantity_g order by weight desc, last_at desc))[1:${sql.raw(String(TOP_QUANTITIES))}] as top_quantities,
+      (array_agg(quantity_g order by last_at desc))[1] as last_quantity_g
+    from per_quantity
+  `)
+
+  interface Row {
+    times: number
+    top_quantities: number[] | null
+    last_quantity_g: number | null
+  }
+
+  const row = (rows as unknown as Row[])[0]
+  return {
+    lastQuantityG:
+      row?.last_quantity_g == null ? null : Number(row.last_quantity_g),
+    topQuantities: (row?.top_quantities ?? []).map(Number),
+    times: Number(row?.times ?? 0),
+  }
+}
+
 export interface GrocerySuggestion {
   /** The `dedupe_key` an add would use, so the caller can dedupe against search hits. */
   key: string

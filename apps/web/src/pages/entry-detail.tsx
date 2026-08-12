@@ -5,13 +5,19 @@ import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { FoodGallery } from '@/components/food/food-gallery'
+import { PortionChips, portionOptions } from '@/components/food/portion-chips'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WhenBar } from '@/components/food/when-picker'
 import type { When } from '@/lib/when'
-import { useDeleteEntry, useDiary, useUpdateEntry } from '@/hooks/use-diary'
+import {
+  useDeleteEntry,
+  useDiary,
+  useFoodPortions,
+  useUpdateEntry,
+} from '@/hooks/use-diary'
 import { todayISO } from '@/lib/date'
 import { grams, kcal } from '@/lib/format'
 
@@ -23,6 +29,8 @@ export default function EntryDetailPage() {
 
   const { data, isLoading } = useDiary(day)
   const entry = data?.entries.find((e) => e.id === id)
+  // A snapshot-only entry — its food was deleted — has no history to offer.
+  const { data: portions } = useFoodPortions(entry?.foodId)
 
   const updateEntry = useUpdateEntry()
   const deleteEntry = useDeleteEntry()
@@ -40,7 +48,7 @@ export default function EntryDetailPage() {
   if (isLoading) {
     return (
       <AppShell nav={false}>
-        <Skeleton className="h-40 rounded-[28px]" />
+        <Skeleton className="h-40 rounded-lg" />
       </AppShell>
     )
   }
@@ -83,7 +91,7 @@ export default function EntryDetailPage() {
         <Button
           variant="secondary"
           size="icon"
-          className="bg-card shadow-soft size-10 rounded-full"
+          className="bg-card shadow-soft size-11 rounded-full"
           onClick={() => navigate(-1)}
           aria-label="Torna indietro"
         >
@@ -92,7 +100,7 @@ export default function EntryDetailPage() {
         <Button
           variant="secondary"
           size="icon"
-          className="bg-card text-destructive shadow-soft size-10 rounded-full"
+          className="bg-card text-destructive shadow-soft size-11 rounded-full"
           onClick={() =>
             deleteEntry.mutate(
               { id: entry.id, day },
@@ -127,7 +135,7 @@ export default function EntryDetailPage() {
         {entry.foodId ? (
           <Button
             variant="secondary"
-            className="mt-4 h-10 w-full rounded-xl text-xs font-semibold"
+            className="mt-4 h-10 w-full rounded-md text-xs font-semibold"
             onClick={() => navigate(`/food/${entry.foodId}/info`)}
           >
             <Info className="size-4" />
@@ -140,18 +148,29 @@ export default function EntryDetailPage() {
 
       <Panel className="mt-3">
         <PanelHeader title="Modifica" />
-        <div className="mt-3 flex items-center gap-2">
+        <div className="relative mt-3">
           <Input
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
+            onFocus={(e) => e.currentTarget.select()}
             inputMode="decimal"
-            className="h-12 rounded-2xl text-base font-semibold"
-            aria-label="Quantità"
+            className="h-13 rounded-md pr-12 text-base font-bold"
+            aria-label={`Quantità in ${entry.unit ?? 'g'}`}
           />
-          <span className="text-muted-foreground w-8 text-sm">
+          <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-sm font-semibold">
             {entry.unit ?? 'g'}
           </span>
         </div>
+
+        {/* Same portions as the food screen offers: the common edit is "actually
+            it was the usual amount", not an arbitrary new number. */}
+        <PortionChips
+          className="mt-2"
+          options={portionOptions({}, portions)}
+          value={nextGrams}
+          unit={entry.unit ?? 'g'}
+          onSelect={(next) => setQuantity(String(next))}
+        />
 
         <WhenBar
           value={when}
@@ -160,11 +179,16 @@ export default function EntryDetailPage() {
           className="mt-2"
         />
 
-        <dl className="mt-4 grid grid-cols-4 gap-2 text-center">
-          <Cell label="kcal" value={kcal(entry.kcal * scale)} />
-          <Cell label="carb" value={`${grams(entry.carbsG * scale)} g`} />
-          <Cell label="gras" value={`${grams(entry.fatG * scale)} g`} />
-          <Cell label="prot" value={`${grams(entry.proteinG * scale)} g`} />
+        {/* Spelled out, as everywhere else in the app: "carb / gras / prot" was
+            three abbreviations this product uses nowhere. */}
+        <dl className="mt-4 grid grid-cols-2 gap-2">
+          <Cell label="Energia" value={`${kcal(entry.kcal * scale)} kcal`} />
+          <Cell
+            label="Carboidrati"
+            value={`${grams(entry.carbsG * scale)} g`}
+          />
+          <Cell label="Grassi" value={`${grams(entry.fatG * scale)} g`} />
+          <Cell label="Proteine" value={`${grams(entry.proteinG * scale)} g`} />
         </dl>
       </Panel>
 
@@ -182,9 +206,9 @@ export default function EntryDetailPage() {
 
 function Cell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-secondary/60 rounded-2xl py-2">
-      <dt className="text-muted-foreground text-[10px] uppercase">{label}</dt>
-      <dd className="tabular text-sm font-bold">{value}</dd>
+    <div className="bg-secondary/60 rounded-md px-3 py-2">
+      <dt className="text-muted-foreground text-micro font-medium">{label}</dt>
+      <dd className="tabular mt-0.5 text-sm font-bold">{value}</dd>
     </div>
   )
 }

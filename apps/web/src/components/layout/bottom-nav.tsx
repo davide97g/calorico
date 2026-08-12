@@ -36,7 +36,7 @@ export function BottomNav() {
               aria-label="Registra un alimento"
             >
               <Zap className="size-6" strokeWidth={2.4} />
-              <span className="text-[10px] leading-none font-bold">LOG</span>
+              <span className="text-micro leading-none font-bold">LOG</span>
             </button>
           </li>
 
@@ -47,7 +47,7 @@ export function BottomNav() {
           <li>
             <NavLink
               to="/profile"
-              className="flex w-16 flex-col items-center gap-1 rounded-2xl pt-1.5"
+              className="flex w-16 flex-col items-center gap-1 rounded-md pt-1.5"
               aria-label="Profilo"
             >
               {({ isActive }) => (
@@ -58,11 +58,11 @@ export function BottomNav() {
                       'size-6 transition-all',
                       isActive && 'ring-primary-strong ring-2 ring-offset-2 ring-offset-card',
                     )}
-                    fallbackClassName="text-[9px]"
+                    fallbackClassName="text-micro"
                   />
                   <span
                     className={cn(
-                      'text-[10px] leading-none font-semibold',
+                      'text-micro leading-none font-semibold',
                       isActive ? 'text-primary-strong' : 'text-muted-foreground',
                     )}
                   >
@@ -97,13 +97,13 @@ function NavItem({
         // Labels, not icons alone: an icon-only bar makes the user guess.
         className={({ isActive }) =>
           cn(
-            'flex h-12 w-16 flex-col items-center justify-start gap-1 rounded-2xl pt-1.5 transition-colors',
+            'flex h-12 w-16 flex-col items-center justify-start gap-1 rounded-md pt-1.5 transition-colors',
             isActive ? 'text-primary-strong' : 'text-muted-foreground',
           )
         }
       >
         <Icon className="size-5" strokeWidth={2.2} />
-        <span className="text-[10px] leading-none font-semibold">{label}</span>
+        <span className="text-micro leading-none font-semibold">{label}</span>
       </NavLink>
     </li>
   )

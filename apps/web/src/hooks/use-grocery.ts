@@ -4,6 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import type {
@@ -78,6 +79,35 @@ export function useAddGroceryItem() {
       void queryClient.invalidateQueries({ queryKey: grocerySuggestionsKey })
     },
   })
+}
+
+/**
+ * Puts a scanned product on the shopping list only if the user says so.
+ *
+ * Scanning a barcode used to add the product to the list on its own. The intent
+ * behind a scan at the fridge is to log what is being eaten, not to write a
+ * shopping list, and the list quietly filled up with everything ever scanned.
+ * So the add is offered on the confirmation instead, one tap away.
+ */
+export function useGroceryOffer() {
+  const addItem = useAddGroceryItem()
+
+  return (food: { id: string; name: string }, description?: string) =>
+    toast.success(food.name, {
+      description,
+      action: {
+        label: 'Alla spesa',
+        onClick: () =>
+          addItem.mutate(
+            { foodId: food.id },
+            {
+              onSuccess: () => toast.success(`${food.name} è nella spesa`),
+              onError: () =>
+                toast.error('Aggiunta alla spesa non riuscita'),
+            },
+          ),
+      },
+    })
 }
 
 export function useUpdateGroceryItem() {

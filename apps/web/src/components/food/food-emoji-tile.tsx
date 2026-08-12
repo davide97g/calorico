@@ -3,9 +3,9 @@ import { cn } from '@/lib/utils'
 
 // Emoji sits at ~55% of the tile: big enough to read, small enough to breathe.
 const SIZES = {
-  sm: 'size-9 rounded-xl text-xl',
-  md: 'size-11 rounded-xl text-2xl',
-  lg: 'size-16 rounded-2xl text-4xl',
+  sm: 'size-9 rounded-md text-xl',
+  md: 'size-11 rounded-md text-2xl',
+  lg: 'size-16 rounded-md text-4xl',
 } as const
 
 /**

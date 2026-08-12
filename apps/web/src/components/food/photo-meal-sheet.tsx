@@ -113,7 +113,7 @@ export function PhotoMealSheet({
           if (!analyze.isPending) onOpenChange(next)
         }}
       >
-        <DrawerContent className="mx-auto max-h-[94dvh] max-w-[440px] rounded-t-[28px]">
+        <DrawerContent className="mx-auto max-h-[94dvh] max-w-[440px] rounded-t-xl">
           <DrawerHeader className="shrink-0">
             <DrawerTitle>Fotografa il pasto</DrawerTitle>
             <DrawerDescription>
@@ -132,13 +132,13 @@ export function PhotoMealSheet({
                 <Button
                   type="button"
                   onClick={pick}
-                  className="min-h-14 w-full gap-2 rounded-[20px] text-sm font-bold"
+                  className="min-h-14 w-full gap-2 rounded-lg text-sm font-bold"
                 >
                   <Camera className="size-5" strokeWidth={2.4} />
                   Scatta o scegli una foto
                 </Button>
 
-                <p className="text-muted-foreground flex items-start gap-2 px-1 text-[11px] font-medium">
+                <p className="text-muted-foreground flex items-start gap-2 px-1 text-micro font-medium">
                   <ImageUp className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.4} />
                   La foto viene analizzata e subito scartata: non viene salvata da
                   nessuna parte.
@@ -149,7 +149,7 @@ export function PhotoMealSheet({
                   <button
                     type="button"
                     onClick={() => setPaywall(true)}
-                    className="text-muted-foreground flex w-full items-start gap-2 px-1 text-left text-[11px] font-medium"
+                    className="text-muted-foreground flex w-full items-start gap-2 px-1 text-left text-micro font-medium"
                   >
                     <Sparkles className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.4} />
                     {quota.remaining > 0

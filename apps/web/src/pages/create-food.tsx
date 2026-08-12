@@ -76,13 +76,13 @@ export default function CreateFoodPage() {
         <Button
           variant="secondary"
           size="icon"
-          className="bg-card shadow-soft size-10 shrink-0 rounded-full"
+          className="bg-card shadow-soft size-11 shrink-0 rounded-full"
           onClick={() => navigate(-1)}
           aria-label="Torna indietro"
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <h1 className="text-[17px] font-bold">Nuovo alimento</h1>
+        <h1 className="text-lg font-bold">Nuovo alimento</h1>
       </header>
 
       <Panel>
@@ -93,14 +93,14 @@ export default function CreateFoodPage() {
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
               placeholder="Insalata di riso della nonna"
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </Field>
           <Field label="Marca (facoltativo)">
             <Input
               value={form.brand}
               onChange={(e) => set('brand', e.target.value)}
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </Field>
           <div className="flex items-center justify-between">
@@ -126,7 +126,7 @@ export default function CreateFoodPage() {
               value={form.kcal100}
               onChange={(e) => set('kcal100', e.target.value)}
               inputMode="decimal"
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </Field>
           <Field label="Proteine (g)">
@@ -134,7 +134,7 @@ export default function CreateFoodPage() {
               value={form.protein100}
               onChange={(e) => set('protein100', e.target.value)}
               inputMode="decimal"
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </Field>
           <Field label="Carboidrati (g)">
@@ -142,7 +142,7 @@ export default function CreateFoodPage() {
               value={form.carbs100}
               onChange={(e) => set('carbs100', e.target.value)}
               inputMode="decimal"
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </Field>
           <Field label="Grassi (g)">
@@ -150,7 +150,7 @@ export default function CreateFoodPage() {
               value={form.fat100}
               onChange={(e) => set('fat100', e.target.value)}
               inputMode="decimal"
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </Field>
           <Field label="Fibre (g)">
@@ -158,7 +158,7 @@ export default function CreateFoodPage() {
               value={form.fiber100}
               onChange={(e) => set('fiber100', e.target.value)}
               inputMode="decimal"
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </Field>
           <Field label="Porzione (g)">
@@ -166,7 +166,7 @@ export default function CreateFoodPage() {
               value={form.servingSizeG}
               onChange={(e) => set('servingSizeG', e.target.value)}
               inputMode="decimal"
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
             />
           </Field>
         </div>

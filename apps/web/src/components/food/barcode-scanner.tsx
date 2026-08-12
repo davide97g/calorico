@@ -121,7 +121,7 @@ export function BarcodeScanner({
     <Drawer open={open} onOpenChange={onOpenChange}>
       {/* Vaul portals to the body, so the sheet has to be constrained to the
           phone column itself — otherwise it spans the whole desktop window. */}
-      <DrawerContent className="mx-auto max-h-[94dvh] max-w-[440px] rounded-t-[28px]">
+      <DrawerContent className="mx-auto max-h-[94dvh] max-w-[440px] rounded-t-xl">
         <DrawerHeader className="shrink-0">
           <DrawerTitle>Scansiona il codice a barre</DrawerTitle>
           <DrawerDescription>
@@ -131,15 +131,15 @@ export function BarcodeScanner({
 
         <div className="min-h-0 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           {!error ? (
-            <div className="bg-foreground/90 relative mb-4 h-[min(56dvh,440px)] w-full overflow-hidden rounded-3xl">
+            <div className="bg-foreground/90 relative mb-4 h-[min(56dvh,440px)] w-full overflow-hidden rounded-lg">
               <video
                 ref={videoRef}
                 muted
                 playsInline
                 className="size-full object-cover"
               />
-              <div className="border-primary pointer-events-none absolute inset-x-5 inset-y-[22%] rounded-2xl border-2 shadow-[0_0_0_999px_oklch(0.08_0.015_145_/_0.28)]" />
-              <p className="bg-foreground/65 text-background pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[11px] font-semibold whitespace-nowrap">
+              <div className="border-primary pointer-events-none absolute inset-x-5 inset-y-[22%] rounded-md border-2 shadow-[0_0_0_999px_oklch(0.08_0.015_145_/_0.28)]" />
+              <p className="bg-foreground/65 text-background pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-micro font-semibold whitespace-nowrap">
                 Centra il codice nel riquadro
               </p>
               {isLoading ? (
@@ -149,12 +149,12 @@ export function BarcodeScanner({
               ) : null}
             </div>
           ) : (
-            <div className="mb-4 rounded-2xl bg-secondary p-3">
+            <div className="mb-4 rounded-md bg-secondary p-3">
               <p className="text-muted-foreground text-sm">{error}</p>
               <Button
                 type="button"
                 variant="secondary"
-                className="mt-3 rounded-xl"
+                className="mt-3 rounded-md"
                 onClick={() => setAttempt((value) => value + 1)}
               >
                 <RefreshCw className="size-4" />
@@ -176,12 +176,12 @@ export function BarcodeScanner({
               onChange={(e) => setManual(e.target.value)}
               inputMode="numeric"
               placeholder="8000500310427"
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
               aria-label="Codice a barre"
             />
             <Button
               type="submit"
-              className="h-11 rounded-2xl"
+              className="h-11 rounded-md"
               disabled={isLoading || manual.replace(/\D/g, '').length < 6}
             >
               {isLoading ? (

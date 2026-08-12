@@ -81,13 +81,13 @@ export default function JoinPage() {
   return (
     <AppShell nav={false}>
       <Panel className="mt-8 flex flex-col items-center px-6 py-10 text-center">
-        <span className="bg-primary/55 flex size-16 items-center justify-center rounded-[22px]">
+        <span className="bg-primary/55 flex size-16 items-center justify-center rounded-lg">
           <Users className="text-primary-foreground size-7" />
         </span>
-        <p className="text-primary-strong mt-4 text-[11px] font-bold tracking-[0.16em] uppercase">
+        <p className="text-primary-strong mt-4 text-micro font-bold tracking-[0.16em] uppercase">
           Invito
         </p>
-        <h1 className="font-display mt-1 text-[26px] leading-tight font-bold">
+        <h1 className="font-display mt-1 text-display-sm leading-tight font-bold">
           {familyName}
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">

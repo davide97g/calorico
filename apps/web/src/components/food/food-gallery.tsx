@@ -56,9 +56,9 @@ export function FoodGallery({
               alt={`${KIND_LABELS[image.kind]} — ${name}`}
               loading="lazy"
               onError={() => setBroken((prev) => [...prev, image.id])}
-              className="max-h-64 w-auto rounded-2xl object-contain"
+              className="max-h-64 w-auto rounded-md object-contain"
             />
-            <figcaption className="text-muted-foreground mt-1.5 text-center text-[11px]">
+            <figcaption className="text-muted-foreground mt-1.5 text-center text-micro">
               {KIND_LABELS[image.kind]}
             </figcaption>
           </figure>

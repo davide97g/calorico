@@ -107,6 +107,15 @@ export interface Food {
   isFavorite?: boolean
 }
 
+/** One food's portion history, as GET /foods/:id/portions returns it. */
+export interface FoodPortions {
+  /** null when this user has never logged this food. */
+  lastQuantityG: number | null
+  /** Most-used first, at most three. */
+  topQuantities: number[]
+  times: number
+}
+
 /**
  * A food plus this user's history with it, as GET /foods/recent returns it.
  *

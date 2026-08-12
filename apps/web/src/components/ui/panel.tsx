@@ -11,7 +11,7 @@ export function Panel({ className, ...props }: ComponentProps<'section'>) {
   return (
     <section
       className={cn(
-        'bg-card text-card-foreground shadow-soft rounded-[28px] p-4',
+        'bg-card text-card-foreground shadow-soft rounded-lg p-4',
         className,
       )}
       {...props}
@@ -43,7 +43,7 @@ export function PanelHeader({
             {icon}
           </span>
         ) : null}
-        <span className="truncate text-[15px] leading-none font-semibold">
+        <span className="truncate text-base leading-none font-semibold">
           {title}
         </span>
       </span>
@@ -56,7 +56,7 @@ export function PanelHeader({
       <Link
         to={to}
         className={cn(
-          'flex items-center justify-between gap-2 rounded-2xl transition-opacity active:opacity-60',
+          'flex items-center justify-between gap-2 rounded-md transition-opacity active:opacity-60',
           className,
         )}
       >
@@ -85,7 +85,7 @@ export function Stat({
 }) {
   return (
     <div className={cn('flex flex-col gap-0.5', className)}>
-      <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+      <span className="text-muted-foreground text-micro font-medium tracking-wide uppercase">
         {label}
       </span>
       <span className="tabular text-lg leading-tight font-bold">{value}</span>
