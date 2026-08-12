@@ -359,7 +359,12 @@ export function pushErrorMessage(error: unknown) {
       // not running yet. On iOS that happens to an app left unopened for days,
       // and closing and reopening it is what fixes it.
       return 'Il servizio di notifica non è ancora attivo. Chiudi e riapri Calorico dalla schermata Home, poi riprova.'
+    case 'bad_key':
+      return 'La chiave push del server non è valida: controlla VAPID_PUBLIC_KEY.'
     default:
-      return 'Non è stato possibile attivare le notifiche. Riprova.'
+      // The catch-all says where to look, because on a phone this sentence is
+      // otherwise the end of the road: Diagnostica now names what the platform
+      // refused and when.
+      return 'Non è stato possibile attivare le notifiche. Il motivo esatto è in Diagnostica, in fondo a questa schermata.'
   }
 }

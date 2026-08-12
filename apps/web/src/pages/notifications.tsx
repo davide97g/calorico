@@ -605,6 +605,28 @@ function DiagnosticsPanel({
         />
       </ul>
 
+      {/* The platform's own words for the last refusal. Without this the user
+          reads one sentence out of a handful and has nowhere to go: an
+          AbortError from the push service, a subscription stuck in the way and a
+          failed worker install are all "non è stato possibile". */}
+      {diagnostics?.lastFailure ? (
+        <div className="bg-muted mt-3 rounded-2xl p-3">
+          <p className="text-[11px] leading-relaxed font-medium">
+            Ultimo errore: {diagnostics.lastFailure.name}
+            <span className="text-muted-foreground font-normal">
+              {' '}
+              ({diagnostics.lastFailure.stage})
+            </span>
+          </p>
+          <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
+            {diagnostics.lastFailure.message}
+          </p>
+          <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed tabular-nums">
+            {new Date(diagnostics.lastFailure.at).toLocaleString('it-IT')}
+          </p>
+        </div>
+      ) : null}
+
       {/* Which build this device is actually running. The avviso di nuova
           versione is sent only to the devices behind the deployed build, so when
           it does not arrive this is the first thing to compare with the server. */}

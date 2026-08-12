@@ -36,6 +36,8 @@ export type PushFailure =
   | 'needs_install'
   /** No worker registered — dev builds, where the PWA plugin is switched off. */
   | 'no_service_worker'
+  /** The server's VAPID public key is not something a browser can decode. */
+  | 'bad_key'
   | 'failed'
 
 export class PushError extends Error {
@@ -167,9 +169,11 @@ async function registration(): Promise<ServiceWorkerRegistration> {
   if (!reg) {
     try {
       reg = await navigator.serviceWorker.register(SW_URL, { scope: '/' })
-    } catch {
-      // The worker could not be fetched or parsed: offline on a first run, or a
-      // deploy that never shipped it.
+    } catch (err) {
+      // Offline on a first run, a deploy that never shipped the worker, or an
+      // install that rejected — a precached URL that 404s does exactly that, and
+      // it is invisible unless it is written down.
+      rememberPushFailure('sw-register', err)
       throw new PushError('no_service_worker')
     }
   }
@@ -319,7 +323,16 @@ async function ensureSubscription(
   mayHold: boolean,
 ): Promise<PushSubscriptionPayload> {
   const reg = await registration()
-  const key = urlBase64ToUint8Array(publicKey)
+
+  let key: Uint8Array<ArrayBuffer>
+  try {
+    key = urlBase64ToUint8Array(publicKey)
+  } catch (err) {
+    // A key the browser cannot decode used to surface as an unnamed exception,
+    // which read to the user as "try again" — advice that could never work.
+    rememberPushFailure('key', err)
+    throw new PushError('bad_key')
+  }
 
   const existing = mayHold
     ? await patientSubscription(reg)
@@ -333,16 +346,47 @@ async function ensureSubscription(
   }
 
   try {
-    const fresh = await reg.pushManager.subscribe({
-      // Chrome refuses anything else; Safari ignores it. Every push we send is
-      // a visible notification anyway.
-      userVisibleOnly: true,
-      applicationServerKey: key,
-    })
-    return toPayload(fresh)
+    const fresh = await subscribeOnce(reg, key)
+    const payload = toPayload(fresh)
+    clearPushFailure()
+    return payload
   } catch (err) {
+    if (err instanceof PushError) throw err
+    rememberPushFailure('subscribe', err)
     if ((err as Error)?.name === 'NotAllowedError') throw new PushError('denied')
     throw new PushError('failed')
+  }
+}
+
+/**
+ * Subscribes, and clears a subscription that is standing in the way.
+ *
+ * `InvalidStateError` means the browser already holds one made with a different
+ * key — normally dropped above, but `unsubscribe()` is allowed to fail and it is
+ * ignored when it does, which leaves the tap failing forever with a message that
+ * says to try again. Dropping it here and retrying once is the only way out that
+ * does not need the user to reinstall the app.
+ */
+async function subscribeOnce(
+  reg: ServiceWorkerRegistration,
+  key: Uint8Array<ArrayBuffer>,
+) {
+  const options: PushSubscriptionOptionsInit = {
+    // Chrome refuses anything else; Safari ignores it. Every push we send is a
+    // visible notification anyway.
+    userVisibleOnly: true,
+    applicationServerKey: key,
+  }
+
+  try {
+    return await reg.pushManager.subscribe(options)
+  } catch (err) {
+    if ((err as Error)?.name !== 'InvalidStateError') throw err
+    rememberPushFailure('subscribe-retry', err)
+    const stuck = await reg.pushManager.getSubscription()
+    if (!stuck) throw err
+    await stuck.unsubscribe()
+    return await reg.pushManager.subscribe(options)
   }
 }
 
@@ -415,6 +459,62 @@ export function rememberEndpoint(endpoint: string | null) {
     else localStorage.removeItem(ENDPOINT_KEY)
   } catch {
     // Nothing to do; see rememberedEndpoint.
+  }
+}
+
+/** The last thing that went wrong, kept for the settings screen to show. */
+const LAST_ERROR_KEY = 'calorico.push.lastError'
+
+export interface PushFailureNote {
+  /** Which step failed: registering the worker, subscribing, reading the keys. */
+  stage: string
+  /** The browser's own name for it — AbortError, InvalidStateError, … */
+  name: string
+  message: string
+  at: string
+}
+
+/**
+ * Records what the platform actually said.
+ *
+ * Every failure here reaches the user as one of a handful of sentences, which is
+ * right for a settings screen and useless for working out why an iPhone will not
+ * subscribe: "could not enable notifications" covers a push service that refused,
+ * a subscription stuck in the way, and a key that will not decode. There is no
+ * console on a phone, so the last one is kept and put on screen.
+ */
+export function rememberPushFailure(stage: string, error: unknown) {
+  const err = error as Error | undefined
+  try {
+    localStorage.setItem(
+      LAST_ERROR_KEY,
+      JSON.stringify({
+        stage,
+        name: err?.name || 'Error',
+        message: (err?.message || String(error)).slice(0, 160),
+        at: new Date().toISOString(),
+      } satisfies PushFailureNote),
+    )
+  } catch {
+    // Diagnostics must never be the reason an error goes unreported to the user.
+  }
+}
+
+export function lastPushFailure(): PushFailureNote | null {
+  try {
+    const raw = localStorage.getItem(LAST_ERROR_KEY)
+    return raw ? (JSON.parse(raw) as PushFailureNote) : null
+  } catch {
+    return null
+  }
+}
+
+/** Dropped once the thing that was failing works, so stale errors do not mislead. */
+function clearPushFailure() {
+  try {
+    localStorage.removeItem(LAST_ERROR_KEY)
+  } catch {
+    // See rememberPushFailure.
   }
 }
 
@@ -515,6 +615,8 @@ export interface PushDiagnostics {
    */
   promptsDrawn: number
   lastPromptAt: string | null
+  /** What the platform last refused, in its own words. Null once it worked. */
+  lastFailure: PushFailureNote | null
 }
 
 export async function pushDiagnostics(): Promise<PushDiagnostics> {
@@ -555,6 +657,7 @@ export async function pushDiagnostics(): Promise<PushDiagnostics> {
       : subscription.endpoint === remembered,
     promptsDrawn: promptsDrawn(),
     lastPromptAt: lastPromptAt(),
+    lastFailure: lastPushFailure(),
   }
 }
 
@@ -562,7 +665,12 @@ function toPayload(subscription: PushSubscription): PushSubscriptionPayload {
   const json = subscription.toJSON()
   const p256dh = json.keys?.p256dh
   const auth = json.keys?.auth
-  if (!p256dh || !auth) throw new PushError('failed')
+  if (!p256dh || !auth) {
+    // A subscription without keys cannot be encrypted to, so it is worse than
+    // none: the server would hold a device every send fails against.
+    rememberPushFailure('payload', new Error('subscription has no encryption keys'))
+    throw new PushError('failed')
+  }
   return { endpoint: subscription.endpoint, keys: { p256dh, auth } }
 }
 
@@ -578,11 +686,17 @@ function sameKey(subscription: PushSubscription, key: Uint8Array) {
   return a.length === key.length && a.every((byte, i) => byte === key[i])
 }
 
-/** VAPID keys travel as base64url; PushManager wants the raw bytes. */
-function urlBase64ToUint8Array(base64: string) {
+/**
+ * VAPID keys travel as base64url; PushManager wants the raw bytes.
+ *
+ * Backed by an explicit ArrayBuffer: `PushSubscriptionOptionsInit` accepts an
+ * `ArrayBufferView<ArrayBuffer>`, and a bare `new Uint8Array(n)` is typed over
+ * `ArrayBufferLike`, which includes SharedArrayBuffer and so does not fit.
+ */
+function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
   const binary = atob(padded.replace(/-/g, '+').replace(/_/g, '/'))
-  const bytes = new Uint8Array(binary.length)
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length))
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
   return bytes
 }
