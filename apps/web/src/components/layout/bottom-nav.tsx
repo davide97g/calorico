@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { House, ScanBarcode, Scale, ShoppingBasket } from 'lucide-react'
+import { House, Scale, ShoppingBasket, Zap } from 'lucide-react'
 import { UserAvatar } from '@/components/user-avatar'
-import { ScanSheet } from '@/components/food/scan-sheet'
+import { QuickLogSheet } from '@/components/food/quick-log-sheet'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 
@@ -15,7 +15,7 @@ const rightItems = [{ to: '/weight', icon: Scale, label: 'Peso' }] as const
 
 export function BottomNav() {
   const { user } = useAuth()
-  const [scanning, setScanning] = useState(false)
+  const [logging, setLogging] = useState(false)
 
   return (
     <>
@@ -25,17 +25,18 @@ export function BottomNav() {
             <NavItem key={item.to} {...item} />
           ))}
 
-          {/* Scan is the primary action, so it gets the signature lime and the
-              only oversized target in the bar. */}
+          {/* Logging a food already eaten before is the whole daily job, so it
+              gets the signature lime and the only oversized target in the bar.
+              Scanning used to sit here, and scanning is for food that is new. */}
           <li className="-mt-7">
             <button
               type="button"
-              onClick={() => setScanning(true)}
+              onClick={() => setLogging(true)}
               className="bg-primary text-primary-foreground shadow-float flex size-16 flex-col items-center justify-center gap-0.5 rounded-full transition-transform active:scale-95"
-              aria-label="Scansiona un codice a barre"
+              aria-label="Registra un alimento"
             >
-              <ScanBarcode className="size-6" strokeWidth={2.4} />
-              <span className="text-[9px] leading-none font-bold">SCAN</span>
+              <Zap className="size-6" strokeWidth={2.4} />
+              <span className="text-[10px] leading-none font-bold">LOG</span>
             </button>
           </li>
 
@@ -74,7 +75,7 @@ export function BottomNav() {
         </ul>
       </nav>
 
-      <ScanSheet open={scanning} onOpenChange={setScanning} />
+      <QuickLogSheet open={logging} onOpenChange={setLogging} />
     </>
   )
 }

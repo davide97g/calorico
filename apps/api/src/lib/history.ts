@@ -170,6 +170,113 @@ export async function rankedScans(
   }))
 }
 
+/**
+ * The same ranking, pointed at the diary: which foods to offer someone who is
+ * about to log what they always log.
+ *
+ * Half-life of a fortnight rather than a month. A shopping list turns over on
+ * the scale of a household's staples; what somebody eats turns over faster, and
+ * the food they had yesterday is a better bet than the one they had five times
+ * last month.
+ */
+const DIARY_HALF_LIFE_DAYS = 14
+
+/**
+ * What an entry logged at a different meal counts towards this meal's ranking.
+ *
+ * A hard filter on the meal would hand a first breakfast an empty list and
+ * would hide the leftovers people genuinely eat at any hour. Discounting
+ * instead puts porridge at the top of a breakfast list without pretending last
+ * night's lasagne was never eaten.
+ */
+const OTHER_MEAL_WEIGHT = 0.35
+
+/** How many remembered portions a food carries. Three chips fit one row. */
+const TOP_QUANTITIES = 3
+
+export interface RankedDiaryFood {
+  foodId: string
+  /** The portion this food was logged with the last time it was logged. */
+  lastQuantityG: number
+  /** Its best-remembered portions, in the same order as the ranking. */
+  topQuantities: number[]
+  /** How many times it has been logged, ever. */
+  times: number
+  lastAt: Date
+  score: number
+}
+
+/**
+ * Foods this user logs, best-remembered first, each with the portions they use.
+ *
+ * The portion is the point: the daily job is not "find yogurt", it is "the
+ * usual 180 g of yogurt". Both the strip on the dashboard and the quick-log
+ * sheet read this, so a tap can write a complete entry.
+ */
+export async function rankedDiaryFoods(
+  userId: string,
+  { limit, meal }: { limit: number; meal?: DiaryEntry['meal'] },
+): Promise<RankedDiaryFood[]> {
+  const mealWeight = meal
+    ? sql`(case when ${diaryEntries.meal}::text = ${meal} then 1 else ${OTHER_MEAL_WEIGHT} end)`
+    : sql`1`
+
+  const rows = await db.execute(sql`
+    with events as (
+      select
+        ${diaryEntries.foodId} as food_id,
+        ${diaryEntries.quantityG} as quantity_g,
+        ${diaryEntries.createdAt} as at,
+        ${decayed(sql`${diaryEntries.createdAt}`, DIARY_HALF_LIFE_DAYS)}
+          * ${mealWeight} as weight
+      from ${diaryEntries}
+      where ${diaryEntries.userId} = ${userId}
+        and ${diaryEntries.foodId} is not null
+    ),
+    -- One sample per portion, so a food's own history can be ranked the same
+    -- way the foods themselves are: 180 g eaten weekly beats the 300 g once.
+    per_quantity as (
+      select
+        food_id,
+        quantity_g,
+        count(*)::int as times,
+        sum(weight)::float8 as weight,
+        max(at) as last_at
+      from events
+      group by food_id, quantity_g
+    )
+    select
+      food_id,
+      sum(times)::int as times,
+      sum(weight)::float8 as score,
+      max(last_at) as last_at,
+      (array_agg(quantity_g order by weight desc, last_at desc))[1:${sql.raw(String(TOP_QUANTITIES))}] as top_quantities,
+      (array_agg(quantity_g order by last_at desc))[1] as last_quantity_g
+    from per_quantity
+    group by food_id
+    order by score desc, last_at desc
+    limit ${limit}
+  `)
+
+  interface Row {
+    food_id: string
+    times: number
+    score: number
+    last_at: Date
+    top_quantities: number[]
+    last_quantity_g: number
+  }
+
+  return (rows as unknown as Row[]).map((row) => ({
+    foodId: row.food_id,
+    lastQuantityG: Number(row.last_quantity_g),
+    topQuantities: row.top_quantities.map(Number),
+    times: Number(row.times),
+    lastAt: row.last_at,
+    score: Number(row.score),
+  }))
+}
+
 export interface GrocerySuggestion {
   /** The `dedupe_key` an add would use, so the caller can dedupe against search hits. */
   key: string

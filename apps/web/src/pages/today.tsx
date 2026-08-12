@@ -8,6 +8,7 @@ import { AddFoodAction } from '@/components/dashboard/add-food-action'
 import { DaySwitcher } from '@/components/dashboard/day-switcher'
 import { DiaryPanel } from '@/components/dashboard/diary-panel'
 import { IntakeHero } from '@/components/dashboard/intake-hero'
+import { QuickLog } from '@/components/dashboard/quick-log'
 import { MacroTriple } from '@/components/charts/macro-bars'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -108,6 +109,10 @@ export default function TodayPage() {
               planned={planned}
               goal={profile?.goal}
             />
+
+            {/* Repeating a food comes before starting a search: it is what most
+                days are made of. */}
+            <QuickLog day={day} />
 
             <AddFoodAction day={day} />
 

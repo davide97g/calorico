@@ -1,28 +1,28 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/index.js'
-import {
-  diaryEntries,
-  favorites,
-  foods,
-  type Food,
-  type NewFood,
-} from '../db/schema.js'
+import { favorites, foods, type Food, type NewFood } from '../db/schema.js'
 import { fetchByBarcode, searchOff } from '../lib/off.js'
 import { recordScan } from '../lib/scan-log.js'
 import { cacheFoods } from '../lib/food-cache.js'
+import { rankedDiaryFoods } from '../lib/history.js'
 import {
   hasConfidentGenericMatch,
   searchLocalFoods,
 } from '../lib/food-search.js'
-import { listFoodImages, syncOffImages } from '../lib/food-images.js'
 
 const searchQuery = z.object({
   q: z.string().min(1).max(120),
   limit: z.coerce.number().int().min(1).max(50).default(25),
   /** Skip the network call — used by the barcode screen and by tests. */
   local: z.coerce.boolean().default(false),
+})
+
+const recentQuery = z.object({
+  /** The meal being logged, which the ranking weights towards. */
+  meal: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(30),
 })
 
 /** Also the shape POST /api/diary/batch accepts for an AI-estimated food. */
@@ -121,22 +121,47 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
     return saved
   })
 
+  /**
+   * The warm path: foods this user already logs, each carrying the portion they
+   * use, so the client can write a whole entry from one tap.
+   *
+   * Ordered by how well remembered a food is, not by when it was last touched —
+   * plain recency buries the daily yogurt under one-off entries within a week.
+   * Pass `meal` and the meal being logged is weighted up. See lib/history.ts.
+   */
   app.get('/recent', async (request) => {
+    const { meal, limit } = recentQuery.parse(request.query)
+    const ranked = await rankedDiaryFoods(request.user.sub, { limit, meal })
+    if (ranked.length === 0) return { items: [] }
+
     const rows = await db
-      .selectDistinctOn([foods.id], {
-        food: foods,
-        lastUsed: diaryEntries.createdAt,
-      })
-      .from(diaryEntries)
-      .innerJoin(foods, eq(foods.id, diaryEntries.foodId))
-      .where(eq(diaryEntries.userId, request.user.sub))
-      .orderBy(foods.id, desc(diaryEntries.createdAt))
-      .limit(30)
+      .select()
+      .from(foods)
+      .where(
+        inArray(
+          foods.id,
+          ranked.map((r) => r.foodId),
+        ),
+      )
+    const byId = new Map(rows.map((food) => [food.id, food]))
 
     return {
-      items: rows
-        .sort((a, b) => +new Date(b.lastUsed) - +new Date(a.lastUsed))
-        .map((r) => r.food),
+      items: ranked.flatMap((r) => {
+        const row = byId.get(r.foodId)
+        if (!row) return []
+        // `aliases` are search fodder, as in /search: eight strings per food is
+        // real weight on the screen that opens most often.
+        const { aliases: _aliases, ...food } = row
+        return [
+          {
+            ...food,
+            lastQuantityG: r.lastQuantityG,
+            topQuantities: r.topQuantities,
+            times: r.times,
+            lastAt: r.lastAt,
+          },
+        ]
+      }),
     }
   })
 
@@ -170,9 +195,10 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
     const [food] = await db.select().from(foods).where(eq(foods.id, id)).limit(1)
     if (!food) return reply.code(404).send({ error: 'not_found' })
 
-    // First view of an OFF product also pulls in its label shots.
-    await syncOffImages(food)
-
+    // No photos here. This route is on the path of every re-log, and fetching a
+    // product's label shots from Open Food Facts on the way is a network round
+    // trip between the user's tap and their portion field. The gallery asks
+    // GET /:id/images for itself, which syncs there instead.
     const [fav] = await db
       .select({ foodId: favorites.foodId })
       .from(favorites)
@@ -184,11 +210,7 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
       )
       .limit(1)
 
-    return {
-      ...food,
-      isFavorite: Boolean(fav),
-      images: await listFoodImages(id),
-    }
+    return { ...food, isFavorite: Boolean(fav) }
   })
 
   app.put('/:id/favorite', async (request) => {

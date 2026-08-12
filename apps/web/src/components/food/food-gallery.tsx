@@ -3,7 +3,7 @@ import { Panel, PanelHeader } from '@/components/ui/panel'
 import { useFoodImages } from '@/hooks/use-food-images'
 import { foodImageLarge } from '@/lib/food-image'
 import { cn } from '@/lib/utils'
-import type { FoodImage, FoodImageKind } from '@/lib/types'
+import type { FoodImageKind } from '@/lib/types'
 
 const KIND_LABELS: Record<FoodImageKind, string> = {
   front: 'Prodotto',
@@ -18,24 +18,21 @@ const KIND_LABELS: Record<FoodImageKind, string> = {
  * Shows the shots that came with the food — front, ingredients, nutrition label
  * — all of them from Open Food Facts.
  *
- * Pass `images` when the parent already loaded them with the food; otherwise the
- * component fetches them itself.
+ * Always fetches for itself. The pages above it are on the path of every entry,
+ * and the photos are the one part of a food worth waiting for separately.
  */
 export function FoodGallery({
   foodId,
   name,
-  images,
 }: {
   foodId: string | null | undefined
   name: string
-  images?: FoodImage[]
 }) {
   const [broken, setBroken] = useState<string[]>([])
 
-  // Only queries when the parent did not hand us the list already.
-  const query = useFoodImages(images ? null : foodId)
+  const query = useFoodImages(foodId)
 
-  const all = images ?? query.data?.items ?? []
+  const all = query.data?.items ?? []
   const shown = all.filter((image) => !broken.includes(image.id))
 
   if (shown.length === 0) return null

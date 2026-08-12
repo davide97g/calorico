@@ -14,6 +14,7 @@ import type {
   Meal,
   MealAnalysis,
   Profile,
+  RecentFood,
   StatsResponse,
   SuggestedTargets,
   TargetEstimate,
@@ -27,7 +28,7 @@ export const queryKeys = {
   weight: () => ['weight'] as const,
   search: (q: string) => ['foods', 'search', q] as const,
   food: (id: string) => ['foods', id] as const,
-  recent: () => ['foods', 'recent'] as const,
+  recent: (meal?: Meal) => ['foods', 'recent', meal ?? 'any'] as const,
   favorites: () => ['foods', 'favorites'] as const,
   suggestedTargets: () => ['profile', 'suggested'] as const,
 }
@@ -75,10 +76,20 @@ export function useFood(id: string | undefined) {
   })
 }
 
-export function useRecentFoods() {
+/**
+ * Foods this user logs, best-remembered first, each with the portions they use.
+ *
+ * `meal` weights the ranking towards what gets eaten at that hour without
+ * filtering the rest out, so a breakfast list is never empty.
+ */
+export function useRecentFoods(meal?: Meal) {
   return useQuery({
-    queryKey: queryKeys.recent(),
-    queryFn: () => api<{ items: Food[] }>('/foods/recent'),
+    queryKey: queryKeys.recent(meal),
+    queryFn: () =>
+      api<{ items: RecentFood[] }>('/foods/recent', {
+        query: meal ? { meal } : undefined,
+      }),
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -97,7 +108,8 @@ function useInvalidateDiary() {
       queryKey: day ? queryKeys.diary(day) : ['diary'],
     })
     void queryClient.invalidateQueries({ queryKey: ['stats'] })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.recent() })
+    // Every meal's ranking moved, and so did the portion it remembers.
+    void queryClient.invalidateQueries({ queryKey: ['foods', 'recent'] })
   }
 }
 

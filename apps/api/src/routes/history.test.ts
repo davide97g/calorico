@@ -1,7 +1,13 @@
 import type { FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../db/index.js'
-import { foods, groceryItems, scanEvents } from '../db/schema.js'
+import {
+  diaryEntries,
+  foods,
+  groceryItems,
+  scanEvents,
+  type DiaryEntry,
+} from '../db/schema.js'
 import {
   auth,
   createUser,
@@ -253,6 +259,155 @@ describe.skipIf(!hasDb)('scan history', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/scans',
+      headers: auth(stranger),
+    })
+    expect(res.statusCode).toBe(200)
+    expect((res.json() as { items: unknown[] }).items).toEqual([])
+  })
+})
+
+describe.skipIf(!hasDb)('recent foods', () => {
+  let app: FastifyInstance
+  let user: TestUser
+
+  beforeAll(async () => {
+    app = await startApp()
+  })
+  afterAll(async () => {
+    await stopApp(app)
+  })
+  beforeEach(async () => {
+    await resetDb()
+    user = await createUser(app)
+  })
+
+  const addFood = async (name: string) => {
+    const [food] = await db
+      .insert(foods)
+      .values({
+        source: 'generic',
+        name,
+        kcal100: 100,
+        protein100: 5,
+        carbs100: 10,
+        fat100: 2,
+        unit: 'g',
+      })
+      .returning()
+    return food!
+  }
+
+  /** One diary row per logged portion, as POST /diary writes them. */
+  const seedEntries = (
+    foodId: string,
+    name: string,
+    entries: {
+      age: number
+      quantityG: number
+      meal?: DiaryEntry['meal']
+    }[],
+  ) =>
+    db.insert(diaryEntries).values(
+      entries.map(({ age, quantityG, meal = 'breakfast' }) => ({
+        userId: user.id,
+        foodId,
+        day: daysAgo(age).toISOString().slice(0, 10),
+        meal,
+        quantityG,
+        nameSnapshot: name,
+        kcal: quantityG,
+        createdAt: daysAgo(age),
+      })),
+    )
+
+  const recent = async (query = '') => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/foods/recent${query}`,
+      headers: auth(user),
+    })
+    expect(res.statusCode).toBe(200)
+    return res.json() as {
+      items: {
+        id: string
+        name: string
+        lastQuantityG: number
+        topQuantities: number[]
+        times: number
+      }[]
+    }
+  }
+
+  it('ranks a daily habit above a food logged more often last season', async () => {
+    const oats = await addFood('Fiocchi di avena')
+    const cake = await addFood('Torta della nonna')
+    await seedEntries(oats.id, oats.name, [
+      { age: 1, quantityG: 60 },
+      { age: 3, quantityG: 60 },
+      { age: 6, quantityG: 60 },
+    ])
+    await seedEntries(cake.id, cake.name, [
+      { age: 120, quantityG: 100 },
+      { age: 130, quantityG: 100 },
+      { age: 140, quantityG: 100 },
+      { age: 150, quantityG: 100 },
+      { age: 160, quantityG: 100 },
+    ])
+
+    const { items } = await recent()
+    expect(items.map((item) => item.name)).toEqual([
+      'Fiocchi di avena',
+      'Torta della nonna',
+    ])
+    expect(items[0]!.times).toBe(3)
+  })
+
+  it('remembers the portion used last, and the portions used most', async () => {
+    const yogurt = await addFood('Yogurt greco')
+    await seedEntries(yogurt.id, yogurt.name, [
+      { age: 1, quantityG: 200 },
+      { age: 2, quantityG: 180 },
+      { age: 4, quantityG: 180 },
+      { age: 9, quantityG: 180 },
+    ])
+
+    const [item] = (await recent()).items
+    expect(item!.lastQuantityG).toBe(200)
+    // 180 g is the habit; 200 g is what happened yesterday. Both are offered,
+    // the habit first, and nothing else creeps into the list.
+    expect(item!.topQuantities).toEqual([180, 200])
+  })
+
+  it('weights the meal being logged without hiding the other meals', async () => {
+    const eggs = await addFood('Uova')
+    const pasta = await addFood('Pasta')
+    await seedEntries(eggs.id, eggs.name, [
+      { age: 2, quantityG: 120, meal: 'breakfast' },
+      { age: 5, quantityG: 120, meal: 'breakfast' },
+    ])
+    await seedEntries(pasta.id, pasta.name, [
+      { age: 1, quantityG: 100, meal: 'dinner' },
+      { age: 3, quantityG: 100, meal: 'dinner' },
+      { age: 4, quantityG: 100, meal: 'dinner' },
+    ])
+
+    const breakfast = await recent('?meal=breakfast')
+    expect(breakfast.items[0]!.name).toBe('Uova')
+    // Discounted, not filtered: pasta for breakfast is unusual, not impossible.
+    expect(breakfast.items.map((item) => item.name)).toContain('Pasta')
+
+    const dinner = await recent('?meal=dinner')
+    expect(dinner.items[0]!.name).toBe('Pasta')
+  })
+
+  it('keeps one user’s foods out of another’s list', async () => {
+    const oats = await addFood('Fiocchi di avena')
+    await seedEntries(oats.id, oats.name, [{ age: 1, quantityG: 60 }])
+
+    const stranger = await createUser(app)
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/foods/recent',
       headers: auth(stranger),
     })
     expect(res.statusCode).toBe(200)

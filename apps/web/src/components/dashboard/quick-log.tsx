@@ -1,0 +1,112 @@
+import { Link } from 'react-router-dom'
+import { Loader2, RotateCcw } from 'lucide-react'
+import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useRecentFoods } from '@/hooks/use-diary'
+import { useQuickLog } from '@/hooks/use-quick-log'
+import { MEAL_LABELS, currentMeal, grams, kcal } from '@/lib/format'
+import { cn } from '@/lib/utils'
+import type { RecentFood } from '@/lib/types'
+
+/** Enough to cover a normal week of habits without becoming a second search. */
+const SHOWN = 10
+
+/**
+ * The warm path onto the dashboard: the foods this user actually eats, each with
+ * the portion they usually eat, one tap from being logged.
+ *
+ * Everything else on this screen starts a search. Repeating a food is the thing
+ * people do every day, and it used to cost five taps and two network waits —
+ * dashboard, search screen, recents tab, food page, save.
+ */
+export function QuickLog({ day }: { day: string }) {
+  const meal = currentMeal()
+  const { data, isLoading } = useRecentFoods(meal)
+  const { log, loggingFoodId } = useQuickLog()
+
+  const items = data?.items.slice(0, SHOWN) ?? []
+
+  // Nothing logged yet: the strip has nothing to remember, and an empty rail
+  // teaching the feature would push the diary further down the screen.
+  if (!isLoading && items.length === 0) return null
+
+  return (
+    <section>
+      <header className="mb-2 flex items-baseline justify-between px-1">
+        <h2 className="flex items-center gap-1.5 text-[13px] font-bold">
+          <RotateCcw className="text-primary-strong size-3.5" strokeWidth={2.4} />
+          Di nuovo in {MEAL_LABELS[meal].toLowerCase()}
+        </h2>
+        <Link
+          to={`/add?day=${day}&meal=${meal}`}
+          className="text-primary-strong text-[11px] font-bold"
+        >
+          Cerca altro
+        </Link>
+      </header>
+
+      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        {isLoading
+          ? Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-[60px] w-[10.5rem] shrink-0 rounded-[22px]" />
+            ))
+          : items.map((food) => (
+              <QuickLogChip
+                key={food.id}
+                food={food}
+                busy={loggingFoodId === food.id}
+                onLog={() =>
+                  log({
+                    food,
+                    quantityG: food.lastQuantityG,
+                    day,
+                    meal,
+                  })
+                }
+              />
+            ))}
+      </div>
+    </section>
+  )
+}
+
+function QuickLogChip({
+  food,
+  busy,
+  onLog,
+}: {
+  food: RecentFood
+  busy: boolean
+  onLog: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onLog}
+      disabled={busy}
+      className={cn(
+        'bg-card shadow-soft flex min-h-[60px] w-[10.5rem] shrink-0 items-center gap-2.5 rounded-[22px] p-2 text-left',
+        'transition-transform active:scale-[0.97] disabled:opacity-60',
+      )}
+      // The portion is half of what this button does, so it is in the label.
+      aria-label={`Registra ${food.name}, ${grams(food.lastQuantityG)} ${food.unit}`}
+    >
+      {busy ? (
+        <span className="bg-secondary flex size-9 shrink-0 items-center justify-center rounded-xl">
+          <Loader2 className="text-primary-strong size-4 animate-spin" />
+        </span>
+      ) : (
+        <FoodEmojiTile name={food.name} category={food.category} size="sm" />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-semibold">
+          {food.name}
+        </span>
+        <span className="text-muted-foreground tabular block truncate text-[11px]">
+          {grams(food.lastQuantityG)} {food.unit} ·{' '}
+          {kcal((food.kcal100 * food.lastQuantityG) / 100)} kcal
+        </span>
+      </span>
+    </button>
+  )
+}

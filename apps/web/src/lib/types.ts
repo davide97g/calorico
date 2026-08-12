@@ -105,8 +105,21 @@ export interface Food {
   isLiquid: boolean
   verified: boolean
   isFavorite?: boolean
-  /** Only returned by the single-food endpoint; lists never carry photos. */
-  images?: FoodImage[]
+}
+
+/**
+ * A food plus this user's history with it, as GET /foods/recent returns it.
+ *
+ * The portions are the reason this shape exists: logging the same food again is
+ * the daily job, and it is only one tap if the quantity comes with the food.
+ */
+export interface RecentFood extends Food {
+  /** The portion used the last time this food was logged. */
+  lastQuantityG: number
+  /** Its best-remembered portions, most-used first. At most three. */
+  topQuantities: number[]
+  times: number
+  lastAt: string
 }
 
 export interface DiaryEntry {

@@ -31,8 +31,13 @@ export default function FoodDetailPage() {
     day: params.get('day') ?? todayISO(),
     meal: (params.get('meal') as Meal | null) ?? currentMeal(),
   })
-  // Default portion: the pack's serving size when it has one, else 100 g.
-  const defaultQuantity = food?.servingSizeG ?? 100
+  /**
+   * The portion to open on, best guess first: the one this user last ate — the
+   * screens that know it put it in `?q=` — then the pack's serving, then 100 g.
+   */
+  const remembered = Number(params.get('q'))
+  const defaultQuantity =
+    remembered > 0 ? remembered : (food?.servingSizeG ?? 100)
   const [quantity, setQuantity] = useState<string | null>(null)
   // The field shows the real default rather than hiding it in a placeholder —
   // an empty-looking input while the values below compute on 100 g is a lie.
@@ -237,7 +242,9 @@ export default function FoodDetailPage() {
         </dl>
       </Panel>
 
-      <FoodGallery foodId={food.id} name={food.name} images={food.images ?? []} />
+      {/* Fetches its own photos: the food payload no longer carries them, so
+          opening a food never waits on Open Food Facts. */}
+      <FoodGallery foodId={food.id} name={food.name} />
 
       <div className="sticky bottom-0 z-10 -mx-4 mt-4 bg-gradient-to-t from-background via-background to-transparent px-4 pt-7 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <Button

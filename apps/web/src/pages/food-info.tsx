@@ -82,7 +82,7 @@ export default function FoodInfoPage() {
         </p>
       ) : null}
 
-      <FoodGallery foodId={food.id} name={food.name} images={food.images ?? []} />
+      <FoodGallery foodId={food.id} name={food.name} />
     </AppShell>
   )
 }

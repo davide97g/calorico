@@ -1,10 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Clock, Loader2, PlusCircle, ScanBarcode, Search, Star } from 'lucide-react'
+import {
+  ArrowLeft,
+  Camera,
+  Clock,
+  Loader2,
+  PlusCircle,
+  ScanBarcode,
+  Search,
+  Star,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { FoodRow } from '@/components/food/food-row'
 import { BarcodeScanner } from '@/components/food/barcode-scanner'
+import { PhotoMealSheet } from '@/components/food/photo-meal-sheet'
 import { WhenBar } from '@/components/food/when-picker'
 import { Panel } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
@@ -16,13 +26,14 @@ import {
   useFavoriteFoods,
   useFoodSearch,
   useRecentFoods,
+  useVisionStatus,
 } from '@/hooks/use-diary'
 import { useAddGroceryItem } from '@/hooks/use-grocery'
 import { ApiError } from '@/lib/api'
 import { todayISO } from '@/lib/date'
 import { currentMeal } from '@/lib/format'
 import type { When } from '@/lib/when'
-import type { Food, Meal } from '@/lib/types'
+import type { Food, Meal, RecentFood } from '@/lib/types'
 
 export default function AddFoodPage() {
   const navigate = useNavigate()
@@ -42,6 +53,16 @@ export default function AddFoodPage() {
   const [term, setTerm] = useState('')
   const [debounced, setDebounced] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
+  const [photographing, setPhotographing] = useState(false)
+  // No provider configured on the server means no dead-end button.
+  const photoEnabled = useVisionStatus().data?.enabled ?? false
+
+  /**
+   * The keyboard opens only when the user came here to type. Arriving from a
+   * "search" button is that; landing here to pick from Recenti is not, and the
+   * keyboard used to cover the very list that answers most days.
+   */
+  const searchIntent = params.get('focus') === '1'
 
   // OFF calls are slow and rate-limited; wait for a pause in typing.
   useEffect(() => {
@@ -50,12 +71,15 @@ export default function AddFoodPage() {
   }, [term])
 
   const search = useFoodSearch(debounced)
-  const recent = useRecentFoods()
+  const recent = useRecentFoods(meal)
   const favorites = useFavoriteFoods()
   const barcode = useBarcodeLookup()
   const addGroceryItem = useAddGroceryItem()
 
   const foodLink = (id: string) => `/food/${id}?day=${day}&meal=${meal}`
+  /** A food already eaten opens on the portion it was eaten in. */
+  const recentLink = (food: RecentFood) =>
+    `${foodLink(food.id)}&q=${food.lastQuantityG}`
 
   const handleDetected = (code: string) => {
     barcode.mutate(code, {
@@ -114,7 +138,7 @@ export default function AddFoodPage() {
             onChange={(e) => setTerm(e.target.value)}
             placeholder="Cerca: pollo, nutella, yogurt greco…"
             className="bg-card shadow-soft h-12 rounded-full border-transparent pl-10 text-sm"
-            autoFocus
+            autoFocus={searchIntent}
             aria-label="Cerca alimento"
           />
         </div>
@@ -189,7 +213,7 @@ export default function AddFoodPage() {
               items={recent.data?.items}
               loading={recent.isLoading}
               empty="Gli alimenti che registri finiscono qui."
-              linkFor={foodLink}
+              linkFor={(food) => recentLink(food as RecentFood)}
             />
           </TabsContent>
           <TabsContent value="favorites">
@@ -197,20 +221,35 @@ export default function AddFoodPage() {
               items={favorites.data?.items}
               loading={favorites.isLoading}
               empty="Segna un alimento con la stella per ritrovarlo qui."
-              linkFor={foodLink}
+              linkFor={(food) => foodLink(food.id)}
             />
           </TabsContent>
         </Tabs>
       )}
 
-      <Button
-        variant="ghost"
-        className="text-muted-foreground mt-4 w-full rounded-full"
-        onClick={() => navigate(`/food/new?day=${day}&meal=${meal}`)}
-      >
-        <PlusCircle className="size-4" />
-        Crea un alimento personalizzato
-      </Button>
+      {/* Both last resorts, so both sit here in the same quiet weight: a food
+          the catalogue has never heard of, and a restaurant plate nobody can
+          weigh. */}
+      <div className="mt-4 flex flex-col gap-1">
+        {photoEnabled ? (
+          <Button
+            variant="ghost"
+            className="text-muted-foreground w-full rounded-full"
+            onClick={() => setPhotographing(true)}
+          >
+            <Camera className="size-4" />
+            Stima un piatto da una foto
+          </Button>
+        ) : null}
+        <Button
+          variant="ghost"
+          className="text-muted-foreground w-full rounded-full"
+          onClick={() => navigate(`/food/new?day=${day}&meal=${meal}`)}
+        >
+          <PlusCircle className="size-4" />
+          Crea un alimento personalizzato
+        </Button>
+      </div>
 
       <BarcodeScanner
         open={scannerOpen}
@@ -218,6 +257,14 @@ export default function AddFoodPage() {
         onDetected={handleDetected}
         isLoading={barcode.isPending}
       />
+      {photoEnabled ? (
+        <PhotoMealSheet
+          open={photographing}
+          onOpenChange={setPhotographing}
+          day={day}
+          meal={meal}
+        />
+      ) : null}
     </AppShell>
   )
 }
@@ -231,7 +278,7 @@ function FoodList({
   items?: Food[]
   loading: boolean
   empty: string
-  linkFor: (id: string) => string
+  linkFor: (food: Food) => string
 }) {
   if (loading) {
     return (
@@ -254,7 +301,7 @@ function FoodList({
       <ul>
         {items.map((food) => (
           <li key={food.id}>
-            <FoodRow food={food} to={linkFor(food.id)} />
+            <FoodRow food={food} to={linkFor(food)} />
           </li>
         ))}
       </ul>
