@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import {
   Navigate,
   Route,
@@ -8,6 +8,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { getPendingInvite } from '@/hooks/use-family'
 import { useSyncDevice } from '@/hooks/use-notifications'
+import { dismissBootSplash } from '@/lib/boot-splash'
 import { BrandLoader } from '@/components/ui/brand-loader'
 import TodayPage from '@/pages/today'
 import LoginPage from '@/pages/login'
@@ -70,6 +71,11 @@ export default function App() {
   // it runs. See useSyncDevice.
   const { user } = useAuth()
   useSyncDevice(user?.id ?? null)
+
+  // The tree is committed by the time this runs, so the boot screen can go.
+  // Whatever renders underneath — a route or the loader below — is the same
+  // mark the splash was already showing.
+  useEffect(dismissBootSplash, [])
 
   return (
     <Suspense fallback={<FullScreenLoader />}>

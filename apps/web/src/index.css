@@ -268,13 +268,31 @@
 }
 
 /* The application loader is a short brand moment, not a waiting-room spinner.
-   Three orbiting dots echo macro tracking; the logo itself breathes once per
-   cycle, like a flame taking in air. */
+   It eases in on a stagger — mark, then wordmark, then label — so waiting reads
+   as the app arriving rather than as a widget appearing on an empty screen.
+   Three foods ride the orbit, the sweeping arc says work is under way, and the
+   logo breathes like a flame taking in air.
+
+   Entrance and loop are always on different elements: one element cannot
+   animate `transform` twice, and every loop here is a transform. */
 .brand-loader {
+  /* Ring and arc ink. The dark green reads on the light canvas and disappears
+     on the dark one, so the scheme flips it to the light lime — same shapes,
+     opposite ink. */
+  --loader-ink: oklch(0.46 0.14 135);
+  --loader-ink-soft: oklch(0.46 0.14 135 / 0.42);
+  --loader-ink-faint: oklch(0.46 0.14 135 / 0.2);
+
   display: flex;
   flex-direction: column;
   align-items: center;
   color: var(--foreground);
+}
+
+.dark .brand-loader {
+  --loader-ink: oklch(0.85 0.19 122);
+  --loader-ink-soft: oklch(0.85 0.19 122 / 0.34);
+  --loader-ink-faint: oklch(0.85 0.19 122 / 0.16);
 }
 
 .brand-loader__mark {
@@ -283,6 +301,7 @@
   width: 8.5rem;
   height: 8.5rem;
   place-items: center;
+  animation: loader-mark-in 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .brand-loader__logo {
@@ -292,25 +311,56 @@
   height: 4rem;
   border-radius: 1.1rem;
   box-shadow: 0 12px 24px -12px oklch(0.2 0.04 145 / 0.52);
-  animation: loader-logo-breathe 1.8s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+  animation: loader-logo-breathe 2.4s cubic-bezier(0.45, 0, 0.2, 1) infinite;
 }
 
 .brand-loader__orbit,
-.brand-loader__pulse {
+.brand-loader__pulse,
+.brand-loader__sweep {
   position: absolute;
   border-radius: 999px;
 }
 
 .brand-loader__orbit--outer {
   inset: 0.5rem;
-  border: 1px dashed oklch(0.46 0.14 135 / 0.42);
-  animation: loader-orbit 5.2s linear infinite;
+  border: 1px dashed var(--loader-ink-soft);
+  animation:
+    loader-orbit 12s linear infinite,
+    loader-veil-in 640ms 60ms ease-out both;
 }
 
 .brand-loader__orbit--inner {
   inset: 1.4rem;
-  border: 1px solid oklch(0.46 0.14 135 / 0.2);
-  animation: loader-orbit 3.6s linear infinite reverse;
+  border: 1px solid var(--loader-ink-faint);
+  animation:
+    loader-orbit 3.6s linear infinite reverse,
+    loader-veil-in 640ms 120ms ease-out both;
+}
+
+/* One lit arc travelling the outer ring: the only part of the mark that reports
+   progress, where the rest of it says which app you are in. The mask keeps the
+   conic gradient to a 2px band instead of filling the disc. */
+.brand-loader__sweep {
+  inset: 0.5rem;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 52%,
+    var(--loader-ink-soft) 84%,
+    var(--loader-ink) 100%
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2px),
+    #000 calc(100% - 2px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2px),
+    #000 calc(100% - 2px)
+  );
+  animation:
+    loader-orbit 1.8s cubic-bezier(0.6, 0.05, 0.3, 0.95) infinite,
+    loader-veil-in 640ms 60ms ease-out both;
 }
 
 .brand-loader__pulse {
@@ -318,35 +368,31 @@
   width: 4.5rem;
   height: 4.5rem;
   background: oklch(0.85 0.19 122 / 0.2);
-  animation: loader-pulse 1.8s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+  /* No entrance animation of its own: this one loops opacity, and a filled
+     entrance would pin opacity at 1 once it finished. The mark fades it in. */
+  animation: loader-pulse 2.4s cubic-bezier(0.45, 0, 0.2, 1) infinite;
 }
 
-.brand-loader__dot {
+/* Each satellite is a full-size rotator carrying one emoji at its top edge.
+   --a is its starting angle, so three of them share one keyframe pair. */
+.brand-loader__sat {
   position: absolute;
+  inset: 0.5rem;
   z-index: 3;
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 999px;
-  background: var(--primary-strong);
-  box-shadow: 0 0 0 3px var(--background);
+  animation:
+    loader-satellite 7s linear infinite,
+    loader-veil-in 520ms var(--sat-in) ease-out both;
 }
 
-.brand-loader__dot--one {
-  top: 0.35rem;
+.brand-loader__sat > span {
+  position: absolute;
+  top: -0.6rem;
   left: 50%;
-  animation: loader-dot-one 1.8s ease-in-out infinite;
-}
-
-.brand-loader__dot--two {
-  right: 0.85rem;
-  bottom: 1.45rem;
-  animation: loader-dot-two 1.8s ease-in-out infinite;
-}
-
-.brand-loader__dot--three {
-  bottom: 1.45rem;
-  left: 0.85rem;
-  animation: loader-dot-three 1.8s ease-in-out infinite;
+  font-size: 1.05rem;
+  line-height: 1;
+  /* Counter-rotation at the same speed: the food orbits without tumbling. */
+  animation: loader-satellite-upright 7s linear infinite;
+  filter: drop-shadow(0 2px 5px oklch(0.2 0.04 145 / 0.28));
 }
 
 .brand-loader__name {
@@ -355,6 +401,21 @@
   font-size: 1.25rem;
   font-weight: 800;
   letter-spacing: -0.04em;
+  /* A highlight crossing the wordmark. currentColor carries the base in both
+     schemes, so only the sheen itself is themed. */
+  background-image: linear-gradient(
+    100deg,
+    currentColor 38%,
+    var(--primary-strong) 50%,
+    currentColor 62%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation:
+    loader-rise 620ms 140ms cubic-bezier(0.16, 1, 0.3, 1) both,
+    loader-sheen 3.2s 800ms ease-in-out infinite;
 }
 
 .brand-loader__label {
@@ -362,6 +423,41 @@
   color: var(--muted-foreground);
   font-size: 0.75rem;
   font-weight: 600;
+  animation: loader-rise 620ms 230ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* The global reduce-motion rule collapses durations but leaves delays intact,
+   which on an entrance means holding the from-state — invisible — for a fifth
+   of a second. Nothing here waits. */
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader,
+  .brand-loader * {
+    animation-delay: 0ms !important;
+  }
+}
+
+@keyframes loader-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+    filter: blur(7px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Opacity only: these elements already spend their transform on a loop. */
+@keyframes loader-veil-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes loader-rise {
+  from { opacity: 0; transform: translateY(0.6rem); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes loader-logo-breathe {
@@ -371,24 +467,26 @@
 
 @keyframes loader-orbit { to { transform: rotate(360deg); } }
 
+@keyframes loader-satellite {
+  from { transform: rotate(var(--a)); }
+  to { transform: rotate(calc(var(--a) + 360deg)); }
+}
+
+@keyframes loader-satellite-upright {
+  from { transform: translateX(-50%) rotate(calc(-1 * var(--a))); }
+  to { transform: translateX(-50%) rotate(calc(-1 * var(--a) - 360deg)); }
+}
+
 @keyframes loader-pulse {
   0%, 100% { transform: scale(0.82); opacity: 0.2; }
   50% { transform: scale(1.18); opacity: 0.55; }
 }
 
-@keyframes loader-dot-one {
-  0%, 100% { transform: translate(-50%, 0) scale(0.75); opacity: 0.45; }
-  30% { transform: translate(-50%, 0) scale(1.25); opacity: 1; }
-}
-
-@keyframes loader-dot-two {
-  0%, 100% { transform: scale(0.75); opacity: 0.45; }
-  60% { transform: scale(1.25); opacity: 1; }
-}
-
-@keyframes loader-dot-three {
-  0%, 100% { transform: scale(0.75); opacity: 0.45; }
-  90% { transform: scale(1.25); opacity: 1; }
+/* Both ends park the highlight outside the text, so the loop has no visible
+   seam when background-position snaps back. */
+@keyframes loader-sheen {
+  0% { background-position: 150% 0; }
+  55%, 100% { background-position: -50% 0; }
 }
 
 /* soft elevation used by every card in the design */
