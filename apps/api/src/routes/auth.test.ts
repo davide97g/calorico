@@ -26,6 +26,19 @@ describe.skipIf(!hasDb)('auth routes', () => {
     await resetDb()
   })
 
+    it('refuses to register without explicit health consent and age attestation', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        payload: {
+          email: 'noconent@calorico.test',
+          password: 'test-password-1',
+          name: 'No Consent',
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
   it('registers, then signs in with the same credentials', async () => {
     const user = await createUser(app, { email: 'nuovo@calorico.test' })
 
@@ -58,6 +71,8 @@ describe.skipIf(!hasDb)('auth routes', () => {
         email: 'MIXED@calorico.test',
         password: 'another-password',
         name: 'Doppione',
+        healthConsent: true,
+        ageAttested: true,
       },
     })
     expect(again.statusCode).toBe(409)

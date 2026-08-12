@@ -1,5 +1,5 @@
 import { and, eq, sql as raw } from 'drizzle-orm'
-import { db } from '../../db/index.js'
+import { adminDb } from '../../db/index.js'
 import {
   diaryEntries,
   profiles,
@@ -59,7 +59,7 @@ export async function findDueReminders(
   const localDay = raw<string>`${localNow}::date`
   const localMinutes = raw<number>`(extract(hour from ${localNow})::int * 60 + extract(minute from ${localNow})::int)`
 
-  return db
+  return adminDb
     .select({
       id: reminders.id,
       userId: reminders.userId,
@@ -99,7 +99,7 @@ export async function alreadyHandled(row: DueRow): Promise<boolean> {
   switch (row.kind) {
     case 'meal': {
       if (!row.meal) return false
-      const [entry] = await db
+      const [entry] = await adminDb
         .select({ id: diaryEntries.id })
         .from(diaryEntries)
         .where(
@@ -116,7 +116,7 @@ export async function alreadyHandled(row: DueRow): Promise<boolean> {
       // "Already reviewed" is not a thing we store, so the proxy is the day
       // being inside its calorie band: past the lower edge there is nothing
       // left to nag about.
-      const [row_] = await db
+      const [row_] = await adminDb
         .select({
           kcal: raw<number>`coalesce(sum(${diaryEntries.kcal}), 0)::float`,
           target: profiles.targetKcalMin,
@@ -135,7 +135,7 @@ export async function alreadyHandled(row: DueRow): Promise<boolean> {
       return row_.kcal >= row_.target
     }
     case 'weight': {
-      const [log] = await db
+      const [log] = await adminDb
         .select({ id: weightLogs.id })
         .from(weightLogs)
         .where(
@@ -157,7 +157,7 @@ export async function alreadyHandled(row: DueRow): Promise<boolean> {
  * being what the due query saw, so exactly one caller can win.
  */
 async function claim(id: string, localDay: string): Promise<boolean> {
-  const claimed = await db
+  const claimed = await adminDb
     .update(reminders)
     .set({ lastSentOn: localDay, lastSentAt: new Date(), updatedAt: new Date() })
     .where(
@@ -173,7 +173,7 @@ async function claim(id: string, localDay: string): Promise<boolean> {
 
 /** Hands the slot back, so a transient delivery failure can retry this tick+1. */
 async function releaseClaim(id: string, previousSentOn: string | null) {
-  await db
+  await adminDb
     .update(reminders)
     .set({ lastSentOn: previousSentOn })
     .where(eq(reminders.id, id))
@@ -191,7 +191,7 @@ export async function deliver(
   payload: PushPayload,
   send: Sender = sendPush,
 ): Promise<FanoutResult> {
-  const targets = await db
+  const targets = await adminDb
     .select({
       id: pushSubscriptions.id,
       endpoint: pushSubscriptions.endpoint,

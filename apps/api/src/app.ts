@@ -10,7 +10,7 @@ import rateLimit from '@fastify/rate-limit'
 import * as Sentry from '@sentry/node'
 import { eq } from 'drizzle-orm'
 import { ZodError } from 'zod'
-import { db, sql } from './db/index.js'
+import { adminDb, enterRls, finishRls, rlsAls, sql, type RlsStore } from './db/index.js'
 import { users } from './db/schema.js'
 import { env } from './env.js'
 import { premiumRoutes } from './routes/premium.js'
@@ -44,17 +44,29 @@ declare module 'fastify' {
       reply: FastifyReply,
     ) => Promise<void>
   }
+  interface FastifyRequest {
+    rls?: RlsStore
+  }
 }
 
 export async function buildApp(): Promise<FastifyInstance> {
+  const loggerRedact = [
+    'req.headers.authorization',
+    'req.body.password',
+    'req.body.currentPassword',
+    'req.body.newPassword',
+    'req.body.image',
+  ]
+
   const app = Fastify({
     logger: env.isTest
       ? // A request log per injected request buries the test output.
         false
       : env.isProd
-        ? { level: 'info' }
+        ? { level: 'info', redact: loggerRedact }
         : {
             level: 'debug',
+            redact: loggerRedact,
             transport: { target: 'pino-pretty', options: { colorize: true } },
           },
     trustProxy: true,
@@ -90,6 +102,26 @@ export async function buildApp(): Promise<FastifyInstance> {
     timeWindow: '1 minute',
   })
 
+  /**
+   * One AsyncLocalStorage store per request so `db` inside handlers is the
+   * connection that has `SET ROLE calorico_app` and `app.user_id`.
+   * `enterWith` survives Fastify's hook boundaries; `run(done)` would not.
+   */
+  app.addHook('onRequest', async (request) => {
+    const store: RlsStore = { db: adminDb, client: null, failed: false }
+    request.rls = store
+    rlsAls.enterWith(store)
+  })
+
+  app.addHook('onError', (request, _reply, _error, done) => {
+    if (request.rls) request.rls.failed = true
+    done()
+  })
+
+  app.addHook('onResponse', async (request) => {
+    await finishRls(request.rls)
+  })
+
   app.decorate(
     'authenticate',
     async function (request: FastifyRequest, reply: FastifyReply) {
@@ -103,7 +135,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       // days, so a changed password or a sign-out-everywhere has to be able to
       // kill the ones already out there: one indexed lookup per request buys
       // that. A token predating the bump loses.
-      const [user] = await db
+      const [user] = await adminDb
         .select({ tokenVersion: users.tokenVersion })
         .from(users)
         .where(eq(users.id, request.user.sub))
@@ -112,6 +144,8 @@ export async function buildApp(): Promise<FastifyInstance> {
       if (!user || user.tokenVersion !== (request.user.ver ?? 0)) {
         return reply.code(401).send({ error: 'unauthorized' })
       }
+
+      await enterRls(request.user.sub)
     },
   )
 

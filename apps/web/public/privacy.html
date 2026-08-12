@@ -46,7 +46,7 @@
     <main class="wrap legal">
       <h1>Informativa sulla privacy</h1>
       <p class="updated">
-        Ultimo aggiornamento: 7 agosto 2026 · Versione 1.0
+        Ultimo aggiornamento: 12 agosto 2026 · Versione 1.1
       </p>
 
       <p>
@@ -281,8 +281,10 @@
               <th scope="row">Hosting del server</th>
               <td>
                 Tutti i dati dell'applicazione, che risiedono sul server e nel
-                database gestiti dal titolare presso il fornitore
-                dell'infrastruttura.
+                database Postgres gestiti dal titolare su un VPS in Unione
+                Europea, orchestrato con Dokploy. Il fornitore
+                dell'infrastruttura agisce come responsabile del trattamento
+                (art. 28 GDPR).
               </td>
               <td>Unione Europea</td>
             </tr>
@@ -298,8 +300,11 @@
               <th scope="row">Open Food Facts</th>
               <td>
                 Il codice a barre o il testo cercato, quando un prodotto non è
-                ancora nell'archivio locale. Nessun identificativo dell'utente
-                viene trasmesso.
+                ancora nell'archivio locale, inviati dal server. Nessun
+                identificativo dell'utente viene trasmesso. Le foto di
+                confezione, ingredienti e tabella nutrizionale sono caricate
+                dal browser direttamente dai server di Open Food Facts (URL
+                pubblici già presenti nel catalogo).
               </td>
               <td>Francia (associazione senza scopo di lucro)</td>
             </tr>
@@ -339,29 +344,28 @@
         Il server, il database e tutti i dati del diario restano all'interno
         dell'Unione Europea.
       </p>
-      <!--
-        DA COMPILARE PRIMA DELLA PUBBLICAZIONE — cancellare la variante che non si applica.
-
-        Se VISION_PROVIDER=mistral:
-          «Le foto dei pasti vengono analizzate da Mistral AI SAS, con sede in
-          Francia: il trattamento avviene interamente nell'Unione Europea e non
-          comporta alcun trasferimento verso Paesi terzi.»
-
-        Se VISION_PROVIDER=openai:
-          «Le foto dei pasti vengono analizzate da OpenAI, Ireland Ltd / OpenAI,
-          L.L.C., con possibile trasferimento negli Stati Uniti. Il trasferimento
-          avviene sulla base delle Clausole Contrattuali Tipo approvate dalla
-          Commissione europea (decisione 2021/914) e, ove applicabile, della
-          certificazione al EU-U.S. Data Privacy Framework. Le immagini non
-          vengono conservate dal fornitore né usate per addestrare modelli.»
-
-        Se il riconoscimento da foto è disattivato in produzione, cancellare
-        l'intero paragrafo qui sotto.
-      -->
       <p>
-        <strong>[DA COMPILARE: fornitore del modello di visione artificiale e
-        relative garanzie di trasferimento — vedi il commento nel sorgente di
-        questa pagina.]</strong>
+        Quando l'analisi dei pasti da foto è attiva, l'immagine è inviata al
+        fornitore configurato dal titolare, senza identificativi dell'account:
+      </p>
+      <ul>
+        <li>
+          <strong>Mistral AI SAS</strong> (Francia): il trattamento avviene
+          nell'Unione Europea e non comporta un trasferimento verso Paesi terzi.
+        </li>
+        <li>
+          <strong>OpenAI Ireland Ltd / OpenAI, L.L.C.</strong>: possibile
+          trasferimento negli Stati Uniti sulla base delle Clausole Contrattuali
+          Tipo approvate dalla Commissione europea (decisione 2021/914) e, ove
+          applicabile, della certificazione al EU-U.S. Data Privacy Framework.
+          Le immagini non vengono conservate dal fornitore né usate per
+          addestrare modelli, secondo le condizioni del servizio.
+        </li>
+      </ul>
+      <p>
+        Se la funzione è disattivata, nessuna foto lascia il server. Un host
+        compatibile impostato tramite <code>VISION_BASE_URL</code> eredita il
+        regime di trasferimento di quel fornitore.
       </p>
       <p>
         Il servizio push è quello nativo del browser dell'utente: se il browser è
@@ -413,7 +417,9 @@
         analisi o di profilazione, non ci sono pixel di tracciamento, non ci sono
         servizi pubblicitari e non ci sono strumenti di statistica di terze
         parti. Anche i caratteri tipografici sono serviti da questo dominio,
-        proprio per non aprire connessioni verso terzi.
+        proprio per non far partire una richiesta verso un CDN di caratteri.
+        Le foto di confezione da Open Food Facts sono l'unica eccezione, descritta
+        al §5.
       </p>
       <p>
         Per questo motivo non viene mostrato alcun banner di consenso: non c'è
@@ -440,11 +446,37 @@
               <td>Ricordare la scelta fra tema chiaro, scuro o di sistema.</td>
               <td>Preferenza impostata dall'utente</td>
             </tr>
+            <tr>
+              <td><code>calorico.pendingInvite</code></td>
+              <td>
+                Conservare il token di un invito famiglia tra la registrazione e
+                l'accettazione.
+              </td>
+              <td>Strettamente necessaria</td>
+            </tr>
+            <tr>
+              <td><code>calorico.push.endpoint</code></td>
+              <td>
+                Ultimo endpoint push di questo browser, per cancellarlo al
+                cambio account.
+              </td>
+              <td>Strettamente necessaria</td>
+            </tr>
+            <tr>
+              <td><code>calorico.push.lastError</code></td>
+              <td>Diagnostica delle notifiche, mostrata solo all'utente.</td>
+              <td>Strettamente necessaria</td>
+            </tr>
+            <tr>
+              <td><code>calorico.push.prompts</code> / <code>.last</code></td>
+              <td>Cadenza del promemoria di installazione su iOS.</td>
+              <td>Preferenza impostata dall'utente</td>
+            </tr>
           </tbody>
         </table>
       </div>
       <p>
-        Entrambe rientrano fra le attività esenti da consenso ai sensi dell'art.
+        Queste chiavi rientrano fra le attività esenti da consenso ai sensi dell'art.
         122 del Codice privacy e delle Linee guida del Garante sui cookie
         (provvedimento del 10 giugno 2021), trattandosi di archiviazione
         strettamente necessaria a fornire un servizio esplicitamente richiesto
@@ -470,6 +502,12 @@
         Chi invita altre persone è responsabile di farlo con il loro consenso. Il
         titolare non ha modo di verificare i rapporti fra i membri di un gruppo.
       </p>
+      <p>
+        Uscendo dal gruppo, le scansioni di chi esce tornano private e spariscono
+        dal feed degli altri. Gli articoli della lista della spesa già condivisi
+        restano al nucleo familiare, perché sono la spesa della casa e non il
+        diario di chi è uscito.
+      </p>
 
       <h2 id="sicurezza">10. Sicurezza</h2>
       <ul>
@@ -492,7 +530,9 @@
         </li>
         <li>
           Accesso al database limitato alla rete interna dei container, non
-          esposto su internet.
+          esposto su internet. Le tabelle con dati personali hanno row-level
+          security: il ruolo dell'API vede solo le righe dell'utente della
+          richiesta.
         </li>
       </ul>
       <p>
@@ -525,7 +565,11 @@
         <li><strong>rettifica</strong> dei dati inesatti o incompleti — modificabili in autonomia dal profilo;</li>
         <li><strong>cancellazione</strong> («diritto all'oblio») — esercitabile in autonomia dal profilo, senza dover scrivere a nessuno;</li>
         <li><strong>limitazione</strong> del trattamento;</li>
-        <li><strong>portabilità</strong>, cioè ricevere i propri dati in formato strutturato e di uso comune;</li>
+        <li>
+          <strong>portabilità</strong>, cioè ricevere i propri dati in formato
+          strutturato e di uso comune — esercitabile in autonomia dal profilo
+          («Scarica i miei dati»), senza dover scrivere a nessuno;
+        </li>
         <li><strong>opposizione</strong> ai trattamenti fondati sul legittimo interesse;</li>
         <li>
           <strong>revoca del consenso</strong> in qualsiasi momento, senza che ciò

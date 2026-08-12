@@ -118,9 +118,10 @@ export default function JoinPage() {
         ) : (
           <>
             <p className="text-muted-foreground mt-4 text-sm">
-              Condividerete lista della spesa e scansioni. Il diario, le calorie
-              e il peso restano privati. La tua lista attuale confluisce in
-              quella di {familyName}.
+              Unendoti, gli altri membri vedono il tuo nome e lo storico delle
+              scansioni (codici a barre e etichette dei pasti fotografati).
+              Diario, calorie e peso restano solo tuoi. La tua lista della spesa
+              confluisce in quella di {familyName}.
             </p>
             <Button
               className="mt-5 w-full rounded-full"

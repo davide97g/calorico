@@ -67,11 +67,17 @@ the backlog below.
       accuracy limits, acceptable use, AGPL and ODbL licences, Premium and the
       14-day withdrawal right, liability limits, Italian consumer forum.
 - [x] Cookie question answered: **no banner is required**. There are no cookies
-      at all, no analytics, no ad tech, no third-party requests. The two
-      `localStorage` keys (`calorico.token`, `theme`) are exempt under Art. 122
-      of the Codice privacy and the Garante's June 2021 cookie guidelines as
-      strictly necessary / user-set preferences. Both are documented in §8 of
-      the notice.
+      at all, no analytics, no ad tech. Fonts are self-hosted. Product packshots
+      load from Open Food Facts (documented in privacy §5). `localStorage` keys
+      (`calorico.token`, `theme`, `calorico.pendingInvite`, `calorico.push.*`)
+      are exempt under Art. 122 of the Codice privacy and the Garante's June 2021
+      cookie guidelines as strictly necessary / user-set preferences. All are
+      documented in §8 of the notice.
+- [x] Explicit Art. 9 consent and age-16 attestation at registration, with
+      timestamps and the privacy-notice version stored on the user row.
+- [x] Vision-provider paragraph, forum clause, localStorage inventory, OFF image
+      loads, family-leave copy, and in-app data export (Art. 20) match the
+      running app. Internal RoPA and DPIA live in `docs/`.
 
 ### Routing
 
@@ -89,42 +95,7 @@ the backlog below.
 
 ## Blocking — before the repository and the link go public
 
-### 1. Fill the three placeholders in the legal pages
-
-Search for `[DA COMPILARE` — the pages cannot go live with them in.
-
-- **`privacy.html` §6** — name the vision provider actually configured in
-  production and its transfer basis. Both paragraphs are pre-written in an HTML
-  comment right above the placeholder: keep the Mistral one (France, no transfer
-  outside the EU) or the OpenAI one (US, Standard Contractual Clauses). If meal
-  photo analysis is switched off in production, delete the paragraph instead.
-- **`termini.html` §15** — the city for the non-consumer forum clause.
-- **Decide the contact address.** The notice lists
-  `privacy@calorico.davideghiotto.it` first and a personal Gmail second. Either
-  create that alias, or delete the line — an address in a privacy notice that
-  bounces is worse than none.
-
-### 2. Add an explicit consent checkbox at registration
-
-The privacy notice states that diary, weight and profile data are processed
-under **explicit consent, Art. 9(2)(a) GDPR**. Explicit consent has to be an
-affirmative act — a ticked box, not a line of small print. Right now the
-registration form does not ask.
-
-Minimum: an unticked, required checkbox on `/register` reading roughly
-
-> Ho letto l'[informativa privacy](/privacy) e acconsento al trattamento dei
-> miei dati relativi alla salute (diario alimentare, peso, dati corporei) per
-> le finalità descritte.
-
-plus a separate link to the terms. Store the timestamp of acceptance on the user
-row — being able to prove *when* consent was given is the part that matters if
-anyone ever asks.
-
-This is the one item on the list where the pages currently describe something
-the app does not yet do.
-
-### 3. Drop the `/app` suffix from `APP_URL` in Dokploy
+### 1. Drop the `/app` suffix from `APP_URL` in Dokploy
 
 Stripe's `success_url` is built as `${APP_URL}/premium/return`. The value was set
 to end in `/app` while the app was mounted there; now that suffix sends a paying
@@ -138,7 +109,7 @@ The default in `env.ts` and `.env.example` matches, and nginx 301s `/app/**` bac
 to the root as a backstop — but do not ship a Stripe flow that depends on a
 redirect.
 
-### 4. Verify the deploy before announcing
+### 2. Verify the deploy before announcing
 
 The routing is the risky part: installed PWAs carry whichever `start_url` their
 last worker update saw, and a stale one now points at `/app`.
@@ -163,9 +134,10 @@ Then by hand:
 - [ ] Tap a push reminder and confirm it lands on the right screen.
 - [ ] Generate a family invite link and confirm it contains `/join/`, not
       `/app/join/`.
-- [ ] Network tab on `/`: no request leaves the origin.
+- [ ] Network tab on `/` signed out: no request leaves the origin. On a food
+      with a packshot, Open Food Facts image hosts are the expected exception.
 
-### 5. Check the link preview before posting
+### 3. Check the link preview before posting
 
 Paste the URL into the
 [LinkedIn Post Inspector](https://www.linkedin.com/post-inspector/) and let it
@@ -194,8 +166,6 @@ There is no structured data to validate any more — see the GEO note above.
       in prose right now.
 - [ ] A 20-second screen recording for the LinkedIn post; video outperforms a
       link preview there by a wide margin.
-- [ ] `data-export` for account portability — GDPR Art. 20 gives the right, and
-      the notice promises it. Deletion works today, export does not.
 - [ ] Lighthouse on `/`, `/privacy` and a couple of app routes.
 - [ ] Decide whether the pitch comes back as a page. Removing `/app` cost the
       site its landing page, its JSON-LD and everything an answer engine likes to
@@ -231,8 +201,8 @@ Ordered by how badly it goes wrong if skipped.
   development, where Vite answers every path: the URL only 404s on a cold load in
   production.
 - **`npm run fonts`** regenerates the self-hosted webfonts. Do not put the
-  Google Fonts `<link>` back: it would make the privacy notice's "no third-party
-  requests" claim false in one line.
+  Google Fonts `<link>` back: it would add a third-party request the privacy
+  notice does not cover.
 - Anything that changes what data is collected, where it goes, or how long it
   is kept needs the privacy notice updated in the same commit. The PR template
   has a checkbox for it.

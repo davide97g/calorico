@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
-import { db } from '../db/index.js'
+import { adminDb, db } from '../db/index.js'
 import {
   families as familiesTable,
   familyMembers,
@@ -16,6 +16,7 @@ import {
   proteinRecommendation,
 } from '../lib/nutrition.js'
 import { verifyPassword } from '../lib/password.js'
+import { exportPersonalData } from '../lib/data-export.js'
 
 const bodyMetrics = z.object({
   sex: z.enum(['male', 'female']),
@@ -109,6 +110,17 @@ export const profileRoutes: FastifyPluginAsync = async (app) => {
       .limit(1)
     if (!profile) return reply.code(404).send({ error: 'not_found' })
     return profile
+  })
+
+  /**
+   * Art. 20 portability: everything that is this person's, as JSON. The
+   * Content-Disposition is for a download; the body is never logged.
+   */
+  app.get('/export', async (request, reply) => {
+    const payload = await exportPersonalData(request.user.sub)
+    return reply
+      .header('content-disposition', 'attachment; filename="calorico-dati.json"')
+      .send(payload)
   })
 
   /** Preview targets without persisting — used live by the onboarding sliders. */
@@ -229,7 +241,7 @@ export const profileRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(401).send({ error: 'invalid_credentials' })
     }
 
-    await db.transaction(async (tx) => {
+    await adminDb.transaction(async (tx) => {
       const authored = await tx
         .select({ id: foods.id })
         .from(foods)

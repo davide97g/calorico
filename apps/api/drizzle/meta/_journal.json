@@ -85,6 +85,20 @@
       "when": 1786570442910,
       "tag": "0011_left_centennial",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786572000000,
+      "tag": "0012_gdpr_consent_and_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786572100000,
+      "tag": "0013_rls_family_ids",
+      "breakpoints": true
     }
   ]
 }

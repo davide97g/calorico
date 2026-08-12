@@ -1,6 +1,6 @@
 import { and, desc, eq, isNull, sql as raw } from 'drizzle-orm'
 import { z } from 'zod'
-import { db } from '../../db/index.js'
+import { adminDb } from '../../db/index.js'
 import { appReleases, profiles, pushSubscriptions } from '../../db/schema.js'
 import { env } from '../../env.js'
 import { fanout, type Sender } from '../push/fanout.js'
@@ -90,7 +90,7 @@ export async function fetchDeployedBuild(
  * and the app still picks the older build up on its own next time it is opened.
  */
 export async function recordRelease(buildId: string) {
-  const [latest] = await db
+  const [latest] = await adminDb
     .select({ id: appReleases.id, buildId: appReleases.buildId })
     .from(appReleases)
     .orderBy(desc(appReleases.detectedAt))
@@ -98,7 +98,7 @@ export async function recordRelease(buildId: string) {
 
   if (latest?.buildId === buildId) return null
 
-  const [created] = await db
+  const [created] = await adminDb
     .insert(appReleases)
     .values({ buildId, announcedAt: latest ? null : new Date() })
     .onConflictDoNothing({ target: appReleases.buildId })
@@ -137,7 +137,7 @@ export async function announcePending(
   delayMinutes = env.RELEASE_NOTICE_DELAY_MINUTES,
   send: Sender = sendPush,
 ): Promise<AnnounceResult | null> {
-  const claimed = await db
+  const claimed = await adminDb
     .update(appReleases)
     .set({ announcedAt: new Date() })
     .where(
@@ -158,7 +158,7 @@ export async function announcePending(
     row.detectedAt > newest.detectedAt ? row : newest,
   )
 
-  const targets = await db
+  const targets = await adminDb
     .select({
       id: pushSubscriptions.id,
       endpoint: pushSubscriptions.endpoint,
@@ -181,7 +181,7 @@ export async function announcePending(
 
   const { sent, removed, failed } = await fanout(targets, releaseMessage, send)
 
-  await db
+  await adminDb
     .update(appReleases)
     .set({ notified: sent })
     .where(eq(appReleases.id, release.id))

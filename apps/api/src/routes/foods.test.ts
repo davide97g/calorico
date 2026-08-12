@@ -101,6 +101,83 @@ describe.skipIf(!hasDb)('food search', () => {
   })
 })
 
+describe.skipIf(!hasDb)('custom food isolation', () => {
+  let app: FastifyInstance
+
+  beforeAll(async () => {
+    app = await startApp()
+  })
+  afterAll(async () => {
+    await stopApp(app)
+  })
+  beforeEach(async () => {
+    await resetDb()
+  })
+
+  const createCustom = async (who: TestUser, name: string, barcode?: string) => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/foods',
+      headers: auth(who),
+      payload: {
+        name,
+        kcal100: 380,
+        protein100: 6,
+        carbs100: 45,
+        fat100: 19,
+        ...(barcode ? { barcode } : {}),
+      },
+    })
+    expect(res.statusCode).toBe(201)
+    return res.json() as { id: string; name: string }
+  }
+
+  it("keeps one user's homemade food out of another's search, detail and barcode", async () => {
+    const alice = await createUser(app)
+    const bob = await createUser(app)
+    const food = await createCustom(alice, 'Torta della nonna', '8000000000001')
+
+    const search = await app.inject({
+      method: 'GET',
+      url: `/api/foods/search?q=${encodeURIComponent('Torta della nonna')}&local=true`,
+      headers: auth(bob),
+    })
+    expect(search.statusCode).toBe(200)
+    const names = (search.json() as { items: { name: string }[] }).items.map(
+      (i) => i.name,
+    )
+    expect(names).not.toContain('Torta della nonna')
+
+    const detail = await app.inject({
+      method: 'GET',
+      url: `/api/foods/${food.id}`,
+      headers: auth(bob),
+    })
+    expect(detail.statusCode).toBe(404)
+
+    const images = await app.inject({
+      method: 'GET',
+      url: `/api/foods/${food.id}/images`,
+      headers: auth(bob),
+    })
+    expect(images.statusCode).toBe(404)
+
+    const barcode = await app.inject({
+      method: 'GET',
+      url: '/api/foods/barcode/8000000000001',
+      headers: auth(bob),
+    })
+    expect(barcode.statusCode).not.toBe(200)
+
+    const own = await app.inject({
+      method: 'GET',
+      url: `/api/foods/${food.id}`,
+      headers: auth(alice),
+    })
+    expect(own.statusCode).toBe(200)
+  })
+})
+
 describe('hasConfidentGenericMatch', () => {
   const generic = { source: 'generic', name: 'Pesche', aliases: ['pesca'] }
 

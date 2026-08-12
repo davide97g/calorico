@@ -65,7 +65,13 @@ export async function createUser(
   const res = await app.inject({
     method: 'POST',
     url: '/api/auth/register',
-    payload: { email, password, name: overrides.name ?? `User ${seq}` },
+    payload: {
+      email,
+      password,
+      name: overrides.name ?? `User ${seq}`,
+      healthConsent: true,
+      ageAttested: true,
+    },
   })
   if (res.statusCode !== 201) {
     throw new Error(`register failed: ${res.statusCode} ${res.body}`)

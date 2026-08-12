@@ -1,6 +1,7 @@
-import { getTableColumns, sql as raw } from 'drizzle-orm'
+import { and, getTableColumns, sql as raw } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { foods, type Food } from '../db/schema.js'
+import { foodVisibleTo } from './food-visibility.js'
 
 /** A search hit plus the trigram score that ranked it. */
 export type ScoredFood = Food & { score: number }
@@ -16,6 +17,7 @@ export type ScoredFood = Food & { score: number }
 export async function searchLocalFoods(
   term: string,
   limit: number,
+  userId: string,
 ): Promise<ScoredFood[]> {
   const like = `%${term}%`
   const nameKey = raw`unaccent(lower(${foods.name}))`
@@ -68,12 +70,15 @@ export async function searchLocalFoods(
     })
     .from(foods)
     .where(
-      raw`(
+      and(
+        foodVisibleTo(userId),
+        raw`(
         ${nameKey} like unaccent(lower(${like}))
         or ${brandKey} like unaccent(lower(${like}))
         or ${aliasKey} like unaccent(lower(${like}))
         or similarity(${foods.name}, ${term}) > 0.22
       )`,
+      ),
     )
     .orderBy(
       raw`${nameKey}, round(${foods.kcal100}),

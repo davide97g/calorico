@@ -41,7 +41,7 @@ const matches = (column: SQL, term: string) =>
   sql`unaccent(lower(${column})) like unaccent(lower(${`%${escapeLike(term)}%`}))`
 
 /** Scan rows the user may see: their families' scans, plus their own private ones. */
-function scanVisibility(userId: string, familyIds: string[]): SQL {
+export function scanVisibility(userId: string, familyIds: string[]): SQL {
   const own = and(isNull(scanEvents.familyId), eq(scanEvents.userId, userId))!
   if (familyIds.length === 0) return own
   return or(inArray(scanEvents.familyId, familyIds), own)!

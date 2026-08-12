@@ -77,8 +77,9 @@ Context, so you can skip the obvious:
 - A restrictive Content Security Policy is set on every response, plus HSTS,
   `nosniff`, a referrer policy and a permissions policy. The policy on the static
   legal pages is stricter still and allows no outbound connections at all.
-- The site makes no third-party requests: the webfonts are self-hosted for
-  exactly that reason.
+- The webfonts are self-hosted. Product packshots are loaded from Open Food
+  Facts image URLs; search and barcode queries go from the API to OFF without a
+  user id. Do not add analytics, font CDNs, or other third-party scripts.
 - Meal photographs are never written to disk or database. They exist in memory
   for the duration of a single analysis.
 - Account deletion cascades through every table and is immediate.

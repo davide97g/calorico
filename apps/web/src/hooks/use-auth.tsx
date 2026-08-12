@@ -28,6 +28,7 @@ interface AuthContextValue {
     name: string,
     email: string,
     password: string,
+    consent: { healthConsent: true; ageAttested: true },
   ) => Promise<AuthResponse>
   logout: () => void
 }
@@ -79,11 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             body: { email, password },
           }),
         ),
-      register: async (name, email, password) =>
+      register: async (name, email, password, consent) =>
         applyAuth(
           await api<AuthResponse>('/auth/register', {
             method: 'POST',
-            body: { name, email, password },
+            body: { name, email, password, ...consent },
           }),
         ),
       logout: () => {

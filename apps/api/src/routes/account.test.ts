@@ -200,6 +200,54 @@ describe.skipIf(!hasDb)('account and premium', () => {
     })
   })
 
+  describe('export', () => {
+    it("returns this account's diary and not another user's", async () => {
+      const alice = await createUser(app)
+      const bob = await createUser(app)
+      await logSomething(alice)
+      await logSomething(bob)
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/profile/export',
+        headers: auth(alice),
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.headers['content-disposition']).toMatch(/calorico-dati\.json/)
+
+      const body = res.json() as {
+        account: { email: string; privacyVersion: string | null }
+        diary: { nameSnapshot: string }[]
+        customFoods: { name: string }[]
+      }
+      expect(body.account.email).toBe(alice.email)
+      expect(body.account.privacyVersion).toBe('1.1')
+      expect(body.diary.map((e) => e.nameSnapshot)).toContain('Torta della nonna')
+      expect(body.customFoods.map((f) => f.name)).toContain('Torta della nonna')
+      expect(body.diary).toHaveLength(1)
+
+      const bobExport = await app.inject({
+        method: 'GET',
+        url: '/api/profile/export',
+        headers: auth(bob),
+      })
+      const bobBody = bobExport.json() as { account: { email: string } }
+      expect(bobBody.account.email).toBe(bob.email)
+    })
+
+    it('omits the password hash and push encryption keys', async () => {
+      const user = await createUser(app)
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/profile/export',
+        headers: auth(user),
+      })
+      const raw = res.body
+      expect(raw).not.toMatch(/passwordHash|password_hash/)
+      expect(raw).not.toMatch(/"p256dh"|"auth"/)
+    })
+  })
+
   describe('photo quota', () => {
     /** The stub provider answers from a fixture, so nothing is spent here. */
     const analyse = (user: TestUser) =>

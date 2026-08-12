@@ -3,7 +3,7 @@ import './instrument.js'
 import * as Sentry from '@sentry/node'
 import { buildApp } from './app.js'
 import { env } from './env.js'
-import { sql } from './db/index.js'
+import { sql, adminSql } from './db/index.js'
 import { startReminderScheduler } from './lib/reminders/scheduler.js'
 import { startReleaseNotifier } from './lib/releases/notifier.js'
 
@@ -20,6 +20,7 @@ const shutdown = async (signal: string) => {
   stopReleaseNotifier()
   await app.close()
   await sql.end({ timeout: 5 })
+  if (adminSql !== sql) await adminSql.end({ timeout: 5 })
   // Anything captured in the last moments still has to reach Sentry.
   await Sentry.flush(2000).catch(() => {})
   process.exit(0)

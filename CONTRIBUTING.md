@@ -78,9 +78,9 @@ The code has a voice. Match it rather than your own defaults:
 
 ## What will get turned down
 
-- Adding analytics, advertising, or any third-party script that phones home. The
-  privacy notice says the site makes no third-party requests, and that claim is
-  load-bearing.
+- Adding analytics, advertising, or any third-party script that phones home.
+  Product packshots already load from Open Food Facts; do not add a font CDN,
+  analytics, or a widget on top of that.
 - Dependencies that duplicate something already in the tree.
 - Reformatting a file you did not otherwise change.
 - Anything that makes a nutrition figure look more precise than the underlying

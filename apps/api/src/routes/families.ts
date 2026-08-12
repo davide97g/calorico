@@ -2,12 +2,13 @@ import { randomBytes } from 'node:crypto'
 import type { FastifyPluginAsync } from 'fastify'
 import { and, asc, count, eq, gt, inArray, isNull } from 'drizzle-orm'
 import { z } from 'zod'
-import { db } from '../db/index.js'
+import { adminDb, db } from '../db/index.js'
 import {
   families,
   familyInvites,
   familyMembers,
   profiles,
+  scanEvents,
   users,
 } from '../db/schema.js'
 import {
@@ -70,7 +71,7 @@ export const familyRoutes: FastifyPluginAsync = async (app) => {
   app.get('/invites/:token', async (request, reply) => {
     const { token } = tokenParam.parse(request.params)
 
-    const [invite] = await db
+    const [invite] = await adminDb
       .select({
         id: familyInvites.id,
         familyId: familyInvites.familyId,
@@ -90,7 +91,7 @@ export const familyRoutes: FastifyPluginAsync = async (app) => {
 
     if (!invite) return reply.code(404).send({ error: 'invite_not_found' })
 
-    const [members] = await db
+    const [members] = await adminDb
       .select({ value: count() })
       .from(familyMembers)
       .where(eq(familyMembers.familyId, invite.familyId))
@@ -275,7 +276,7 @@ const secureFamilyRoutes: FastifyPluginAsync = async (app) => {
     const { token } = tokenParam.parse(request.params)
     const userId = request.user.sub
 
-    return db.transaction(async (tx) => {
+    return adminDb.transaction(async (tx) => {
       const [invite] = await tx
         .select()
         .from(familyInvites)
@@ -324,24 +325,31 @@ const secureFamilyRoutes: FastifyPluginAsync = async (app) => {
 
     await db.transaction(async (tx) => {
       await tx
-        .delete(familyMembers)
+        .update(scanEvents)
+        .set({ familyId: null })
         .where(
-          and(
-            eq(familyMembers.familyId, id),
-            eq(familyMembers.userId, userId),
-          ),
+          and(eq(scanEvents.userId, userId), eq(scanEvents.familyId, id)),
         )
 
-      const [remaining] = await tx
+      const [members] = await tx
         .select({ value: count() })
         .from(familyMembers)
         .where(eq(familyMembers.familyId, id))
 
-      if ((remaining?.value ?? 0) === 0) {
-        // The family row cascades into its grocery items, so hand the list
-        // back to the last member instead of deleting their shopping list.
+      if ((members?.value ?? 0) <= 1) {
+        // Last member: hand the list back, then drop the family (membership
+        // cascades). Count first — after leaving, RLS would hide the others.
         await reclaimFamilyItems(userId, id, tx)
         await tx.delete(families).where(eq(families.id, id))
+      } else {
+        await tx
+          .delete(familyMembers)
+          .where(
+            and(
+              eq(familyMembers.familyId, id),
+              eq(familyMembers.userId, userId),
+            ),
+          )
       }
 
       // `profiles.active_family_id` is ON DELETE SET NULL, but the family may

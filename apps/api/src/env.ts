@@ -15,6 +15,12 @@ const schema = z.object({
   PORT: z.coerce.number().int().default(3001),
   HOST: z.string().default('0.0.0.0'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  /**
+   * Owner/superuser URL for migrations, seed and background jobs that must
+   * see every row. Unset: same as DATABASE_URL, and the request path still
+   * `SET ROLE calorico_app` so FORCE RLS applies.
+   */
+  DATABASE_ADMIN_URL: blankToUndefined(z.string().min(1).optional()),
   JWT_SECRET: z.string().min(24, 'JWT_SECRET must be at least 24 chars'),
   /** Comma separated list of allowed browser origins. */
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
@@ -262,6 +268,7 @@ const stripe =
 
 export const env = {
   ...d,
+  DATABASE_ADMIN_URL: d.DATABASE_ADMIN_URL ?? null,
   appUrl: d.APP_URL.replace(/\/$/, ''),
   /** Null when release notifications are not configured. */
   webOrigin: d.WEB_ORIGIN ? d.WEB_ORIGIN.replace(/\/$/, '') : null,

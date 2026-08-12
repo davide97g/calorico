@@ -57,14 +57,15 @@ a barre copre.
 ## Privacy
 
 - Nessun cookie, nessun banner di consenso, nessuna pubblicità, nessun
-  tracciamento di terze parti. Anche i caratteri tipografici sono serviti dal
-  dominio del sito.
+  tracciamento di terze parti. I caratteri tipografici sono serviti dal
+  dominio del sito. Le foto di confezione arrivano dai server di Open Food
+  Facts.
 - Il diario e il peso sono trattati come dati sulla salute (art. 9 GDPR), sulla
   base del consenso esplicito dell'utente.
 - Le fotografie dei pasti non vengono mai conservate: esistono solo per la
   durata dell'analisi.
 - L'account e tutto il suo contenuto si cancellano dal profilo, in cascata e
-  senza periodo di ripensamento.
+  senza periodo di ripensamento. I propri dati si scaricano dal profilo in JSON.
 - Informativa completa: https://calorico.davideghiotto.it/privacy
 
 ## Limiti dichiarati

@@ -100,6 +100,16 @@ export const users = pgTable(
      * analysis, and rows in it are not what the allowance is about.
      */
     freePhotoScansUsed: integer('free_photo_scans_used').notNull().default(0),
+    /**
+     * When explicit Art. 9 consent was given at registration. Null on accounts
+     * created before the checkbox existed; new sign-ups always stamp it.
+     */
+    healthConsentAt: timestamp('health_consent_at', { withTimezone: true }),
+    /** Privacy notice version accepted (e.g. `1.1`), so we can prove *what*. */
+    privacyVersion: text('privacy_version'),
+    termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
+    /** Affirmation that the person is 16 or older. */
+    ageAttestedAt: timestamp('age_attested_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

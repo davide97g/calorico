@@ -41,9 +41,10 @@ export interface MatchedAnalysis {
 
 async function matchOne(
   item: AnalyzedItem,
+  userId: string,
   log: { warn: (obj: unknown, msg: string) => void },
 ): Promise<MatchedItem> {
-  let hits = await searchLocalFoods(item.searchQuery, CANDIDATE_COUNT)
+  let hits = await searchLocalFoods(item.searchQuery, CANDIDATE_COUNT, userId)
   const best = () => hits[0]?.score ?? 0
 
   // A photographed branded product should land on the real product, so give
@@ -53,7 +54,7 @@ async function matchOne(
       const remote = await searchOff(item.searchQuery, CANDIDATE_COUNT)
       if (remote.length > 0) {
         await cacheFoods(remote)
-        hits = await searchLocalFoods(item.searchQuery, CANDIDATE_COUNT)
+        hits = await searchLocalFoods(item.searchQuery, CANDIDATE_COUNT, userId)
       }
     } catch (err) {
       log.warn({ err, query: item.searchQuery }, 'OFF lookup failed for photo item')
@@ -71,9 +72,12 @@ async function matchOne(
 export async function matchAnalysis(
   analysis: RawAnalysis,
   log: { warn: (obj: unknown, msg: string) => void },
+  userId: string,
 ): Promise<MatchedAnalysis> {
   return {
-    items: await Promise.all(analysis.items.map((item) => matchOne(item, log))),
+    items: await Promise.all(
+      analysis.items.map((item) => matchOne(item, userId, log)),
+    ),
     labelText: analysis.labelText,
   }
 }

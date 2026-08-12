@@ -1,9 +1,10 @@
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { eq, sql as raw } from 'drizzle-orm'
 import { z } from 'zod'
-import { db } from '../db/index.js'
+import { adminDb, db } from '../db/index.js'
 import { profiles, users } from '../db/schema.js'
 import { hashPassword, verifyPassword } from '../lib/password.js'
+import { PRIVACY_VERSION } from '../lib/privacy.js'
 
 const credentials = z.object({
   email: z.string().email().max(160),
@@ -12,6 +13,8 @@ const credentials = z.object({
 
 const registerBody = credentials.extend({
   name: z.string().min(1).max(80),
+  healthConsent: z.literal(true),
+  ageAttested: z.literal(true),
 })
 
 const passwordBody = z.object({
@@ -67,7 +70,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const body = registerBody.parse(request.body)
     const email = body.email.toLowerCase().trim()
 
-    const [existing] = await db
+    const [existing] = await adminDb
       .select({ id: users.id })
       .from(users)
       .where(raw`lower(${users.email}) = ${email}`)
@@ -75,10 +78,19 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (existing) return reply.code(409).send({ error: 'email_taken' })
 
     const passwordHash = await hashPassword(body.password)
-    const user = await db.transaction(async (tx) => {
+    const consentedAt = new Date()
+    const user = await adminDb.transaction(async (tx) => {
       const [created] = await tx
         .insert(users)
-        .values({ email, passwordHash, name: body.name.trim() })
+        .values({
+          email,
+          passwordHash,
+          name: body.name.trim(),
+          healthConsentAt: consentedAt,
+          privacyVersion: PRIVACY_VERSION,
+          termsAcceptedAt: consentedAt,
+          ageAttestedAt: consentedAt,
+        })
         .returning()
       // Sensible defaults so the dashboard is never empty of targets.
       await tx.insert(profiles).values({ userId: created!.id })
@@ -106,7 +118,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const body = credentials.parse(request.body)
     const email = body.email.toLowerCase().trim()
 
-    const [user] = await db
+    const [user] = await adminDb
       .select()
       .from(users)
       .where(raw`lower(${users.email}) = ${email}`)
@@ -117,7 +129,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(401).send({ error: 'invalid_credentials' })
     }
 
-    const [profile] = await db
+    const [profile] = await adminDb
       .select({ heightCm: profiles.heightCm })
       .from(profiles)
       .where(eq(profiles.userId, user.id))

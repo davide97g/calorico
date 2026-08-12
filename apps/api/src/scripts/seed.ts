@@ -10,6 +10,7 @@ import {
 } from '../db/schema.js'
 import { allGenericFoods } from '../data/generic-catalogue.js'
 import { hashPassword } from '../lib/password.js'
+import { PRIVACY_VERSION } from '../lib/privacy.js'
 import { dailyTargets, scaleNutriments } from '../lib/nutrition.js'
 import { searchOff } from '../lib/off.js'
 
@@ -138,11 +139,15 @@ async function seedDemoUser() {
   const userId = await db.transaction(async (tx) => {
     const [user] = await tx
       .insert(users)
-      .values({
-        email: DEMO_EMAIL,
-        name: 'Davide',
-        passwordHash: await hashPassword(DEMO_PASSWORD),
-      })
+        .values({
+          email: DEMO_EMAIL,
+          name: 'Davide',
+          passwordHash: await hashPassword(DEMO_PASSWORD),
+          healthConsentAt: new Date(),
+          privacyVersion: PRIVACY_VERSION,
+          termsAcceptedAt: new Date(),
+          ageAttestedAt: new Date(),
+        })
       .returning()
 
     await tx.insert(profiles).values({

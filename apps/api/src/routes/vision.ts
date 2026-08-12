@@ -118,7 +118,7 @@ export const visionRoutes: FastifyPluginAsync = async (app) => {
         request.log,
       )
 
-      return matchAnalysis(analysis, request.log)
+      return matchAnalysis(analysis, request.log, request.user.sub)
     },
   )
 }

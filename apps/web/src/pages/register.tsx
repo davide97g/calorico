@@ -13,13 +13,22 @@ export default function RegisterPage() {
   const navigate = useNavigate()
   const { register } = useAuth()
   const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [healthConsent, setHealthConsent] = useState(false)
+  const [ageAttested, setAgeAttested] = useState(false)
   const [pending, setPending] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!healthConsent || !ageAttested) {
+      toast.error('Per creare un account devi accettare l’informativa e confermare l’età.')
+      return
+    }
     setPending(true)
     try {
-      await register(form.name, form.email, form.password)
+      await register(form.name, form.email, form.password, {
+        healthConsent: true,
+        ageAttested: true,
+      })
       navigate('/onboarding', { replace: true })
     } catch (err) {
       toast.error(
@@ -78,6 +87,40 @@ export default function RegisterPage() {
             <span className="text-muted-foreground text-micro">
               Almeno 8 caratteri.
             </span>
+          </label>
+
+          <label className="mt-1 flex items-start gap-2.5 text-sm leading-snug">
+            <input
+              type="checkbox"
+              checked={healthConsent}
+              onChange={(e) => setHealthConsent(e.target.checked)}
+              required
+              className="accent-primary mt-0.5 size-4 shrink-0"
+            />
+            <span>
+              Ho letto l’
+              <a href="/privacy" className="text-foreground font-semibold underline">
+                informativa privacy
+              </a>{' '}
+              e acconsento al trattamento dei miei dati relativi alla salute
+              (diario alimentare, peso, dati corporei) per le finalità descritte.
+              Accetto anche i{' '}
+              <a href="/termini" className="text-foreground font-semibold underline">
+                termini di servizio
+              </a>
+              .
+            </span>
+          </label>
+
+          <label className="flex items-start gap-2.5 text-sm leading-snug">
+            <input
+              type="checkbox"
+              checked={ageAttested}
+              onChange={(e) => setAgeAttested(e.target.checked)}
+              required
+              className="accent-primary mt-0.5 size-4 shrink-0"
+            />
+            <span>Dichiaro di avere almeno 16 anni.</span>
           </label>
 
           <Button

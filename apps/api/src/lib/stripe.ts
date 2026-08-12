@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { eq } from 'drizzle-orm'
-import { db } from '../db/index.js'
+import { adminDb } from '../db/index.js'
 import { users } from '../db/schema.js'
 import { env } from '../env.js'
 
@@ -54,7 +54,7 @@ async function findUserId(subscription: Stripe.Subscription): Promise<string | n
       ? subscription.customer
       : subscription.customer.id
 
-  const [user] = await db
+  const [user] = await adminDb
     .select({ id: users.id })
     .from(users)
     .where(eq(users.stripeCustomerId, customerId))
@@ -78,13 +78,13 @@ export async function syncSubscription(
   const isPremium = ENTITLING.has(subscription.status)
   const until = periodEnd(subscription)
 
-  const [current] = await db
+  const [current] = await adminDb
     .select({ since: users.premiumSince })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1)
 
-  await db
+  await adminDb
     .update(users)
     .set({
       isPremium,
@@ -112,7 +112,7 @@ export async function ensureCustomer(userId: string): Promise<string> {
   const stripe = getStripe()
   if (!stripe) throw new Error('stripe is not configured')
 
-  const [user] = await db
+  const [user] = await adminDb
     .select({
       id: users.id,
       email: users.email,
@@ -135,7 +135,7 @@ export async function ensureCustomer(userId: string): Promise<string> {
     { idempotencyKey: `calorico-customer-${userId}` },
   )
 
-  await db
+  await adminDb
     .update(users)
     .set({ stripeCustomerId: customer.id })
     .where(eq(users.id, userId))
@@ -150,7 +150,7 @@ export async function loadSubscription(
   const stripe = getStripe()
   if (!stripe) return null
 
-  const [user] = await db
+  const [user] = await adminDb
     .select({ subscriptionId: users.stripeSubscriptionId })
     .from(users)
     .where(eq(users.id, userId))

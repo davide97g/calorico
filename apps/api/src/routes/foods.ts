@@ -8,6 +8,7 @@ import { recordScan } from '../lib/scan-log.js'
 import { recordFoodTouch } from '../lib/food-touch.js'
 import { cacheFoods } from '../lib/food-cache.js'
 import { foodPortions, rankedDiaryFoods } from '../lib/history.js'
+import { foodVisibleTo, isFoodVisibleTo } from '../lib/food-visibility.js'
 import {
   hasConfidentGenericMatch,
   searchLocalFoods,
@@ -61,7 +62,7 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
     const { q, limit, local } = searchQuery.parse(request.query)
     const term = q.trim()
 
-    let results = await searchLocalFoods(term, limit)
+    let results = await searchLocalFoods(term, limit, request.user.sub)
 
     // Thin local mirror? Ask Open Food Facts once, cache, then re-query so the
     // ranking rules apply to the newcomers too. Unless the catalogue already
@@ -71,7 +72,7 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
         const remote = await searchOff(term, limit)
         if (remote.length > 0) {
           await cacheFoods(remote)
-          results = await searchLocalFoods(term, limit)
+          results = await searchLocalFoods(term, limit, request.user.sub)
         }
       } catch (err) {
         request.log.warn({ err }, 'OFF search failed, serving local results')
@@ -114,7 +115,7 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
     const [local] = await db
       .select()
       .from(foods)
-      .where(eq(foods.barcode, code))
+      .where(and(eq(foods.barcode, code), foodVisibleTo(request.user.sub)))
       .limit(1)
     if (local) {
       await logScan(local)
@@ -216,7 +217,9 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
   app.get('/:id', async (request, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
     const [food] = await db.select().from(foods).where(eq(foods.id, id)).limit(1)
-    if (!food) return reply.code(404).send({ error: 'not_found' })
+    if (!food || !isFoodVisibleTo(food, request.user.sub)) {
+      return reply.code(404).send({ error: 'not_found' })
+    }
 
     // Another deliberate side effect on a GET, and the one that covers the rest
     // of the ways a food is met: every path that ends in "look at this food"

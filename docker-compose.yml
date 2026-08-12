@@ -33,6 +33,7 @@ services:
       PORT: 3001
       HOST: 0.0.0.0
       DATABASE_URL: postgres://${POSTGRES_USER:-calorico}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-calorico}
+      DATABASE_ADMIN_URL: ${DATABASE_ADMIN_URL:-}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://calorico.example.com}
       OFF_USER_AGENT: '${OFF_USER_AGENT:-Calorico/0.1 (personal; contact you@example.com)}'

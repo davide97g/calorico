@@ -225,7 +225,9 @@ Notes on the join:
    an open door on a public deployment.
 
 `docker-compose.yml` keeps Postgres data in the named volume `calorico_pgdata` —
-add it to Dokploy's backup schedule.
+add it to Dokploy's backup schedule and rotate both database backups and
+container logs within **30 days**, which is what the privacy notice states. If
+the host keeps them longer, change the notice, not the other way around.
 
 ## Analisi
 
@@ -820,16 +822,16 @@ Consequences worth knowing before you change routing:
 - **`APP_URL` on the API is the bare origin.** Stripe's `success_url` is built
   from it; the old value ended in `/app`.
 
-### No third-party requests
+### No third-party scripts
 
-The site loads nothing from another origin. That is a deliberate constraint, not
-a coincidence: it is what lets the privacy notice say there are no cookies and
-no consent banner, and mean it.
+The site loads no analytics, no ad tech, no font CDNs and no cookies. That is
+what lets the privacy notice skip a consent banner.
 
-The webfonts used to come from Google. They now live in `public/fonts/`,
-regenerated with `npm run fonts`. A stylesheet on `fonts.googleapis.com` makes
-every visitor's browser hand its IP address to Google before the first pixel is
-drawn, which is a transfer nobody wants to justify over a typeface.
+Product packshots are the exception: the browser fetches Open Food Facts image
+URLs (`img-src https:` in the CSP). Search and barcode queries go from the
+API to OFF, without a user id. Self-hosted webfonts stay on this origin —
+`fonts.googleapis.com` would hand every visitor's IP to Google before the
+first pixel.
 
 If you add an analytics script, a font CDN, a chat widget or an embedded video,
 you have also just created a disclosure obligation and, for most of them, a

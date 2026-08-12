@@ -220,4 +220,66 @@ describe.skipIf(!hasDb)('family sharing', () => {
 
     expect(await groceryNames(alice)).toEqual(['Latte'])
   })
+
+  it("drops a leaver's scans from the household feed", async () => {
+    const alice = await createUser(app)
+    const bob = await createUser(app)
+    const familyId = await createFamily(alice)
+    const token = await inviteToken(alice, familyId)
+    await app.inject({
+      method: 'POST',
+      url: `/api/families/invites/${token}/accept`,
+      headers: auth(bob),
+    })
+
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/foods',
+      headers: auth(alice),
+      payload: {
+        name: 'Yogurt della casa',
+        barcode: '8000000000002',
+        kcal100: 80,
+        protein100: 4,
+        carbs100: 12,
+        fat100: 2,
+      },
+    })
+    expect(created.statusCode).toBe(201)
+
+    const scan = await app.inject({
+      method: 'GET',
+      url: '/api/foods/barcode/8000000000002',
+      headers: auth(alice),
+    })
+    expect(scan.statusCode).toBe(200)
+
+    const before = await app.inject({
+      method: 'GET',
+      url: '/api/scans',
+      headers: auth(bob),
+    })
+    expect(before.statusCode).toBe(200)
+    const beforeNames = (
+      before.json() as { items: { nameSnapshot: string }[] }
+    ).items.map((i) => i.nameSnapshot)
+    expect(beforeNames).toContain('Yogurt della casa')
+
+    await app.inject({
+      method: 'DELETE',
+      url: `/api/families/${familyId}/members/me`,
+      headers: auth(alice),
+    })
+
+    const after = await app.inject({
+      method: 'GET',
+      url: '/api/scans',
+      headers: auth(bob),
+    })
+    expect(after.statusCode).toBe(200)
+    const afterNames = (
+      after.json() as { items: { nameSnapshot: string }[] }
+    ).items.map((i) => i.nameSnapshot)
+    expect(afterNames).not.toContain('Yogurt della casa')
+  })
 })

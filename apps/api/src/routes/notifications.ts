@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, asc, count, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { db } from '../db/index.js'
+import { adminDb, db } from '../db/index.js'
 import { profiles, pushSubscriptions, reminders } from '../db/schema.js'
 import { env } from '../env.js'
 import { pushConfigured } from '../lib/push/send.js'
@@ -219,7 +219,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
     const body = subscribeBody.parse(request.body)
     const userId = request.user.sub
 
-    await db
+    await adminDb
       .insert(pushSubscriptions)
       .values({
         userId,

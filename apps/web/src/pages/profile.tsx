@@ -4,6 +4,7 @@ import { useTheme } from 'next-themes'
 import {
   BellRing,
   CreditCard,
+  Download,
   LogOut,
   Monitor,
   Moon,
@@ -65,6 +66,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [paywall, setPaywall] = useState(false)
   const [signingOutAll, setSigningOutAll] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const [targets, setTargets] = useState({
     kcal: '',
@@ -148,6 +150,26 @@ export default function ProfilePage() {
       toast.error('Operazione non riuscita. Riprova.')
     } finally {
       setSigningOutAll(false)
+    }
+  }
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const data = await api<unknown>('/profile/export')
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: 'application/json',
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'calorico-dati.json'
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Download non riuscito. Riprova.')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -564,6 +586,16 @@ export default function ProfilePage() {
           >
             <ShieldOff className="size-4" />
             Esci da tutti i dispositivi
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="w-full rounded-full"
+            onClick={() => void handleExport()}
+            disabled={exporting}
+          >
+            <Download className="size-4" />
+            Scarica i miei dati
           </Button>
 
           <DeleteAccountDialog
