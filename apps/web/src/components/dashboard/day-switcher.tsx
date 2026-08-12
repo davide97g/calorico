@@ -26,9 +26,13 @@ export function DaySwitcher({ day, onChange }: DaySwitcherProps) {
         <span className="bg-secondary text-primary-strong flex size-8 shrink-0 items-center justify-center rounded-full">
           <CalendarDays className="size-4" />
         </span>
-        <span className="text-base font-semibold">{labelForDay(day)}</span>
+        {/* Sharing its row with the avatar, the label is the part that gives
+            way: the arrows keep their touch target. */}
+        <span className="truncate text-base font-semibold">
+          {labelForDay(day)}
+        </span>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         <button
           type="button"
           onClick={() => onChange(addDaysISO(day, -1))}
@@ -52,7 +56,7 @@ export function DaySwitcher({ day, onChange }: DaySwitcherProps) {
         <Button
           variant="secondary"
           size="sm"
-          className="bg-secondary h-11 rounded-md px-4"
+          className="bg-secondary h-11 shrink-0 rounded-md px-3"
           onClick={() => onChange(todayISO())}
         >
           Oggi

@@ -84,13 +84,14 @@ export default function TodayPage() {
   return (
     <AppShell>
       {/* No title, no greeting: the top of the first screen belongs to the
-          data, and the user knows which app they opened. The bar is here for
-          the avatar alone — the account has to be reachable from every screen,
-          and it is not a tab. */}
-      <TopBar />
-      <DaySwitcher day={day} onChange={setDay} />
+          data, and the user knows which app they opened. So the day picker
+          takes the title slot and shares the row with the avatar, rather than
+          spending a second full-width row on a date. */}
+      <TopBar>
+        <DaySwitcher day={day} onChange={setDay} />
+      </TopBar>
 
-      <div className="mt-3 flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         {isLoading || !targets || !totals ? (
           <>
             <Skeleton className="h-[220px] rounded-xl" />

@@ -16,6 +16,11 @@ interface TopBarProps {
   action?: ReactNode
   /** Off on the personal area itself, where it would link to the page you are on. */
   avatar?: boolean
+  /**
+   * Takes over the title slot: a screen whose top row is a control, not a
+   * heading, puts that control here instead of pushing it onto a second row.
+   */
+  children?: ReactNode
   className?: string
 }
 
@@ -36,6 +41,7 @@ export function TopBar({
   back,
   action,
   avatar = true,
+  children,
   className,
 }: TopBarProps) {
   const { user } = useAuth()
@@ -43,8 +49,16 @@ export function TopBar({
 
   return (
     // 44px minimum whether or not anything is in it, so the content below
-    // starts at the same height on every screen.
-    <header className={cn('mb-3 flex min-h-11 items-center gap-2', className)}>
+    // starts at the same height on every screen. A control in the title slot
+    // can be taller than the avatar, so that row aligns to the top edge
+    // instead of centring the avatar against it.
+    <header
+      className={cn(
+        'mb-3 flex min-h-11 gap-2',
+        children ? 'items-start' : 'items-center',
+        className,
+      )}
+    >
       {back ? (
         <Button
           variant="secondary"
@@ -60,14 +74,20 @@ export function TopBar({
       ) : null}
 
       <div className="min-w-0 flex-1">
-        {eyebrow ? (
-          <p className="text-primary-strong truncate text-micro font-bold tracking-[0.16em] uppercase">
-            {eyebrow}
-          </p>
-        ) : null}
-        {title ? (
-          <h1 className="truncate text-lg leading-tight font-bold">{title}</h1>
-        ) : null}
+        {children ?? (
+          <>
+            {eyebrow ? (
+              <p className="text-primary-strong truncate text-micro font-bold tracking-[0.16em] uppercase">
+                {eyebrow}
+              </p>
+            ) : null}
+            {title ? (
+              <h1 className="truncate text-lg leading-tight font-bold">
+                {title}
+              </h1>
+            ) : null}
+          </>
+        )}
       </div>
 
       {action}
