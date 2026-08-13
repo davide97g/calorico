@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Panel, PanelHeader } from '@/components/ui/panel'
-import { useFoodImages } from '@/hooks/use-food-images'
+import { useFoodImages } from '@/hooks/use-foods'
 import { foodImageLarge } from '@/lib/food-image'
 import { cn } from '@/lib/utils'
 import type { FoodImageKind } from '@/lib/types'

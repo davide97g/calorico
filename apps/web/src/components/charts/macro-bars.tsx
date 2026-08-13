@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 
 export type MacroKey = 'carbs' | 'fat' | 'protein'
 
-export const MACRO_META: Record<
+const MACRO_META: Record<
   MacroKey,
   { label: string; bar: string; dot: string; text: string }
 > = {

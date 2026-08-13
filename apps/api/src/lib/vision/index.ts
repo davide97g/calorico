@@ -47,7 +47,3 @@ export function getVisionProvider(): VisionProvider | null {
 
   return cached
 }
-
-export function visionEnabled(): boolean {
-  return getVisionProvider() !== null
-}

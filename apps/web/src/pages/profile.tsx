@@ -34,7 +34,7 @@ import { DeleteAccountDialog } from '@/components/profile/delete-account-dialog'
 import { PremiumSheet } from '@/components/premium/premium-sheet'
 import { useAuth } from '@/hooks/use-auth'
 import { useFamilies } from '@/hooks/use-family'
-import { useSuggestedTargets, useUpdateProfile } from '@/hooks/use-diary'
+import { useSuggestedTargets, useUpdateProfile } from '@/hooks/use-profile'
 import {
   useBillingPortal,
   useCancelPremium,

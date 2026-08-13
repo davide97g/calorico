@@ -1,5 +1,81 @@
 export const KCAL_PER_G = { protein: 4, carbs: 4, fat: 9 } as const
 
+/**
+ * How every response rounds: kcal to the unit, macros to a tenth of a gram.
+ * Scales beyond that are noise — no label is accurate to a centigram — and a
+ * tenth is what the client renders, so rounding here keeps the number the
+ * server adds up and the number the screen shows the same number.
+ */
+export const roundKcal = (n: number) => Math.round(n)
+export const roundMacro = (n: number) => Math.round(n * 10) / 10
+
+/** The kcal-plus-macros bundle every totals payload carries. */
+export interface Nutrients {
+  kcal: number
+  proteinG: number
+  carbsG: number
+  fatG: number
+  fiberG: number
+  sugarsG: number
+  satFatG: number
+  saltG: number
+}
+
+/**
+ * Adds up diary rows. The optional macros are nullable per row — a food with no
+ * fibre figure is not a food with 0 g of fibre — but a total of nothing is 0,
+ * because the alternative is a day whose fibre disappears the moment one entry
+ * lacks it.
+ */
+export function sumNutrients(
+  rows: Iterable<{
+    kcal: number
+    proteinG: number
+    carbsG: number
+    fatG: number
+    fiberG?: number | null
+    sugarsG?: number | null
+    satFatG?: number | null
+    saltG?: number | null
+  }>,
+): Nutrients {
+  const totals: Nutrients = {
+    kcal: 0,
+    proteinG: 0,
+    carbsG: 0,
+    fatG: 0,
+    fiberG: 0,
+    sugarsG: 0,
+    satFatG: 0,
+    saltG: 0,
+  }
+  for (const row of rows) {
+    totals.kcal += row.kcal
+    totals.proteinG += row.proteinG
+    totals.carbsG += row.carbsG
+    totals.fatG += row.fatG
+    totals.fiberG += row.fiberG ?? 0
+    totals.sugarsG += row.sugarsG ?? 0
+    totals.satFatG += row.satFatG ?? 0
+    totals.saltG += row.saltG ?? 0
+  }
+  return totals
+}
+
+/** Rounds a summed bundle for the wire. Sum first, round once, at the end. */
+export function roundNutrients(totals: Nutrients): Nutrients {
+  return {
+    kcal: roundKcal(totals.kcal),
+    proteinG: roundMacro(totals.proteinG),
+    carbsG: roundMacro(totals.carbsG),
+    fatG: roundMacro(totals.fatG),
+    fiberG: roundMacro(totals.fiberG),
+    sugarsG: roundMacro(totals.sugarsG),
+    satFatG: roundMacro(totals.satFatG),
+    saltG: roundMacro(totals.saltG),
+  }
+}
+
 export const ACTIVITY_FACTOR = {
   sedentary: 1.2,
   light: 1.375,

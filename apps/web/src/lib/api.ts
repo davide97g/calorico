@@ -100,6 +100,6 @@ const MESSAGES: Record<string, string> = {
   internal_error: 'Qualcosa è andato storto. Riprova.',
 }
 
-export function errorMessage(code: string) {
+function errorMessage(code: string) {
   return MESSAGES[code] ?? 'Qualcosa è andato storto. Riprova.'
 }

@@ -7,6 +7,7 @@ import { env } from '../env.js'
 import { pushConfigured } from '../lib/push/send.js'
 import { deliver } from '../lib/reminders/scheduler.js'
 import { EVERY_DAY, REMINDER_PRESETS } from '../lib/reminders/presets.js'
+import { idParam, mealSlot } from '../lib/validation.js'
 
 /**
  * Reminders and the devices they are delivered to.
@@ -29,7 +30,6 @@ function isValidTimeZone(tz: string) {
 }
 
 const kindEnum = z.enum(['meal', 'review', 'weight', 'custom'])
-const mealEnum = z.enum(['breakfast', 'lunch', 'dinner', 'snack'])
 
 const settingsBody = z.object({
   enabled: z.boolean().optional(),
@@ -81,7 +81,7 @@ const weekdays = z
 
 const createBody = z.object({
   kind: kindEnum.default('custom'),
-  meal: mealEnum.nullish(),
+  meal: mealSlot.nullish(),
   label: z.string().trim().min(1).max(60),
   atMinutes: z.number().int().min(0).max(1439),
   weekdays: weekdays.default(EVERY_DAY),
@@ -96,8 +96,6 @@ const patchBody = z.object({
   skipIfLogged: z.boolean().optional(),
   enabled: z.boolean().optional(),
 })
-
-const idParam = z.object({ id: z.string().uuid() })
 
 /**
  * `meal` only means something for a meal reminder, and `skipIfLogged` only means

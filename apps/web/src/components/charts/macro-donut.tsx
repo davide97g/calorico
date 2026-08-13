@@ -1,5 +1,4 @@
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
-import { MACRO_META } from './macro-bars'
 
 interface MacroDonutProps {
   carbsG: number
@@ -113,37 +112,5 @@ export function MacroDonut({
         </PieChart>
       </ResponsiveContainer>
     </div>
-  )
-}
-
-export function MacroLegend({
-  carbsG,
-  fatG,
-  proteinG,
-}: {
-  carbsG: number
-  fatG: number
-  proteinG: number
-}) {
-  const rows = [
-    { key: 'carbs' as const, value: carbsG },
-    { key: 'fat' as const, value: fatG },
-    { key: 'protein' as const, value: proteinG },
-  ]
-  return (
-    <ul className="flex flex-col gap-2">
-      {rows.map((r) => (
-        <li key={r.key} className="flex items-center gap-2 text-xs">
-          <span
-            className={`size-2 rounded-full ${MACRO_META[r.key].dot}`}
-            aria-hidden
-          />
-          <span className="text-muted-foreground">{MACRO_META[r.key].label}</span>
-          <span className="tabular ml-auto font-semibold">
-            {Math.round(r.value * 10) / 10} g
-          </span>
-        </li>
-      ))}
-    </ul>
   )
 }

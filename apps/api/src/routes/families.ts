@@ -18,11 +18,11 @@ import {
   movePrivateItemsIntoFamily,
   reclaimFamilyItems,
 } from '../lib/family.js'
+import { idParam } from '../lib/validation.js'
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 const nameBody = z.object({ name: z.string().trim().min(1).max(60) })
-const idParam = z.object({ id: z.string().uuid() })
 const tokenParam = z.object({ token: z.string().min(8).max(120) })
 
 function newToken() {

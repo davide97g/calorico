@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 const QUERY = '(prefers-reduced-motion: reduce)'
 
 /** Mirrors the OS reduce-motion switch, so JS animation can opt out like CSS does. */
-export function usePrefersReducedMotion() {
+function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(
     () => typeof window !== 'undefined' && window.matchMedia(QUERY).matches,
   )

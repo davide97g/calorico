@@ -12,7 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
-import { relations, sql, type SQL } from 'drizzle-orm'
+import { sql, type SQL } from 'drizzle-orm'
 
 export const sexEnum = pgEnum('sex', ['male', 'female'])
 export const activityEnum = pgEnum('activity_level', [
@@ -679,116 +679,6 @@ export const mealItems = pgTable(
   },
   (t) => [index('meal_items_meal_idx').on(t.mealId, t.sort)],
 )
-
-export const usersRelations = relations(users, ({ one, many }) => ({
-  profile: one(profiles, {
-    fields: [users.id],
-    references: [profiles.userId],
-  }),
-  entries: many(diaryEntries),
-  weights: many(weightLogs),
-  groceryItems: many(groceryItems),
-  memberships: many(familyMembers),
-  scans: many(scanEvents),
-  reminders: many(reminders),
-  pushSubscriptions: many(pushSubscriptions),
-  meals: many(meals),
-}))
-
-export const remindersRelations = relations(reminders, ({ one }) => ({
-  user: one(users, {
-    fields: [reminders.userId],
-    references: [users.id],
-  }),
-}))
-
-export const pushSubscriptionsRelations = relations(
-  pushSubscriptions,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [pushSubscriptions.userId],
-      references: [users.id],
-    }),
-  }),
-)
-
-export const familiesRelations = relations(families, ({ many }) => ({
-  members: many(familyMembers),
-  invites: many(familyInvites),
-  groceryItems: many(groceryItems),
-  scans: many(scanEvents),
-}))
-
-export const familyMembersRelations = relations(familyMembers, ({ one }) => ({
-  family: one(families, {
-    fields: [familyMembers.familyId],
-    references: [families.id],
-  }),
-  user: one(users, {
-    fields: [familyMembers.userId],
-    references: [users.id],
-  }),
-}))
-
-export const scanEventsRelations = relations(scanEvents, ({ one }) => ({
-  user: one(users, {
-    fields: [scanEvents.userId],
-    references: [users.id],
-  }),
-  food: one(foods, {
-    fields: [scanEvents.foodId],
-    references: [foods.id],
-  }),
-  family: one(families, {
-    fields: [scanEvents.familyId],
-    references: [families.id],
-  }),
-}))
-
-export const diaryEntriesRelations = relations(diaryEntries, ({ one }) => ({
-  food: one(foods, {
-    fields: [diaryEntries.foodId],
-    references: [foods.id],
-  }),
-  user: one(users, {
-    fields: [diaryEntries.userId],
-    references: [users.id],
-  }),
-}))
-
-export const mealsRelations = relations(meals, ({ one, many }) => ({
-  user: one(users, {
-    fields: [meals.userId],
-    references: [users.id],
-  }),
-  items: many(mealItems),
-}))
-
-export const mealItemsRelations = relations(mealItems, ({ one }) => ({
-  meal: one(meals, {
-    fields: [mealItems.mealId],
-    references: [meals.id],
-  }),
-  food: one(foods, {
-    fields: [mealItems.foodId],
-    references: [foods.id],
-  }),
-}))
-
-export const groceryItemsRelations = relations(groceryItems, ({ one }) => ({
-  food: one(foods, {
-    fields: [groceryItems.foodId],
-    references: [foods.id],
-  }),
-  user: one(users, {
-    fields: [groceryItems.userId],
-    references: [users.id],
-  }),
-  family: one(families, {
-    fields: [groceryItems.familyId],
-    references: [families.id],
-  }),
-}))
 
 export type User = typeof users.$inferSelect
 export type Profile = typeof profiles.$inferSelect

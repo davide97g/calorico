@@ -9,6 +9,7 @@ import {
   resolveWriteFamilyId,
 } from '../lib/family.js'
 import { grocerySuggestions } from '../lib/history.js'
+import { idParam } from '../lib/validation.js'
 
 const quantity = z.number().int().min(1).max(999)
 
@@ -149,7 +150,7 @@ export const groceryRoutes: FastifyPluginAsync = async (app) => {
   })
 
   app.patch('/:id', async (request, reply) => {
-    const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+    const { id } = idParam.parse(request.params)
     const body = patchBody.parse(request.body)
     const userId = request.user.sub
     const familyIds = await getFamilyIds(userId)
@@ -217,7 +218,7 @@ export const groceryRoutes: FastifyPluginAsync = async (app) => {
   })
 
   app.delete('/:id', async (request, reply) => {
-    const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+    const { id } = idParam.parse(request.params)
     const userId = request.user.sub
     const familyIds = await getFamilyIds(userId)
 

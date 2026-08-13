@@ -13,6 +13,7 @@ import {
   hasConfidentGenericMatch,
   searchLocalFoods,
 } from '../lib/food-search.js'
+import { idParam, mealSlot } from '../lib/validation.js'
 
 const searchQuery = z.object({
   q: z.string().min(1).max(120),
@@ -23,7 +24,7 @@ const searchQuery = z.object({
 
 const recentQuery = z.object({
   /** The meal being logged, which the ranking weights towards. */
-  meal: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).optional(),
+  meal: mealSlot.optional(),
   limit: z.coerce.number().int().min(1).max(50).default(30),
   /**
    * `all` also returns foods this user has met without logging — scanned,
@@ -215,7 +216,7 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
   })
 
   app.get('/:id', async (request, reply) => {
-    const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+    const { id } = idParam.parse(request.params)
     const [food] = await db.select().from(foods).where(eq(foods.id, id)).limit(1)
     if (!food || !isFoodVisibleTo(food, request.user.sub)) {
       return reply.code(404).send({ error: 'not_found' })
@@ -251,12 +252,12 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
    * should wait on it to render.
    */
   app.get('/:id/portions', async (request) => {
-    const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+    const { id } = idParam.parse(request.params)
     return foodPortions(request.user.sub, id)
   })
 
   app.put('/:id/favorite', async (request) => {
-    const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+    const { id } = idParam.parse(request.params)
     await db
       .insert(favorites)
       .values({ userId: request.user.sub, foodId: id })
@@ -265,7 +266,7 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
   })
 
   app.delete('/:id/favorite', async (request) => {
-    const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+    const { id } = idParam.parse(request.params)
     await db
       .delete(favorites)
       .where(

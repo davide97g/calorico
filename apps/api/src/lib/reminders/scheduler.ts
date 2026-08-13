@@ -52,7 +52,7 @@ interface DueRow {
 }
 
 /** Everything armed, due right now, and with a device to deliver to. */
-export async function findDueReminders(
+async function findDueReminders(
   graceMinutes = env.REMINDER_GRACE_MINUTES,
 ): Promise<DueRow[]> {
   const localNow = raw`(now() at time zone ${profiles.timezone})`
@@ -95,7 +95,7 @@ export async function findDueReminders(
  * reminder has `skipIfLogged`, and never for `custom`: a free-text reminder has
  * nothing in the database that could mark it complete.
  */
-export async function alreadyHandled(row: DueRow): Promise<boolean> {
+async function alreadyHandled(row: DueRow): Promise<boolean> {
   switch (row.kind) {
     case 'meal': {
       if (!row.meal) return false

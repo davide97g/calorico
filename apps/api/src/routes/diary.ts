@@ -3,27 +3,27 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/index.js'
 import { diaryEntries, foods, profiles } from '../db/schema.js'
-import { scaleNutriments } from '../lib/nutrition.js'
+import {
+  roundNutrients,
+  scaleNutriments,
+  sumNutrients,
+} from '../lib/nutrition.js'
+import { dayString, idParam, mealSlot, quantityG } from '../lib/validation.js'
 import { env } from '../env.js'
 import { customFood } from './foods.js'
 
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-const meal = z.enum(['breakfast', 'lunch', 'dinner', 'snack'])
-
 const createBody = z.object({
   foodId: z.string().uuid(),
-  day,
-  meal,
-  quantityG: z.number().min(0.1).max(5000),
+  day: dayString,
+  meal: mealSlot,
+  quantityG,
 })
 
 const patchBody = z.object({
-  quantityG: z.number().min(0.1).max(5000).optional(),
-  meal: meal.optional(),
-  day: day.optional(),
+  quantityG: quantityG.optional(),
+  meal: mealSlot.optional(),
+  day: dayString.optional(),
 })
-
-const quantityG = z.number().min(0.1).max(5000)
 
 /**
  * A batched row is either an existing food or one the photo flow invented,
@@ -36,8 +36,8 @@ const batchItem = z.union([
 ])
 
 const batchBody = z.object({
-  day,
-  meal,
+  day: dayString,
+  meal: mealSlot,
   // One photo of one plate. Well above what a meal produces, low enough that a
   // buggy client cannot write hundreds of rows in one call.
   items: z.array(batchItem).min(1).max(20),
@@ -48,7 +48,7 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
 
   /** Everything the Today screen needs in one round trip. */
   app.get('/', async (request) => {
-    const { day: theDay } = z.object({ day }).parse(request.query)
+    const { day: theDay } = z.object({ day: dayString }).parse(request.query)
     const userId = request.user.sub
 
     const [entries, [profile]] = await Promise.all([
@@ -73,30 +73,6 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
       servingSizeG: r.foodServingSizeG,
     }))
 
-    const totals = items.reduce(
-      (acc, e) => {
-        acc.kcal += e.kcal
-        acc.proteinG += e.proteinG
-        acc.carbsG += e.carbsG
-        acc.fatG += e.fatG
-        acc.fiberG += e.fiberG ?? 0
-        acc.sugarsG += e.sugarsG ?? 0
-        acc.satFatG += e.satFatG ?? 0
-        acc.saltG += e.saltG ?? 0
-        return acc
-      },
-      {
-        kcal: 0,
-        proteinG: 0,
-        carbsG: 0,
-        fatG: 0,
-        fiberG: 0,
-        sugarsG: 0,
-        satFatG: 0,
-        saltG: 0,
-      },
-    )
-
     const byMeal = {
       breakfast: items.filter((e) => e.meal === 'breakfast'),
       lunch: items.filter((e) => e.meal === 'lunch'),
@@ -108,16 +84,7 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
       day: theDay,
       entries: items,
       byMeal,
-      totals: {
-        kcal: Math.round(totals.kcal),
-        proteinG: Math.round(totals.proteinG * 10) / 10,
-        carbsG: Math.round(totals.carbsG * 10) / 10,
-        fatG: Math.round(totals.fatG * 10) / 10,
-        fiberG: Math.round(totals.fiberG * 10) / 10,
-        sugarsG: Math.round(totals.sugarsG * 10) / 10,
-        satFatG: Math.round(totals.satFatG * 10) / 10,
-        saltG: Math.round(totals.saltG * 10) / 10,
-      },
+      totals: roundNutrients(sumNutrients(items)),
       targets: profile
         ? {
             kcal: profile.targetKcal,
@@ -228,7 +195,7 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
   })
 
   app.patch('/:id', async (request, reply) => {
-    const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+    const { id } = idParam.parse(request.params)
     const body = patchBody.parse(request.body)
     const userId = request.user.sub
 
@@ -290,7 +257,7 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
   })
 
   app.delete('/:id', async (request, reply) => {
-    const { id } = z.object({ id: z.string().uuid() }).parse(request.params)
+    const { id } = idParam.parse(request.params)
     const deleted = await db
       .delete(diaryEntries)
       .where(
@@ -304,7 +271,7 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
   /** Copies a whole meal from one day to another — "same lunch as yesterday". */
   app.post('/copy', async (request) => {
     const body = z
-      .object({ from: day, to: day, meal: meal.optional() })
+      .object({ from: dayString, to: dayString, meal: mealSlot.optional() })
       .parse(request.body)
     const userId = request.user.sub
 

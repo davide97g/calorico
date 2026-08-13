@@ -43,8 +43,8 @@ import {
   useFavoriteFoods,
   useFoodSearch,
   useRecentFoods,
-  useVisionStatus,
-} from '@/hooks/use-diary'
+} from '@/hooks/use-foods'
+import { useVisionStatus } from '@/hooks/use-vision'
 import {
   useDeleteMeal,
   useLogMeal,

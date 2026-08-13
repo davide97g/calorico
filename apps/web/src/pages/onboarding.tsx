@@ -7,10 +7,7 @@ import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MacroDonut } from '@/components/charts/macro-donut'
-import {
-  useCompleteOnboarding,
-  useEstimateTargets,
-} from '@/hooks/use-diary'
+import { useCompleteOnboarding, useEstimateTargets } from '@/hooks/use-profile'
 import {
   ACTIVITY_HINTS,
   ACTIVITY_LABELS,

@@ -5,14 +5,11 @@ import { db } from '../db/index.js'
 import { diaryEntries, foods, mealItems, meals } from '../db/schema.js'
 import { env } from '../env.js'
 import { scaleNutriments } from '../lib/nutrition.js'
-
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-const mealSlot = z.enum(['breakfast', 'lunch', 'dinner', 'snack'])
-const idParam = z.object({ id: z.string().uuid() })
+import { dayString, idParam, mealSlot, quantityG } from '../lib/validation.js'
 
 const itemBody = z.object({
   foodId: z.string().uuid(),
-  quantityG: z.number().min(0.1).max(5000),
+  quantityG,
 })
 
 const createBody = z.object({
@@ -28,7 +25,7 @@ const patchBody = z.object({
 })
 
 const logBody = z.object({
-  day,
+  day: dayString,
   meal: mealSlot,
 })
 

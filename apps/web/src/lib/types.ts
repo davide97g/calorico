@@ -497,6 +497,7 @@ export interface MealAnalysis {
 }
 
 /** What POST /api/diary/batch accepts for a food that is not in the catalogue. */
+/** Mirrors the server's `customFood`: POST /foods and the photo batch both take it. */
 export interface NewFoodInput {
   name: string
   brand?: string
@@ -508,7 +509,24 @@ export interface NewFoodInput {
   sugars100?: number
   satFat100?: number
   salt100?: number
+  servingSizeG?: number
+  servingLabel?: string
+  barcode?: string
   isLiquid: boolean
+}
+
+/**
+ * The metrics both /profile/estimate and /profile/onboarding take — the numbers
+ * the target formulas are computed from. Mirrors the server's `bodyMetrics`.
+ */
+export interface BodyMetrics {
+  sex: Sex
+  birthDate: string
+  heightCm: number
+  weightKg: number
+  activityLevel: ActivityLevel
+  goal: Goal
+  targetWeightKg?: number
 }
 
 export type BatchEntryInput =

@@ -35,7 +35,7 @@ import {
   useGrocerySuggestions,
   useUpdateGroceryItem,
 } from '@/hooks/use-grocery'
-import { useFoodSearch } from '@/hooks/use-diary'
+import { useFoodSearch } from '@/hooks/use-foods'
 import { useFamilies } from '@/hooks/use-family'
 import { relativeTime } from '@/lib/date'
 import type { Food, GroceryItem, GrocerySuggestion } from '@/lib/types'

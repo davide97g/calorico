@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { BarcodeScanner } from '@/components/food/barcode-scanner'
-import { useBarcodeLookup } from '@/hooks/use-diary'
+import { useBarcodeLookup } from '@/hooks/use-foods'
 import { useAddGroceryItem, useGroceryOffer } from '@/hooks/use-grocery'
 import { ApiError } from '@/lib/api'
 import { todayISO } from '@/lib/date'

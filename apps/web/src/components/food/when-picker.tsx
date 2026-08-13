@@ -64,7 +64,7 @@ interface WhenSheetProps {
  * because they answer it together: choosing tomorrow without choosing whether
  * it is lunch or dinner leaves the entry half-planned.
  */
-export function WhenSheet({
+function WhenSheet({
   open,
   onOpenChange,
   value,

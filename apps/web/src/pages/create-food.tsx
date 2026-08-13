@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { useCreateFood } from '@/hooks/use-diary'
+import { useCreateFood } from '@/hooks/use-foods'
 import { todayISO } from '@/lib/date'
 import { currentMeal } from '@/lib/format'
 

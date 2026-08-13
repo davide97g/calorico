@@ -13,14 +13,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WhenBar } from '@/components/food/when-picker'
-import {
-  useAddEntry,
-  useFood,
-  useFoodPortions,
-  useToggleFavorite,
-} from '@/hooks/use-diary'
+import { useAddEntry } from '@/hooks/use-diary'
+import { useFood, useFoodPortions, useToggleFavorite } from '@/hooks/use-foods'
 import { isFutureDay, todayISO } from '@/lib/date'
 import { currentMeal, grams, kcal } from '@/lib/format'
+import { scalePer100 } from '@/lib/nutrition'
 import { saveActionLabel, savedToastMessage, type When } from '@/lib/when'
 import { cn } from '@/lib/utils'
 import type { Meal } from '@/lib/types'
@@ -55,20 +52,10 @@ export default function FoodDetailPage() {
   const quantityValue = quantity ?? String(defaultQuantity)
   const grams_ = Number(quantityValue.replace(',', '.')) || 0
 
-  const macros = useMemo(() => {
-    if (!food) return null
-    const f = grams_ / 100
-    return {
-      kcal: food.kcal100 * f,
-      proteinG: food.protein100 * f,
-      carbsG: food.carbs100 * f,
-      fatG: food.fat100 * f,
-      fiberG: food.fiber100 == null ? null : food.fiber100 * f,
-      sugarsG: food.sugars100 == null ? null : food.sugars100 * f,
-      satFatG: food.satFat100 == null ? null : food.satFat100 * f,
-      saltG: food.salt100 == null ? null : food.salt100 * f,
-    }
-  }, [food, grams_])
+  const macros = useMemo(
+    () => (food ? scalePer100(food, grams_) : null),
+    [food, grams_],
+  )
 
   const quickPortions = useMemo(
     () => (food ? portionOptions(food, portions) : []),

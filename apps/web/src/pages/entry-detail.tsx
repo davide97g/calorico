@@ -12,12 +12,8 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WhenBar } from '@/components/food/when-picker'
 import type { When } from '@/lib/when'
-import {
-  useDeleteEntry,
-  useDiary,
-  useFoodPortions,
-  useUpdateEntry,
-} from '@/hooks/use-diary'
+import { useDeleteEntry, useDiary, useUpdateEntry } from '@/hooks/use-diary'
+import { useFoodPortions } from '@/hooks/use-foods'
 import { todayISO } from '@/lib/date'
 import { grams, kcal } from '@/lib/format'
 

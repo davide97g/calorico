@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/query-keys'
 import { api, getToken, setToken } from '@/lib/api'
 import { unregisterDevice } from '@/hooks/use-notifications'
 import type { AuthResponse, Profile, User } from '@/lib/types'
@@ -51,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['me', token],
+    queryKey: queryKeys.session(token),
     queryFn: () => api<MeResponse>('/auth/me'),
     enabled: Boolean(token),
     staleTime: 60_000,

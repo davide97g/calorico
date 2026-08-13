@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { BUILD_ID } from '@/lib/build'
 import {
   PushError,
@@ -17,11 +18,10 @@ import type {
   ReminderKind,
 } from '@/lib/types'
 
-export const notificationKey = ['notifications'] as const
 
 export function useNotificationSettings({ enabled = true } = {}) {
   return useQuery({
-    queryKey: notificationKey,
+    queryKey: queryKeys.notifications,
     queryFn: () => api<NotificationSettings>('/notifications'),
     enabled,
   })
@@ -87,7 +87,7 @@ export function useEnableNotifications() {
       })
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: notificationKey })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
     },
   })
 }
@@ -119,7 +119,7 @@ export function useDisableNotifications() {
       })
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: notificationKey })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
     },
   })
 }
@@ -137,7 +137,7 @@ export function useUpdateNotificationSettings() {
         body,
       }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: notificationKey })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
     },
   })
 }
@@ -217,7 +217,7 @@ export function useSyncDevice(userId: string | null) {
       // to stop saying this device is missing, and every other session has no
       // news worth a second request.
       if (result && result.devices !== knownDevices) {
-        void queryClient.invalidateQueries({ queryKey: notificationKey })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
       }
     })()
   }, [userId, armed, publicKey, knownDevices, queryClient])
@@ -238,7 +238,7 @@ export function useCreateReminder() {
     mutationFn: (body: ReminderInput) =>
       api<Reminder>('/notifications/reminders', { method: 'POST', body }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: notificationKey })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
     },
   })
 }
@@ -262,11 +262,11 @@ export function useUpdateReminder() {
     onMutate: async ({ id, ...patch }) => {
       // The switches and day pills have to answer instantly; a round trip per
       // tap would make a row feel stuck.
-      await queryClient.cancelQueries({ queryKey: notificationKey })
+      await queryClient.cancelQueries({ queryKey: queryKeys.notifications })
       const previous =
-        queryClient.getQueryData<NotificationSettings>(notificationKey)
+        queryClient.getQueryData<NotificationSettings>(queryKeys.notifications)
       queryClient.setQueryData<NotificationSettings>(
-        notificationKey,
+        queryKeys.notifications,
         (current) =>
           current && {
             ...current,
@@ -279,11 +279,11 @@ export function useUpdateReminder() {
     },
     onError: (_error, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(notificationKey, context.previous)
+        queryClient.setQueryData(queryKeys.notifications, context.previous)
       }
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: notificationKey })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
     },
   })
 }
@@ -294,11 +294,11 @@ export function useDeleteReminder() {
     mutationFn: (id: string) =>
       api(`/notifications/reminders/${id}`, { method: 'DELETE' }),
     onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: notificationKey })
+      await queryClient.cancelQueries({ queryKey: queryKeys.notifications })
       const previous =
-        queryClient.getQueryData<NotificationSettings>(notificationKey)
+        queryClient.getQueryData<NotificationSettings>(queryKeys.notifications)
       queryClient.setQueryData<NotificationSettings>(
-        notificationKey,
+        queryKeys.notifications,
         (current) =>
           current && {
             ...current,
@@ -309,11 +309,11 @@ export function useDeleteReminder() {
     },
     onError: (_error, _id, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(notificationKey, context.previous)
+        queryClient.setQueryData(queryKeys.notifications, context.previous)
       }
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: notificationKey })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
     },
   })
 }
@@ -328,7 +328,7 @@ export function useApplyDefaultReminders() {
         { method: 'POST' },
       ),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: notificationKey })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
     },
   })
 }

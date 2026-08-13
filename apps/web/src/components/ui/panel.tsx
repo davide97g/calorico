@@ -71,27 +71,3 @@ export function PanelHeader({
     </div>
   )
 }
-
-export function Stat({
-  label,
-  value,
-  hint,
-  className,
-}: {
-  label: ReactNode
-  value: ReactNode
-  hint?: ReactNode
-  className?: string
-}) {
-  return (
-    <div className={cn('flex flex-col gap-0.5', className)}>
-      <span className="text-muted-foreground text-micro font-medium tracking-wide uppercase">
-        {label}
-      </span>
-      <span className="tabular text-lg leading-tight font-bold">{value}</span>
-      {hint ? (
-        <span className="text-muted-foreground text-xs">{hint}</span>
-      ) : null}
-    </div>
-  )
-}

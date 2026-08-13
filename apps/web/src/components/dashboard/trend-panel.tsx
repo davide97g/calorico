@@ -3,7 +3,7 @@ import { ChartColumn } from 'lucide-react'
 import { MiniBars } from '@/components/charts/mini-bars'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useStats } from '@/hooks/use-diary'
+import { useStats } from '@/hooks/use-stats'
 import { lastNDays } from '@/lib/date'
 import { kcal } from '@/lib/format'
 

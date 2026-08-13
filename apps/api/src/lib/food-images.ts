@@ -18,7 +18,7 @@ export interface FoodImageDto {
   height: number | null
 }
 
-export function toDto(row: FoodImage): FoodImageDto {
+function toDto(row: FoodImage): FoodImageDto {
   return {
     id: row.id,
     url: row.url,

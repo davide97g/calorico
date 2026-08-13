@@ -6,14 +6,13 @@ import {
 } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { useAuth } from '@/hooks/use-auth'
 import type {
   GroceryItem,
   GroceryResponse,
   GrocerySuggestionsResponse,
 } from '@/lib/types'
-
-export const groceryKey = ['grocery'] as const
 
 function sortItems(items: GroceryItem[]) {
   return items.toSorted((a, b) => {
@@ -26,22 +25,16 @@ function sortItems(items: GroceryItem[]) {
 
 export function useGrocery() {
   return useQuery({
-    queryKey: groceryKey,
+    queryKey: queryKeys.grocery.all,
     queryFn: () => api<GroceryResponse>('/grocery'),
   })
 }
 
-export const grocerySuggestionsKey = [...groceryKey, 'suggestions'] as const
-
-/**
- * Lines this list has held before, matched against what is being typed. Under
- * `groceryKey` so that every mutation's invalidation reaches it too: ticking a
- * row off or deleting it changes what deserves to be suggested.
- */
+/** Lines this list has held before, matched against what is being typed. */
 export function useGrocerySuggestions(term: string) {
   const q = term.trim()
   return useQuery({
-    queryKey: [...grocerySuggestionsKey, q],
+    queryKey: queryKeys.grocery.suggestions(q),
     queryFn: () =>
       api<GrocerySuggestionsResponse>('/grocery/suggestions', {
         query: { q, limit: 5 },
@@ -69,14 +62,14 @@ export function useAddGroceryItem() {
           item.addedBy ??
           (user ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl } : undefined),
       }
-      queryClient.setQueryData<GroceryResponse>(groceryKey, (current) => ({
+      queryClient.setQueryData<GroceryResponse>(queryKeys.grocery.all, (current) => ({
         items: sortItems([
           withAuthor,
           ...(current?.items.filter((existing) => existing.id !== item.id) ?? []),
         ]),
       }))
       // The row is on the list now, so it must drop out of the suggestions.
-      void queryClient.invalidateQueries({ queryKey: grocerySuggestionsKey })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.grocery.suggestionsAll })
     },
   })
 }
@@ -116,10 +109,10 @@ export function useUpdateGroceryItem() {
     mutationFn: ({ id, ...body }: { id: string; quantity?: number; completed?: boolean }) =>
       api<GroceryItem>(`/grocery/${id}`, { method: 'PATCH', body }),
     onMutate: async ({ id, ...patch }) => {
-      await queryClient.cancelQueries({ queryKey: groceryKey })
-      const previous = queryClient.getQueryData<GroceryResponse>(groceryKey)
+      await queryClient.cancelQueries({ queryKey: queryKeys.grocery.all })
+      const previous = queryClient.getQueryData<GroceryResponse>(queryKeys.grocery.all)
       const now = new Date().toISOString()
-      queryClient.setQueryData<GroceryResponse>(groceryKey, (current) => ({
+      queryClient.setQueryData<GroceryResponse>(queryKeys.grocery.all, (current) => ({
         items: sortItems(
           (current?.items ?? []).map((item) =>
             item.id === id
@@ -141,10 +134,12 @@ export function useUpdateGroceryItem() {
       return { previous }
     },
     onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(groceryKey, context.previous)
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.grocery.all, context.previous)
+      }
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: groceryKey })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.grocery.all })
     },
   })
 }
@@ -154,18 +149,20 @@ export function useDeleteGroceryItem() {
   return useMutation({
     mutationFn: (id: string) => api(`/grocery/${id}`, { method: 'DELETE' }),
     onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: groceryKey })
-      const previous = queryClient.getQueryData<GroceryResponse>(groceryKey)
-      queryClient.setQueryData<GroceryResponse>(groceryKey, (current) => ({
+      await queryClient.cancelQueries({ queryKey: queryKeys.grocery.all })
+      const previous = queryClient.getQueryData<GroceryResponse>(queryKeys.grocery.all)
+      queryClient.setQueryData<GroceryResponse>(queryKeys.grocery.all, (current) => ({
         items: current?.items.filter((item) => item.id !== id) ?? [],
       }))
       return { previous }
     },
     onError: (_error, _id, context) => {
-      if (context?.previous) queryClient.setQueryData(groceryKey, context.previous)
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.grocery.all, context.previous)
+      }
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: groceryKey })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.grocery.all })
     },
   })
 }

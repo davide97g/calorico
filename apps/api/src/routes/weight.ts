@@ -3,11 +3,10 @@ import { and, asc, desc, eq, gte, lte } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../db/index.js'
 import { profiles, weightLogs } from '../db/schema.js'
-
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+import { dayString } from '../lib/validation.js'
 
 const upsertBody = z.object({
-  day,
+  day: dayString,
   weightKg: z.number().min(25).max(400),
   bodyFatPct: z.number().min(2).max(70).optional(),
   note: z.string().max(200).optional(),
@@ -18,7 +17,7 @@ export const weightRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/', async (request) => {
     const { from, to } = z
-      .object({ from: day.optional(), to: day.optional() })
+      .object({ from: dayString.optional(), to: dayString.optional() })
       .parse(request.query)
     const userId = request.user.sub
 
@@ -86,7 +85,7 @@ export const weightRoutes: FastifyPluginAsync = async (app) => {
   })
 
   app.delete('/:day', async (request, reply) => {
-    const { day: theDay } = z.object({ day }).parse(request.params)
+    const { day: theDay } = z.object({ day: dayString }).parse(request.params)
     const deleted = await db
       .delete(weightLogs)
       .where(

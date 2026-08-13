@@ -8,7 +8,7 @@ import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useLogWeight, useWeight } from '@/hooks/use-diary'
+import { useLogWeight, useWeight } from '@/hooks/use-weight'
 import { longDayLabel, todayISO } from '@/lib/date'
 import { signed } from '@/lib/format'
 

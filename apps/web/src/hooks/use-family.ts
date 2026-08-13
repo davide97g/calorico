@@ -1,15 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { groceryKey } from '@/hooks/use-grocery'
-import { scansKey } from '@/hooks/use-scans'
+import { queryKeys } from '@/lib/query-keys'
 import type {
   FamiliesResponse,
   Family,
   FamilyInvite,
   InvitePreview,
 } from '@/lib/types'
-
-export const familiesKey = ['families'] as const
 
 /** Where a half-finished join is parked across login and onboarding. */
 const PENDING_INVITE_KEY = 'calorico.pendingInvite'
@@ -25,7 +22,7 @@ export function getPendingInvite() {
 
 export function useFamilies() {
   return useQuery({
-    queryKey: familiesKey,
+    queryKey: queryKeys.families.all,
     queryFn: () => api<FamiliesResponse>('/families'),
   })
 }
@@ -34,9 +31,9 @@ export function useFamilies() {
 function useSharedInvalidation() {
   const queryClient = useQueryClient()
   return () => {
-    void queryClient.invalidateQueries({ queryKey: familiesKey })
-    void queryClient.invalidateQueries({ queryKey: groceryKey })
-    void queryClient.invalidateQueries({ queryKey: scansKey })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.families.all })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.grocery.all })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.scans.all })
   }
 }
 
@@ -80,7 +77,7 @@ export function useLeaveFamily() {
 
 export function useFamilyInvite(familyId: string) {
   return useQuery({
-    queryKey: ['families', familyId, 'invite'] as const,
+    queryKey: queryKeys.families.invite(familyId),
     queryFn: () =>
       api<{ invite: FamilyInvite | null }>(`/families/${familyId}/invites`),
   })
@@ -92,7 +89,7 @@ export function useCreateInvite(familyId: string) {
     mutationFn: () =>
       api<FamilyInvite>(`/families/${familyId}/invites`, { method: 'POST' }),
     onSuccess: (invite) => {
-      queryClient.setQueryData(['families', familyId, 'invite'], { invite })
+      queryClient.setQueryData(queryKeys.families.invite(familyId), { invite })
     },
   })
 }
@@ -103,7 +100,7 @@ export function useRevokeInvite(familyId: string) {
     mutationFn: (inviteId: string) =>
       api(`/families/${familyId}/invites/${inviteId}`, { method: 'DELETE' }),
     onSuccess: () => {
-      queryClient.setQueryData(['families', familyId, 'invite'], {
+      queryClient.setQueryData(queryKeys.families.invite(familyId), {
         invite: null,
       })
     },
@@ -112,7 +109,7 @@ export function useRevokeInvite(familyId: string) {
 
 export function useInvitePreview(token: string | undefined) {
   return useQuery({
-    queryKey: ['invite', token] as const,
+    queryKey: queryKeys.families.preview(token),
     queryFn: () => api<InvitePreview>(`/families/invites/${token}`),
     enabled: Boolean(token),
     retry: false,

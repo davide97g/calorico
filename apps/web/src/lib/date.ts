@@ -1,7 +1,5 @@
 import {
   addMonths,
-  endOfMonth,
-  endOfWeek,
   format,
   formatDistanceToNow,
   isSameMonth,
@@ -92,23 +90,15 @@ export function startOfWeekISO(day: string) {
   return toISODay(startOfWeek(parseISO(day), MONDAY))
 }
 
-export function endOfWeekISO(day: string) {
-  return toISODay(endOfWeek(parseISO(day), MONDAY))
-}
-
 export function startOfMonthISO(day: string) {
   return toISODay(startOfMonth(parseISO(day)))
 }
 
-export function endOfMonthISO(day: string) {
-  return toISODay(endOfMonth(parseISO(day)))
-}
-
-export function addWeeksISO(day: string, delta: number) {
+function addWeeksISO(day: string, delta: number) {
   return addDaysISO(day, delta * 7)
 }
 
-export function addMonthsISO(day: string, delta: number) {
+function addMonthsISO(day: string, delta: number) {
   return toISODay(addMonths(parseISO(day), delta))
 }
 
@@ -144,11 +134,6 @@ export function monthLabel(day: string) {
 /** "ago", for an axis tick where the full month name would never fit. */
 export function shortMonthLabel(day: string) {
   return format(parseISO(day), 'LLL', { locale: it })
-}
-
-/** 0 = Sunday, matching the API's `extract(dow)` and WEEKDAY_INITIALS. */
-export function weekdayIndex(day: string) {
-  return parseISO(day).getDay()
 }
 
 /**

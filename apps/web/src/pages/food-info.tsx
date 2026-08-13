@@ -6,7 +6,7 @@ import { FoodGallery } from '@/components/food/food-gallery'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFood } from '@/hooks/use-diary'
+import { useFood } from '@/hooks/use-foods'
 import { grams, kcal } from '@/lib/format'
 
 export default function FoodInfoPage() {

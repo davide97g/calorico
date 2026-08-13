@@ -3,7 +3,7 @@ import type { PersonRef } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 /** First letters of the first two words: "Anna Rossi" reads as AR. */
-export function initialsOf(name: string | undefined | null) {
+function initialsOf(name: string | undefined | null) {
   return (
     name
       ?.trim()

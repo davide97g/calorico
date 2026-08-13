@@ -12,8 +12,8 @@ import {
   type StatsDay,
   type WeighIn,
 } from '../lib/stats.js'
-
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+import { roundKcal, roundMacro } from '../lib/nutrition.js'
+import { dayString } from '../lib/validation.js'
 
 /**
  * A phone asking for four years of days would be asking for a chart nobody can
@@ -22,7 +22,7 @@ const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const MAX_RANGE_DAYS = 400
 
 const rangeQuery = z
-  .object({ from: day, to: day })
+  .object({ from: dayString, to: dayString })
   .refine((r) => r.from <= r.to, { message: 'from must not be after to' })
   .refine((r) => spanDays(r.from, r.to) <= MAX_RANGE_DAYS, {
     message: `range must not exceed ${MAX_RANGE_DAYS} days`,
@@ -79,9 +79,6 @@ type FoodRow = {
 
 /** postgres-js hands back the rows themselves; drizzle's type says otherwise. */
 const rowsOf = <T>(result: unknown) => result as unknown as T[]
-
-const round = (n: number) => Math.round(n)
-const round1 = (n: number) => Math.round(n * 10) / 10
 
 function loadProfile(userId: string) {
   return db
@@ -148,14 +145,14 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
 
     const days = rowsOf<DailyRow>(rows).map((r) => ({
       day: r.day,
-      kcal: round(r.kcal),
-      proteinG: round1(r.protein_g),
-      carbsG: round1(r.carbs_g),
-      fatG: round1(r.fat_g),
-      fiberG: round1(r.fiber_g),
-      sugarsG: round1(r.sugars_g),
-      satFatG: round1(r.sat_fat_g),
-      saltG: round1(r.salt_g),
+      kcal: roundKcal(r.kcal),
+      proteinG: roundMacro(r.protein_g),
+      carbsG: roundMacro(r.carbs_g),
+      fatG: roundMacro(r.fat_g),
+      fiberG: roundMacro(r.fiber_g),
+      sugarsG: roundMacro(r.sugars_g),
+      satFatG: roundMacro(r.sat_fat_g),
+      saltG: roundMacro(r.salt_g),
       entries: r.entries,
     }))
 
@@ -163,13 +160,13 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
     const avg = (pick: (d: (typeof days)[number]) => number) =>
       logged.length === 0
         ? 0
-        : round1(logged.reduce((s, d) => s + pick(d), 0) / logged.length)
+        : roundMacro(logged.reduce((s, d) => s + pick(d), 0) / logged.length)
 
     return {
       days,
       summary: {
         loggedDays: logged.length,
-        avgKcal: round(avg((d) => d.kcal)),
+        avgKcal: roundKcal(avg((d) => d.kcal)),
         avgProteinG: avg((d) => d.proteinG),
         avgCarbsG: avg((d) => d.carbsG),
         avgFatG: avg((d) => d.fatG),
@@ -192,7 +189,7 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
    * what this weekday usually looks like, so all three ship with it.
    */
   app.get('/day', async (request) => {
-    const { day: target } = z.object({ day }).parse(request.query)
+    const { day: target } = z.object({ day: dayString }).parse(request.query)
     const userId = request.user.sub
 
     const [mealRows, foodRows, contextRows, profile] = await Promise.all([
@@ -284,14 +281,14 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
     return {
       day: target,
       totals: {
-        kcal: round(sum((m) => m.kcal)),
-        proteinG: round1(sum((m) => m.protein_g)),
-        carbsG: round1(sum((m) => m.carbs_g)),
-        fatG: round1(sum((m) => m.fat_g)),
-        fiberG: round1(sum((m) => m.fiber_g)),
-        sugarsG: round1(sum((m) => m.sugars_g)),
-        satFatG: round1(sum((m) => m.sat_fat_g)),
-        saltG: round1(sum((m) => m.salt_g)),
+        kcal: roundKcal(sum((m) => m.kcal)),
+        proteinG: roundMacro(sum((m) => m.protein_g)),
+        carbsG: roundMacro(sum((m) => m.carbs_g)),
+        fatG: roundMacro(sum((m) => m.fat_g)),
+        fiberG: roundMacro(sum((m) => m.fiber_g)),
+        sugarsG: roundMacro(sum((m) => m.sugars_g)),
+        satFatG: roundMacro(sum((m) => m.sat_fat_g)),
+        saltG: roundMacro(sum((m) => m.salt_g)),
         entries: sum((m) => m.entries),
       },
       byMeal: mealShares(
@@ -307,27 +304,27 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
         const row = meals.find((m) => m.meal === share.meal)
         return {
           ...share,
-          proteinG: round1(row?.protein_g ?? 0),
-          carbsG: round1(row?.carbs_g ?? 0),
-          fatG: round1(row?.fat_g ?? 0),
+          proteinG: roundMacro(row?.protein_g ?? 0),
+          carbsG: roundMacro(row?.carbs_g ?? 0),
+          fatG: roundMacro(row?.fat_g ?? 0),
         }
       }),
       topFoods: rowsOf<FoodRow>(foodRows).map((f) => ({
         name: f.name,
         brand: f.brand,
-        kcal: round(f.kcal),
-        quantityG: round(f.quantity_g),
+        kcal: roundKcal(f.kcal),
+        quantityG: roundKcal(f.quantity_g),
         times: f.times,
       })),
       /** Null where there is nothing to compare against, not zero. */
       context: {
         prevDayKcal:
-          context && context.prev_entries > 0 ? round(context.prev_kcal) : null,
+          context && context.prev_entries > 0 ? roundKcal(context.prev_kcal) : null,
         recentAvgKcal:
-          context?.recent_kcal == null ? null : round(context.recent_kcal),
+          context?.recent_kcal == null ? null : roundKcal(context.recent_kcal),
         recentDays: context?.recent_days ?? 0,
         weekdayAvgKcal:
-          context?.weekday_kcal == null ? null : round(context.weekday_kcal),
+          context?.weekday_kcal == null ? null : roundKcal(context.weekday_kcal),
         weekdayDays: context?.weekday_days ?? 0,
       },
       targets: targetsOf(profile),
@@ -486,9 +483,9 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
       days,
       loggedDays: totals?.logged_days ?? 0,
       entries: totals?.entries ?? 0,
-      totalKcal: round(totalKcal),
+      totalKcal: roundKcal(totalKcal),
       /** Percent of calendar days with at least one entry. */
-      coverage: days === 0 ? 0 : round1(((totals?.logged_days ?? 0) / days) * 100),
+      coverage: days === 0 ? 0 : roundMacro(((totals?.logged_days ?? 0) / days) * 100),
       mealSplit: mealShares(
         rowsOf<MealSpanRow>(mealRows).map(
           (m): MealTotal => ({
@@ -504,18 +501,18 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
         const row = weekdays.find((w) => w.dow === dow)
         return {
           dow,
-          avgKcal: row && row.days > 0 ? round(row.kcal / row.days) : 0,
+          avgKcal: row && row.days > 0 ? roundKcal(row.kcal / row.days) : 0,
           loggedDays: row?.days ?? 0,
         }
       }),
       topFoods: rowsOf<FoodRow>(foodRows).map((f) => ({
         name: f.name,
         brand: f.brand,
-        kcal: round(f.kcal),
-        quantityG: round(f.quantity_g),
+        kcal: roundKcal(f.kcal),
+        quantityG: roundKcal(f.quantity_g),
         times: f.times,
         days: f.days,
-        share: totalKcal > 0 ? round1((f.kcal / totalKcal) * 100) : 0,
+        share: totalKcal > 0 ? roundMacro((f.kcal / totalKcal) * 100) : 0,
       })),
       streak: computeStreaks(loggedDays, to),
     }

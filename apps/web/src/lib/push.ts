@@ -69,7 +69,7 @@ export function pushPermission(): NotificationPermission {
   return Notification.permission
 }
 
-export function isIos() {
+function isIos() {
   const ua = navigator.userAgent
   // iPadOS reports itself as a Mac; the touch points give it away.
   return (
@@ -79,7 +79,7 @@ export function isIos() {
 }
 
 /** True in an installed PWA, which is iOS's precondition for push. */
-export function isStandalone() {
+function isStandalone() {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as { standalone?: boolean }).standalone === true
@@ -106,7 +106,7 @@ export function needsInstallFirst() {
  * Safari once only had the callback form and Chrome only has the promise one, so
  * both are wired up and whichever answers first wins.
  */
-export function requestPushPermission(): Promise<NotificationPermission> {
+function requestPushPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) return Promise.resolve('denied')
   // Already answered: asking again draws nothing and, on iOS, a second call
   // after a refusal is silently ignored.
@@ -500,7 +500,7 @@ export function rememberPushFailure(stage: string, error: unknown) {
   }
 }
 
-export function lastPushFailure(): PushFailureNote | null {
+function lastPushFailure(): PushFailureNote | null {
   try {
     const raw = localStorage.getItem(LAST_ERROR_KEY)
     return raw ? (JSON.parse(raw) as PushFailureNote) : null

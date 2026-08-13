@@ -1,19 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
-import { queryKeys, useDeleteEntry } from '@/hooks/use-diary'
+import { useDeleteEntry } from '@/hooks/use-diary'
+import { queryKeys } from '@/lib/query-keys'
 import { labelForDay } from '@/lib/date'
 import { kcal, MEAL_LABELS } from '@/lib/format'
 import type { DiaryEntry, Meal, SavedMeal } from '@/lib/types'
 
-export const mealKeys = {
-  all: ['meals'] as const,
-  list: (meal?: Meal) => ['meals', meal ?? 'any'] as const,
-}
-
 export function useSavedMeals(meal?: Meal) {
   return useQuery({
-    queryKey: mealKeys.list(meal),
+    queryKey: queryKeys.meals.list(meal),
     queryFn: () =>
       api<{ items: SavedMeal[] }>('/meals', {
         query: meal ? { meal } : undefined,
@@ -30,7 +26,7 @@ export function useCreateMeal() {
       items: { foodId: string; quantityG: number }[]
     }) => api<SavedMeal>('/meals', { method: 'POST', body: input }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: mealKeys.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.meals.all })
     },
   })
 }
@@ -47,7 +43,7 @@ export function useUpdateMeal() {
       meal?: Meal
     }) => api<SavedMeal>(`/meals/${id}`, { method: 'PATCH', body }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: mealKeys.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.meals.all })
     },
   })
 }
@@ -57,7 +53,7 @@ export function useDeleteMeal() {
   return useMutation({
     mutationFn: (id: string) => api(`/meals/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: mealKeys.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.meals.all })
     },
   })
 }
@@ -72,10 +68,10 @@ export function useLogMeal() {
         body: { day: input.day, meal: input.meal },
       }),
     onSuccess: (data, input) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.diary(input.day) })
-      void queryClient.invalidateQueries({ queryKey: ['stats'] })
-      void queryClient.invalidateQueries({ queryKey: ['foods', 'recent'] })
-      void queryClient.invalidateQueries({ queryKey: mealKeys.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.diary.day(input.day) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stats.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.foods.recentAll })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.meals.all })
       const total = data.entries.reduce((s, e) => s + e.kcal, 0)
       toast.success(`${data.entries.length} voci · ${kcal(total)} kcal`, {
         description: `${labelForDay(input.day)} · ${MEAL_LABELS[input.meal]}`,

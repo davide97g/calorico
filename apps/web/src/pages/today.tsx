@@ -18,8 +18,8 @@ import {
   useCopyDay,
   useDeleteEntry,
   useDiary,
-  useWeight,
 } from '@/hooks/use-diary'
+import { useWeight } from '@/hooks/use-weight'
 import { useAuth } from '@/hooks/use-auth'
 import { addDaysISO, isFutureDay, todayISO } from '@/lib/date'
 import { signed } from '@/lib/format'

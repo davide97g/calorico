@@ -18,5 +18,3 @@ if (env.sentry) {
     sendDefaultPii: false,
   })
 }
-
-export const sentryEnabled = env.sentry !== null

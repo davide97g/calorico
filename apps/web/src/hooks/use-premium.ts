@@ -1,14 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import type { CheckoutSession, PremiumStatus } from '@/lib/types'
-
-export const premiumKeys = {
-  status: ['premium'] as const,
-}
 
 export function usePremium() {
   return useQuery({
-    queryKey: premiumKeys.status,
+    queryKey: queryKeys.premium,
     queryFn: () => api<PremiumStatus>('/premium'),
     staleTime: 30_000,
   })
@@ -22,9 +19,9 @@ function refreshPremium(
   queryClient: ReturnType<typeof useQueryClient>,
   status?: PremiumStatus,
 ) {
-  if (status) queryClient.setQueryData(premiumKeys.status, status)
-  void queryClient.invalidateQueries({ queryKey: ['vision', 'status'] })
-  void queryClient.invalidateQueries({ queryKey: ['me'] })
+  if (status) queryClient.setQueryData(queryKeys.premium, status)
+  void queryClient.invalidateQueries({ queryKey: queryKeys.vision.status })
+  void queryClient.invalidateQueries({ queryKey: queryKeys.me })
 }
 
 /**

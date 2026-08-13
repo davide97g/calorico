@@ -1,12 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { z } from 'zod'
 import { db } from '../db/index.js'
 import { foods } from '../db/schema.js'
 import { isFoodVisibleTo } from '../lib/food-visibility.js'
 import { listFoodImages, syncOffImages } from '../lib/food-images.js'
-
-const foodParam = z.object({ id: z.string().uuid() })
+import { idParam } from '../lib/validation.js'
 
 /**
  * Photos of a food, all of them from Open Food Facts. Mounted under /api/foods,
@@ -19,7 +17,7 @@ export const foodImageRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('onRequest', app.authenticate)
 
   app.get('/:id/images', async (request, reply) => {
-    const { id } = foodParam.parse(request.params)
+    const { id } = idParam.parse(request.params)
     const [food] = await db.select().from(foods).where(eq(foods.id, id)).limit(1)
     if (!food || !isFoodVisibleTo(food, request.user.sub)) {
       return reply.code(404).send({ error: 'food_not_found' })

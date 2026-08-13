@@ -46,7 +46,7 @@ const versionFile = z.object({
 })
 
 /** Italian, and deliberately vague: the payload sits on a lock screen. */
-export const releaseMessage: PushPayload = {
+const releaseMessage: PushPayload = {
   kind: 'release',
   title: 'Nuova versione di Calorico',
   body: 'Tocca per ricaricare l’app e passare all’ultima versione.',
@@ -202,7 +202,7 @@ interface Logger {
 }
 
 /** One pass: look at what is deployed, then announce whatever is due. */
-export async function runReleaseCheck(
+async function runReleaseCheck(
   origin: string,
   send: Sender = sendPush,
 ): Promise<AnnounceResult | null> {

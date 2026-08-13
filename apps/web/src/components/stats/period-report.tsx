@@ -24,7 +24,7 @@ import {
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useBreakdown, usePeriodStats } from '@/hooks/use-diary'
+import { useBreakdown, usePeriodStats } from '@/hooks/use-stats'
 import {
   lastNMonths,
   lastNWeeks,

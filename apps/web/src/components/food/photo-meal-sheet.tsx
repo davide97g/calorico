@@ -11,7 +11,7 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer'
 import { PremiumSheet } from '@/components/premium/premium-sheet'
-import { useAnalyzeMealPhoto, useVisionStatus } from '@/hooks/use-diary'
+import { useAnalyzeMealPhoto, useVisionStatus } from '@/hooks/use-vision'
 import { ApiError } from '@/lib/api'
 import { compressImage } from '@/lib/image-compress'
 import { todayISO } from '@/lib/date'

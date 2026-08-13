@@ -41,7 +41,7 @@ export interface CategoryCandidate {
  * to exist in the taxonomy but a `seen` set costs nothing and a hang costs a
  * build.
  */
-export function ancestorsOf(taxonomy: Taxonomy, tag: string): string[] {
+function ancestorsOf(taxonomy: Taxonomy, tag: string): string[] {
   const seen = new Set<string>([tag])
   const queue = [tag]
   while (queue.length > 0) {

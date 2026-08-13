@@ -20,7 +20,7 @@ import {
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useDayStats, useStats } from '@/hooks/use-diary'
+import { useDayStats, useStats } from '@/hooks/use-stats'
 import {
   addDaysISO,
   daysUntil,
