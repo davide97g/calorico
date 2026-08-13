@@ -8,6 +8,7 @@ import {
   MoreHorizontal,
   PlusCircle,
   ScanBarcode,
+  ScanLine,
   Search,
   Star,
   Utensils,
@@ -18,6 +19,7 @@ import { FoodRow } from '@/components/food/food-row'
 import { HistoryBadge } from '@/components/food/history-badge'
 import { BarcodeScanner } from '@/components/food/barcode-scanner'
 import { PhotoMealSheet } from '@/components/food/photo-meal-sheet'
+import { ScanList } from '@/components/food/scan-list'
 import { SavedMealListRow } from '@/components/food/saved-meal-row'
 import { WhenBar } from '@/components/food/when-picker'
 import { Panel } from '@/components/ui/panel'
@@ -52,11 +54,12 @@ import {
   useUpdateMeal,
 } from '@/hooks/use-meals'
 import { useGroceryOffer } from '@/hooks/use-grocery'
+import { useScannedByFood } from '@/hooks/use-scans'
 import { ApiError } from '@/lib/api'
 import { todayISO } from '@/lib/date'
 import { currentMeal, grams } from '@/lib/format'
 import type { When } from '@/lib/when'
-import type { Food, Meal, RecentFood } from '@/lib/types'
+import type { Food, Meal, PersonRef, RecentFood } from '@/lib/types'
 
 export default function AddFoodPage() {
   const navigate = useNavigate()
@@ -111,6 +114,13 @@ export default function AddFoodPage() {
   )
   const barcode = useBarcodeLookup()
   const offerGrocery = useGroceryOffer()
+  /**
+   * The family's scan feed, folded into the lists as an avatar per row. Keyed
+   * by the same term the catalogue is searched with, so a search matches the
+   * shared history too — and empty on a solo account, where the only scanner is
+   * the user themselves.
+   */
+  const scannedBy = useScannedByFood(debounced)
 
   const foodLink = (id: string) => `/food/${id}?day=${day}&meal=${meal}`
   /**
@@ -203,7 +213,11 @@ export default function AddFoodPage() {
             <ul>
               {search.data.items.map((food) => (
                 <li key={food.id}>
-                  <FoodRow food={food} to={foodLink(food.id)} />
+                  <FoodRow
+                    food={food}
+                    to={foodLink(food.id)}
+                    scannedBy={scannedBy.get(food.id)}
+                  />
                 </li>
               ))}
             </ul>
@@ -229,27 +243,37 @@ export default function AddFoodPage() {
         </Panel>
       ) : (
         <Tabs defaultValue="recent" className="mt-3">
-          <TabsList className="bg-card shadow-soft h-12 w-full rounded-full p-1">
+          {/* Four labels is what fits, and only just: on the narrowest phones
+              the icons go and the words stay, which is the half that names the
+              tab. */}
+          <TabsList className="bg-card shadow-soft h-12 w-full rounded-full p-1 max-[380px]:[&_svg]:hidden">
             <TabsTrigger
               value="recent"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full text-xs data-[state=active]:shadow-none"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1 rounded-full px-1.5 text-[11px] data-[state=active]:shadow-none"
             >
               <Clock className="size-3.5" />
               Recenti
             </TabsTrigger>
             <TabsTrigger
               value="favorites"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full text-xs data-[state=active]:shadow-none"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1 rounded-full px-1.5 text-[11px] data-[state=active]:shadow-none"
             >
               <Star className="size-3.5" />
               Preferiti
             </TabsTrigger>
             <TabsTrigger
               value="piatti"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full text-xs data-[state=active]:shadow-none"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1 rounded-full px-1.5 text-[11px] data-[state=active]:shadow-none"
             >
               <Utensils className="size-3.5" />
               Piatti
+            </TabsTrigger>
+            <TabsTrigger
+              value="scans"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1 rounded-full px-1.5 text-[11px] data-[state=active]:shadow-none"
+            >
+              <ScanLine className="size-3.5" />
+              Scansioni
             </TabsTrigger>
           </TabsList>
 
@@ -259,6 +283,7 @@ export default function AddFoodPage() {
               loading={recent.isLoading}
               empty="Gli alimenti che registri, scansioni o crei finiscono qui."
               linkFor={(food) => recentLink(food as RecentFood)}
+              scannedBy={scannedBy}
               trailingFor={(food) => {
                 const { lastQuantityG } = food as RecentFood
                 if (lastQuantityG == null) return null
@@ -281,6 +306,7 @@ export default function AddFoodPage() {
               loading={favorites.isLoading}
               empty="Segna un alimento con la stella per ritrovarlo qui."
               linkFor={(food) => foodLink(food.id)}
+              scannedBy={scannedBy}
             />
           </TabsContent>
           <TabsContent value="piatti">
@@ -349,6 +375,18 @@ export default function AddFoodPage() {
                 </ul>
               </Panel>
             )}
+          </TabsContent>
+
+          {/* The family's scans, not this phone's: what somebody else brought
+              home is usually what the next person is about to log. The rows are
+              the same ones the Scansioni screen shows, avatar included. */}
+          <TabsContent value="scans">
+            <ScanList
+              empty="Codici a barre e foto dei pasti finiscono qui, con chi li ha scansionati."
+              onOpen={(scan) => {
+                if (scan.foodId) navigate(foodLink(scan.foodId))
+              }}
+            />
           </TabsContent>
         </Tabs>
       )}
@@ -444,12 +482,15 @@ function FoodList({
   empty,
   linkFor,
   trailingFor,
+  scannedBy,
 }: {
   items?: Food[]
   loading: boolean
   empty: string
   linkFor: (food: Food) => string
   trailingFor?: (food: Food) => ReactNode
+  /** Who in the family scanned each food, by food id. See useScannedByFood. */
+  scannedBy?: Map<string, PersonRef>
 }) {
   if (loading) {
     return (
@@ -476,6 +517,7 @@ function FoodList({
               food={food}
               to={linkFor(food)}
               trailing={trailingFor?.(food)}
+              scannedBy={scannedBy?.get(food.id)}
             />
           </li>
         ))}

@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Check, Info, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
+import { BarcodeStrip } from '@/components/food/barcode-strip'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { FoodGallery } from '@/components/food/food-gallery'
 import { PortionChips, portionOptions } from '@/components/food/portion-chips'
@@ -13,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { WhenBar } from '@/components/food/when-picker'
 import type { When } from '@/lib/when'
 import { useDeleteEntry, useDiary, useUpdateEntry } from '@/hooks/use-diary'
-import { useFoodPortions } from '@/hooks/use-foods'
+import { useFood, useFoodPortions } from '@/hooks/use-foods'
 import { todayISO } from '@/lib/date'
 import { grams, kcal } from '@/lib/format'
 
@@ -27,6 +28,8 @@ export default function EntryDetailPage() {
   const entry = data?.entries.find((e) => e.id === id)
   // A snapshot-only entry — its food was deleted — has no history to offer.
   const { data: portions } = useFoodPortions(entry?.foodId)
+  // Only for the barcode: the entry carries its own snapshot of everything else.
+  const { data: food } = useFood(entry?.foodId ?? undefined)
 
   const updateEntry = useUpdateEntry()
   const deleteEntry = useDeleteEntry()
@@ -128,10 +131,17 @@ export default function EntryDetailPage() {
             ) : null}
           </div>
         </div>
+        {/* Renders only for a packaged food; a snapshot-only entry has no code
+            to give back. */}
+        <BarcodeStrip
+          barcode={food?.barcode}
+          name={entry.nameSnapshot}
+          className="mt-4"
+        />
         {entry.foodId ? (
           <Button
             variant="secondary"
-            className="mt-4 h-10 w-full rounded-md text-xs font-semibold"
+            className="mt-2 h-10 w-full rounded-md text-xs font-semibold"
             onClick={() => navigate(`/food/${entry.foodId}/info`)}
           >
             <Info className="size-4" />

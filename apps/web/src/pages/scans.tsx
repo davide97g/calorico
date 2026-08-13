@@ -1,17 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Barcode, Camera, Loader2, ScanLine, Search } from 'lucide-react'
+import { Loader2, ScanLine, Search } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
 import { TopBar } from '@/components/layout/top-bar'
-import { UserAvatar } from '@/components/user-avatar'
-import { Badge } from '@/components/ui/badge'
+import { ScanRow } from '@/components/food/scan-list'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Panel } from '@/components/ui/panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useScans } from '@/hooks/use-scans'
-import { dayTimeLabel } from '@/lib/date'
-import type { ScanHistoryItem } from '@/lib/types'
 
 export default function ScansPage() {
   const navigate = useNavigate()
@@ -98,68 +95,5 @@ export default function ScansPage() {
         </>
       )}
     </AppShell>
-  )
-}
-
-function ScanRow({
-  scan,
-  onOpen,
-}: {
-  scan: ScanHistoryItem
-  onOpen?: () => void
-}) {
-  const Icon = scan.kind === 'photo' ? Camera : Barcode
-
-  const body = (
-    <>
-      <span className="bg-secondary flex size-10 shrink-0 items-center justify-center rounded-md">
-        <Icon className="text-muted-foreground size-5" />
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold">
-          {scan.nameSnapshot}
-        </span>
-        {scan.brandSnapshot ? (
-          <span className="text-muted-foreground block truncate text-micro">
-            {scan.brandSnapshot}
-          </span>
-        ) : null}
-        <span className="text-muted-foreground mt-1 flex items-center gap-1.5 text-micro">
-          <UserAvatar
-            user={scan.scannedBy}
-            className="size-4"
-            fallbackClassName="text-[7px]"
-          />
-          {/* The avatar is whoever scanned it last, so the label says so. */}
-          <span className="truncate">
-            {scan.times > 1
-              ? `${scan.times} volte · ultima ${dayTimeLabel(scan.lastAt)}, ${scan.scannedBy.name}`
-              : `${scan.scannedBy.name} · ${dayTimeLabel(scan.lastAt)}`}
-          </span>
-        </span>
-      </span>
-
-      {scan.kind === 'photo' && scan.items?.length ? (
-        <Badge variant="secondary" className="shrink-0">
-          {scan.items.length} cibi
-        </Badge>
-      ) : null}
-    </>
-  )
-
-  const className =
-    'flex min-h-[72px] w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left'
-
-  if (!onOpen) return <div className={className}>{body}</div>
-
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={`${className} hover:bg-secondary/70 transition-colors`}
-    >
-      {body}
-    </button>
   )
 }

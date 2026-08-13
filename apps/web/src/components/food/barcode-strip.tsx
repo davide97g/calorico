@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Copy, Maximize2, X } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Barcode as BarcodeIcon, Copy, Maximize2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -26,31 +26,98 @@ export function BarcodeStrip({
   name,
   className,
 }: {
-  barcode: string | null
+  barcode: string | null | undefined
   name: string
   className?: string
 }) {
-  const [open, setOpen] = useState(false)
   const code = encodeBarcode(barcode)
   if (!code) return null
 
   return (
+    <BarcodeShowcase code={code} name={name}>
+      {(show) => (
+        <button
+          type="button"
+          onClick={show}
+          className={cn(
+            'bg-secondary/70 flex h-11 w-full items-center gap-3 rounded-md px-3 transition-transform active:scale-[0.98]',
+            className,
+          )}
+          aria-label={`Mostra il codice a barre ${code.digits} a schermo pieno`}
+        >
+          <BarcodeGlyph
+            code={code}
+            className="text-foreground/80 h-5 min-w-0 flex-1"
+          />
+          <span className="tabular text-muted-foreground shrink-0 text-micro font-semibold">
+            {code.digits}
+          </span>
+          <Maximize2 className="text-muted-foreground size-3.5 shrink-0" />
+        </button>
+      )}
+    </BarcodeShowcase>
+  )
+}
+
+/**
+ * The same code where there is no room for the strip: one tap target at the end
+ * of a list row.
+ *
+ * A row in the search results, in the recents, in the scan history is already a
+ * "detail of an item" as far as anybody looking for a barcode is concerned — the
+ * pack in their hand is the question, and making them open the food's page first
+ * is a step for nothing. Any row whose food came from Open Food Facts gets one.
+ */
+export function BarcodeButton({
+  barcode,
+  name,
+  className,
+}: {
+  barcode: string | null | undefined
+  name: string
+  className?: string
+}) {
+  const code = encodeBarcode(barcode)
+  if (!code) return null
+
+  return (
+    <BarcodeShowcase code={code} name={name}>
+      {(show) => (
+        <button
+          type="button"
+          onClick={show}
+          className={cn(
+            'text-muted-foreground hover:bg-secondary active:bg-secondary flex size-11 shrink-0 items-center justify-center rounded-full transition-colors',
+            className,
+          )}
+          aria-label={`Mostra il codice a barre di ${name}`}
+        >
+          <BarcodeIcon className="size-4" />
+        </button>
+      )}
+    </BarcodeShowcase>
+  )
+}
+
+/**
+ * The full-screen symbol and whatever opens it. The trigger is a render prop so
+ * a strip and a round button can share one dialog without either of them owning
+ * the open state.
+ */
+function BarcodeShowcase({
+  code,
+  name,
+  children,
+}: {
+  code: Barcode
+  name: string
+  children: (show: () => void) => ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={cn(
-          'bg-secondary/70 flex h-11 w-full items-center gap-3 rounded-md px-3 transition-transform active:scale-[0.98]',
-          className,
-        )}
-        aria-label={`Mostra il codice a barre ${code.digits} a schermo pieno`}
-      >
-        <BarcodeGlyph code={code} className="text-foreground/80 h-5 min-w-0 flex-1" />
-        <span className="tabular text-muted-foreground shrink-0 text-micro font-semibold">
-          {code.digits}
-        </span>
-        <Maximize2 className="text-muted-foreground size-3.5 shrink-0" />
-      </button>
+      {children(() => setOpen(true))}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent

@@ -25,14 +25,21 @@ export function UserAvatar({
   size = 'default',
   className,
   fallbackClassName,
+  /** Overrides the plain name, for the places where the face needs a caption. */
+  title,
 }: {
   user: Pick<PersonRef, 'name' | 'avatarUrl'> | null | undefined
   size?: 'default' | 'sm' | 'lg'
   className?: string
   fallbackClassName?: string
+  title?: string
 }) {
   return (
-    <Avatar size={size} className={className} title={user?.name ?? undefined}>
+    <Avatar
+      size={size}
+      className={className}
+      title={title ?? user?.name ?? undefined}
+    >
       {user?.avatarUrl ? (
         <AvatarImage src={user.avatarUrl} alt={user.name} />
       ) : null}

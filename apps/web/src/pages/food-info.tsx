@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Barcode, Package, Sparkles } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
+import { BarcodeStrip } from '@/components/food/barcode-strip'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { FoodGallery } from '@/components/food/food-gallery'
 import { Panel, PanelHeader } from '@/components/ui/panel'
@@ -63,8 +64,10 @@ export default function FoodInfoPage() {
           <InfoRow label="Fonte" value={source} />
           {food.packageSizeLabel ? <InfoRow label="Confezione" value={food.packageSizeLabel} /> : null}
           {food.servingLabel ? <InfoRow label="Porzione" value={food.servingLabel} /> : null}
-          {food.barcode ? <InfoRow label="Codice a barre" value={food.barcode} tabular /> : null}
         </dl>
+        {/* The code as the symbol it was scanned from, not as thirteen digits
+            in a table: this screen is where somebody comes to check a pack. */}
+        <BarcodeStrip barcode={food.barcode} name={food.name} className="mt-3" />
       </Panel>
 
       <Panel className="mt-3">
