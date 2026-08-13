@@ -11,19 +11,28 @@ the codebase), [testing.md](testing.md) (how to verify a change),
 
 ## Shape
 
-An npm workspace monorepo, two apps, no shared package:
+An npm workspace monorepo — two apps and the contract between them:
 
 ```
-apps/api    Fastify 5 + Drizzle + Postgres 17. ESM, .js import specifiers.
-apps/web    React 19 + Vite + React Query + Tailwind 4 + shadcn-style UI. PWA.
-docs/       This. Plus the GDPR paperwork (dpia, ropa) and a launch checklist.
-scripts/    Build-time helpers (font fetch, precache verification).
+apps/api            Fastify 5 + Drizzle + Postgres 17. ESM, .js import specifiers.
+apps/web            React 19 + Vite + React Query + Tailwind 4 + shadcn-style UI. PWA.
+packages/contracts  The zod schemas both apps agree on. Compiled; see below.
+docs/               This. Plus the GDPR paperwork (dpia, ropa) and a launch checklist.
+scripts/            Build-time helpers (font fetch, precache verification).
 ```
 
-The two apps talk over `/api` only. There is no generated client and no shared
-types package: `apps/web/src/lib/types.ts` is a **hand-written mirror** of what
-the routes return. Changing a response shape means changing that file too — the
-compiler will not tell you.
+The two apps talk over `/api` only, and `@calorico/contracts` is what keeps them
+honest about it: the API parses requests with its schemas, the web app infers
+`lib/types.ts` from them, and `apps/api/src/routes/contract.test.ts` parses real
+responses through them so a changed payload fails a test rather than a screen.
+Add a field to the contract, not to `types.ts`.
+
+Because the API resolves the package through its built declarations, the contract
+is compiled before anything else can typecheck. The root scripts do that for you
+(`pretypecheck`, `pretest`, `prebuild`, `predev` all run `npm run contracts`), and
+both Dockerfiles build it before the app that needs it. Running a workspace script
+directly — `npm run build -w @calorico/web` — skips the hook, so build the
+contract first or use the root script.
 
 ## apps/api
 
@@ -35,7 +44,7 @@ src/db/schema.ts      Drizzle schema. The single source of truth for the data mo
 src/db/index.ts       Connection pools and the per-request RLS machinery.
 src/routes/*.ts       One Fastify plugin per resource, mounted under /api/<name>.
 src/lib/*             Domain logic, deliberately free of Fastify types.
-src/lib/validation.ts The zod primitives shared across routes (day, meal, quantity, id).
+src/test/contract.ts  expectContract, used by routes/contract.test.ts.
 src/scripts/*         One-shot jobs: seed, Open Food Facts import, catalogue build, VAPID keys.
 drizzle/*.sql         Migrations, applied on boot and by `npm run db:migrate`.
 ```
@@ -88,6 +97,29 @@ the UI hides the button, no Stripe keys means the paywall stays hidden, no VAPID
 pair means reminders are unavailable. Keep that property — a fresh clone with
 only `DATABASE_URL` and `JWT_SECRET` has to boot and work.
 
+## packages/contracts
+
+```
+src/primitives.ts     The shared enums, a day, a portion, a uuid param, a person ref.
+src/food.ts           Foods, their images, portion history, and newFoodInput.
+src/diary.ts          Entries, totals, targets, the day payload, batch input.
+src/stats.ts          Everything the Analisi tab reads.
+src/weight.ts src/meals.ts src/social.ts src/notifications.ts
+src/account.ts        Session, profile, bodyMetrics, targets, premium.
+src/vision.ts         Photo analysis and its quota.
+```
+
+Two kinds of schema live here, and the difference decides how strict they are:
+
+- **Request** schemas — `newFoodInput`, `bodyMetrics`, `batchEntryInput` and the
+  primitives — *are* the validation. They carry `min`, `max`, `regex` and
+  defaults, and the API parses with them at the boundary.
+- **Response** schemas describe what a handler sends: precise about fields and
+  types, deliberately loose about constraints, and tolerant of unknown keys
+  because handlers legitimately send more than a screen reads.
+
+Timestamps are strings here. `Date` belongs to Drizzle, not to the wire.
+
 ## apps/web
 
 ```
@@ -97,7 +129,7 @@ src/pages/*           One screen per file, default-exported.
 src/components/*      ui/ = shadcn primitives · dashboard, food, stats, charts, layout = app parts.
 src/hooks/use-*.ts    One React Query hook module per domain. See below.
 src/lib/query-keys.ts Every query key in the app. Read this before writing a mutation.
-src/lib/types.ts      The hand-written mirror of the API's responses.
+src/lib/types.ts      Re-exports the contract's types. Not a place to add a field.
 src/lib/*             Pure helpers: date, format, nutrition, portion, push, pwa, zoom.
 ```
 

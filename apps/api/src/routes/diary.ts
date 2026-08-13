@@ -1,6 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
+import {
+  batchEntryInput,
+  dayString,
+  idParam,
+  mealSlot,
+  quantityG,
+} from '@calorico/contracts'
 import { db } from '../db/index.js'
 import { diaryEntries, foods, profiles } from '../db/schema.js'
 import {
@@ -8,9 +15,7 @@ import {
   scaleNutriments,
   sumNutrients,
 } from '../lib/nutrition.js'
-import { dayString, idParam, mealSlot, quantityG } from '../lib/validation.js'
 import { env } from '../env.js'
-import { customFood } from './foods.js'
 
 const createBody = z.object({
   foodId: z.string().uuid(),
@@ -25,22 +30,12 @@ const patchBody = z.object({
   day: dayString.optional(),
 })
 
-/**
- * A batched row is either an existing food or one the photo flow invented,
- * which has to become a real `foods` row before it can be logged — diary
- * entries reference a food by id.
- */
-const batchItem = z.union([
-  z.object({ foodId: z.string().uuid(), quantityG }),
-  z.object({ newFood: customFood, quantityG }),
-])
-
 const batchBody = z.object({
   day: dayString,
   meal: mealSlot,
   // One photo of one plate. Well above what a meal produces, low enough that a
   // buggy client cannot write hundreds of rows in one call.
-  items: z.array(batchItem).min(1).max(20),
+  items: z.array(batchEntryInput).min(1).max(20),
 })
 
 export const diaryRoutes: FastifyPluginAsync = async (app) => {

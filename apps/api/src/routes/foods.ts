@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
+import { idParam, mealSlot, newFoodInput } from '@calorico/contracts'
 import { db } from '../db/index.js'
 import { favorites, foods, type Food, type NewFood } from '../db/schema.js'
 import { fetchByBarcode, searchOff } from '../lib/off.js'
@@ -13,7 +14,6 @@ import {
   hasConfidentGenericMatch,
   searchLocalFoods,
 } from '../lib/food-search.js'
-import { idParam, mealSlot } from '../lib/validation.js'
 
 const searchQuery = z.object({
   q: z.string().min(1).max(120),
@@ -32,27 +32,6 @@ const recentQuery = z.object({
    * that log with one tap stay on the default. See lib/history.ts.
    */
   include: z.enum(['logged', 'all']).default('logged'),
-})
-
-/** Also the shape POST /api/diary/batch accepts for an AI-estimated food. */
-export const customFood = z.object({
-  name: z.string().min(2).max(160),
-  brand: z.string().max(120).optional(),
-  kcal100: z.number().min(0).max(950),
-  protein100: z.number().min(0).max(100).default(0),
-  carbs100: z.number().min(0).max(100).default(0),
-  fat100: z.number().min(0).max(100).default(0),
-  fiber100: z.number().min(0).max(100).optional(),
-  sugars100: z.number().min(0).max(100).optional(),
-  satFat100: z.number().min(0).max(100).optional(),
-  salt100: z.number().min(0).max(100).optional(),
-  servingSizeG: z.number().min(1).max(2000).optional(),
-  servingLabel: z.string().max(80).optional(),
-  isLiquid: z.boolean().default(false),
-  barcode: z
-    .string()
-    .regex(/^\d{8,14}$/)
-    .optional(),
 })
 
 export const foodRoutes: FastifyPluginAsync = async (app) => {
@@ -199,7 +178,7 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
   })
 
   app.post('/', async (request, reply) => {
-    const body = customFood.parse(request.body)
+    const body = newFoodInput.parse(request.body)
     const [created] = await db
       .insert(foods)
       .values({

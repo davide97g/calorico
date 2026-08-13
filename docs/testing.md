@@ -12,7 +12,7 @@ So there are two very different green runs:
 | Command | API result |
 | --- | --- |
 | `npm test` | 7 files, 97 tests — pure unit tests only |
-| with `TEST_DATABASE_URL` | 17 files, 214 tests — every route, cascade and index |
+| with `TEST_DATABASE_URL` | 18 files, 231 tests — every route, cascade and index |
 
 CI always runs the second one. If you touched anything under `src/routes` or
 `src/db` and only ran the first, you have not tested your change.
@@ -44,6 +44,11 @@ run with `fileParallelism: false` because they share one database.
   indexes and `pg_trgm` have no useful fake.
 - `src/routes/rls.test.ts` — the row-level-security policies themselves. It is
   the only test that proves `calorico_app` cannot read another user's rows.
+- `src/routes/contract.test.ts` — every response the web app reads, parsed
+  through `@calorico/contracts`, which the web app types itself from. It is the
+  only thing that notices a payload and its client drifting apart, so a new
+  endpoint or a changed field belongs in it. Extra keys pass; a missing,
+  renamed or retyped field fails.
 - `src/lib/reminders/scheduler.test.ts`, `src/lib/releases/notifier.test.ts` —
   delivery logic with an injected sender; nothing is ever pushed.
 - `apps/web` — 6 files, 62 tests: pure helpers (date, format, food emoji, push

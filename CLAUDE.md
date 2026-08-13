@@ -1,9 +1,10 @@
 # CLAUDE.md
 
 Calorico — calorie and macro tracker, Italian UI, npm workspace monorepo:
-`apps/api` (Fastify 5 + Drizzle + Postgres 17) and `apps/web` (React 19 + Vite +
-React Query, PWA). Read [docs/context.md](docs/context.md) before your first
-change; it is the code map and the list of invariants.
+`apps/api` (Fastify 5 + Drizzle + Postgres 17), `apps/web` (React 19 + Vite +
+React Query, PWA) and `packages/contracts` (the zod schemas both apps agree on).
+Read [docs/context.md](docs/context.md) before your first change; it is the code
+map and the list of invariants.
 
 | Doc | Read it when |
 | --- | --- |
@@ -29,13 +30,19 @@ straight from `main`.
 
 ## Rules that are easy to break silently
 
-- **`apps/web/src/lib/types.ts` is a hand-written mirror of the API's responses.**
-  Nothing generates or checks it. Change a payload, change that file.
+- **A payload's shape lives in `packages/contracts`, not in the app that sends or
+  reads it.** `apps/web/src/lib/types.ts` only re-exports it, and
+  `apps/api/src/routes/contract.test.ts` is what makes the agreement real. Change
+  a response, change the contract, and add the assertion.
+- **The contract is compiled**, so root scripts build it first via `pre*` hooks.
+  Calling a workspace script directly (`npm run build -w @calorico/web`) skips
+  that; run `npm run contracts` yourself or use the root script.
 - **Query keys come from `apps/web/src/lib/query-keys.ts`, never inline.**
   Invalidation is prefix-based, so a literal in the wrong shape leaves a screen
   stale without failing anything.
-- **Request primitives come from `apps/api/src/lib/validation.ts`** —
-  `dayString`, `mealSlot`, `quantityG`, `idParam`. Don't retype the regex.
+- **Request primitives come from `@calorico/contracts`** — `dayString`,
+  `mealSlot`, `quantityG`, `idParam`, `newFoodInput`, `bodyMetrics`. Don't retype
+  the regex.
 - **`db` is a request-scoped proxy** with row-level security applied; `adminDb`
   bypasses it and is only correct for login, the Stripe webhook, the schedulers,
   migrations and seeds.

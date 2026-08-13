@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import type { FastifyPluginAsync } from 'fastify'
 import { and, asc, count, eq, gt, inArray, isNull } from 'drizzle-orm'
 import { z } from 'zod'
+import { idParam } from '@calorico/contracts'
 import { adminDb, db } from '../db/index.js'
 import {
   families,
@@ -18,7 +19,6 @@ import {
   movePrivateItemsIntoFamily,
   reclaimFamilyItems,
 } from '../lib/family.js'
-import { idParam } from '../lib/validation.js'
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 

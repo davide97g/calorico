@@ -7,24 +7,7 @@ Ordered by what would bite hardest.
 Everything here was verified against the code, not inferred. If you fix one,
 delete the entry.
 
-## 1. No shared contract between the API and the web app
-
-`apps/web/src/lib/types.ts` (613 lines) is a hand-written mirror of every
-response the API returns. Nothing checks that it is right: change a route's
-payload and the client compiles happily against a lie until a screen renders
-`undefined`.
-
-The routes already describe their **inputs** precisely in zod. The structural fix
-is to describe the outputs the same way and share them — a `packages/shared`
-workspace exporting the zod schemas, with the API inferring its response types
-from them and the web app inferring `types.ts` from them. That is the
-highest-value change left in the repo, and also the most invasive: it touches
-every route and every hook.
-
-A cheaper stopgap: a handful of response-shape assertions in the route tests, so
-a payload change fails a test instead of a screen.
-
-## 2. Files that have outgrown one file
+## 1. Files that have outgrown one file
 
 | File | Lines | What is tangled |
 | --- | --- | --- |
@@ -38,7 +21,7 @@ a payload change fails a test instead of a screen.
 None of these is broken; all of them make a targeted change harder than it should
 be. Split when you next have a reason to be in one of them, not as a sweep.
 
-## 3. `routes/stats.ts` casts raw SQL rows unchecked
+## 2. `routes/stats.ts` casts raw SQL rows unchecked
 
 Raw queries come back as `unknown` and are cast with
 `rowsOf<DailyRow>(result)` — a hand-written interface with snake_case fields that
@@ -50,7 +33,7 @@ currently protects this. Moving the query building into `lib/stats.ts` next to
 the arithmetic it feeds — and returning already-mapped camelCase rows — would
 make the cast a single, reviewable place.
 
-## 4. The web app has no tests above the helper level
+## 3. The web app has no tests above the helper level
 
 62 passing tests, all pure functions: date, format, food emoji, push eligibility.
 Untested: every hook, every optimistic update, every invalidation. `sumTotals`
@@ -58,9 +41,11 @@ and `groupByMeal` in `lib/nutrition.ts` exist precisely to keep an optimistic
 diary consistent with the server, and nothing checks that they still do.
 
 They are pure functions with plain inputs — the cheapest test to add in the
-repo, and the one that would catch a real class of bug.
+repo, and the one that would catch a real class of bug. Note that the response
+*shapes* they consume are covered from the other side, by
+`apps/api/src/routes/contract.test.ts`; what is missing is the arithmetic.
 
-## 5. Scaling still happens inline in three places
+## 4. Scaling still happens inline in three places
 
 `lib/nutrition.ts:scalePer100` is the shared path, and `food-detail` and
 `photo-review` use it. Still inline:
@@ -73,7 +58,7 @@ repo, and the one that would catch a real class of bug.
 
 Low risk, low reward. Worth doing the day a fourth caller appears.
 
-## 6. Exported types with no cross-module consumer
+## 5. Exported types with no cross-module consumer
 
 A dozen or so `export type`/`export interface` declarations are only used inside
 their own file (`ScoredFood`, `RankedScan`, `TickResult`, `PushFailure`,

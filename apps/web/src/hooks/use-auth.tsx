@@ -11,13 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/query-keys'
 import { api, getToken, setToken } from '@/lib/api'
 import { unregisterDevice } from '@/hooks/use-notifications'
-import type { AuthResponse, Profile, User } from '@/lib/types'
-
-interface MeResponse {
-  user: User
-  profile: Profile | null
-  needsOnboarding: boolean
-}
+import type { AuthResponse, MeResponse, Profile, User } from '@/lib/types'
 
 interface AuthContextValue {
   user: User | null

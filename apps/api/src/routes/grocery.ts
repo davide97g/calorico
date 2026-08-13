@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, asc, desc, eq, ne, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { idParam } from '@calorico/contracts'
 import { db } from '../db/index.js'
 import { foods, groceryItems, users } from '../db/schema.js'
 import {
@@ -9,7 +10,6 @@ import {
   resolveWriteFamilyId,
 } from '../lib/family.js'
 import { grocerySuggestions } from '../lib/history.js'
-import { idParam } from '../lib/validation.js'
 
 const quantity = z.number().int().min(1).max(999)
 

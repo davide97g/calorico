@@ -30,7 +30,9 @@ npm run dev:web                  # http://localhost:5173
 
 The Vite dev server proxies `/api` to the API, so the browser only ever talks to
 one origin — same as in production. The app is mounted at the site root; the two
-legal pages are static HTML in `apps/web/public/`.
+legal pages are static HTML in `apps/web/public/`. What the two apps promise each
+other — every request body and every response shape — lives in
+`packages/contracts`, and both take their types from it.
 
 ## Before you open a pull request
 

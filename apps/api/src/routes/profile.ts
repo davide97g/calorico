@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
+import { bodyMetrics, dayString } from '@calorico/contracts'
 import { adminDb, db } from '../db/index.js'
 import {
   families as familiesTable,
@@ -17,23 +18,6 @@ import {
 } from '../lib/nutrition.js'
 import { verifyPassword } from '../lib/password.js'
 import { exportPersonalData } from '../lib/data-export.js'
-import { dayString } from '../lib/validation.js'
-
-const bodyMetrics = z.object({
-  sex: z.enum(['male', 'female']),
-  birthDate: dayString,
-  heightCm: z.number().min(80).max(250),
-  weightKg: z.number().min(25).max(400),
-  activityLevel: z.enum([
-    'sedentary',
-    'light',
-    'moderate',
-    'active',
-    'very_active',
-  ]),
-  goal: z.enum(['lose', 'maintain', 'gain']),
-  targetWeightKg: z.number().min(25).max(400).optional(),
-})
 
 const deleteBody = z.object({
   password: z.string().min(1).max(200),

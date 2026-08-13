@@ -66,6 +66,7 @@ Food data comes from two sources:
 | Frontend | React 19, Vite, TypeScript, Tailwind v4, shadcn/ui, Recharts |
 | State    | TanStack Query, React Router                                  |
 | Backend  | Fastify 5, Drizzle ORM, Zod                                   |
+| Contract | `packages/contracts` — zod schemas both apps take their types from |
 | Database | Postgres 17 (`pg_trgm` + `unaccent`)                          |
 | Auth     | JWT bearer tokens, scrypt password hashing (no native deps)   |
 | Deploy   | Docker Compose behind Dokploy's Traefik                      |
@@ -597,6 +598,11 @@ each other; a stranger cannot read, rotate or leave someone else's family; a
 member who left stops receiving), token revocation, the login rate limit, account
 deletion and its cascades, and the photo allowance — including that a server with
 no Stripe keys refuses the checkout rather than quietly handing out Premium.
+
+One of them, `contract.test.ts`, is there for a different reason: it parses every
+response the app reads through the schemas in `packages/contracts`, which is where
+the web app's types come from. Without it, renaming a field would compile on both
+sides and surface as an empty figure on a screen.
 
 The reminder scheduler is in there too, and it needs the database for the same
 reason: "is it 13:00 for this user?" is a `now() at time zone profiles.timezone`

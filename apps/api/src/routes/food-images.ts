@@ -4,7 +4,7 @@ import { db } from '../db/index.js'
 import { foods } from '../db/schema.js'
 import { isFoodVisibleTo } from '../lib/food-visibility.js'
 import { listFoodImages, syncOffImages } from '../lib/food-images.js'
-import { idParam } from '../lib/validation.js'
+import { idParam } from '@calorico/contracts'
 
 /**
  * Photos of a food, all of them from Open Food Facts. Mounted under /api/foods,

@@ -25,10 +25,14 @@ worth a sentence — that is the sentence nobody can reconstruct later.
 - **One plugin per resource** in `src/routes`, mounted with a prefix in `app.ts`.
   Auth is a plugin-wide `app.addHook('onRequest', app.authenticate)`, so a new
   route in an existing file is authenticated by default.
-- **Parse at the boundary with zod**, then trust the value. Reuse the primitives
-  in `src/lib/validation.ts` (`dayString`, `mealSlot`, `quantityG`, `idParam`)
-  rather than re-typing a regex — two endpoints disagreeing about what a valid
-  day is, is a bug the types cannot catch.
+- **Parse at the boundary with zod**, then trust the value. The primitives and
+  the shared request bodies live in `@calorico/contracts` (`dayString`,
+  `mealSlot`, `quantityG`, `idParam`, `newFoodInput`, `bodyMetrics`) — two
+  endpoints disagreeing about what a valid day is, is a bug the types cannot
+  catch, and the client would not hear about it either.
+- **A response the web app reads belongs in the contract**, with an assertion in
+  `src/routes/contract.test.ts`. That test is the only thing that notices when a
+  payload and the client's idea of it part company.
 - **Errors are string codes**: `reply.code(404).send({ error: 'food_not_found' })`.
   The client maps the code to Italian copy in `lib/api.ts`; a message written on
   the server would be untranslated and unmappable. `ZodError` becomes a 400
@@ -46,6 +50,9 @@ worth a sentence — that is the sentence nobody can reconstruct later.
   paint).
 - **All server state goes through React Query**, via a hook in
   `src/hooks/use-*.ts`. Components do not call `api()` directly.
+- **Response types come from `@/lib/types`**, which re-exports
+  `@calorico/contracts`. Never hand-write a payload interface: put the field in
+  the contract and both sides get it.
 - **Query keys come from `lib/query-keys.ts`.** Never a literal.
 - **Mutations name what they invalidate.** If a mutation touches a day's totals,
   it belongs in `use-diary` behind `useInvalidateDiary`.
@@ -106,10 +113,13 @@ feat: the app eases itself in instead of opening on a blank screen
 The order that keeps the compiler useful:
 
 1. `src/db/schema.ts`, then `npm run db:generate`.
-2. Domain logic in `src/lib`, with a unit test beside it.
-3. The route, with zod primitives from `lib/validation.ts`.
-4. A route test using `src/test/harness.ts`.
-5. The response type in `apps/web/src/lib/types.ts` — nothing generates it.
-6. Keys in `lib/query-keys.ts`, then the hook in the matching `use-*` module.
-7. The screen.
-8. The full gate from [testing.md](testing.md), with `TEST_DATABASE_URL` set.
+2. The shapes in `packages/contracts` — the request schema the route will parse
+   with, and the response schema both sides will trust.
+3. Domain logic in `src/lib`, with a unit test beside it.
+4. The route, parsing with the contract's schemas.
+5. A route test using `src/test/harness.ts`, plus a line in
+   `src/routes/contract.test.ts` for the new payload.
+6. Export the type from `apps/web/src/lib/types.ts` — one line, re-exported.
+7. Keys in `lib/query-keys.ts`, then the hook in the matching `use-*` module.
+8. The screen.
+9. The full gate from [testing.md](testing.md), with `TEST_DATABASE_URL` set.

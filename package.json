@@ -4,14 +4,20 @@
   "version": "0.1.0",
   "description": "Calorie and macro tracker with Italian supermarket product data (Open Food Facts, ODbL)",
   "workspaces": [
+    "packages/*",
     "apps/*"
   ],
   "scripts": {
+    "contracts": "npm run build -w @calorico/contracts",
+    "predev": "npm run contracts",
     "dev": "npm run dev --workspaces --if-present",
     "dev:api": "npm run dev -w @calorico/api",
     "dev:web": "npm run dev -w @calorico/web",
+    "prebuild": "npm run contracts",
     "build": "npm run build -w @calorico/api && npm run build -w @calorico/web",
+    "pretypecheck": "npm run contracts",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "pretest": "npm run contracts",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "db:generate": "npm run db:generate -w @calorico/api",

@@ -1,13 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, asc, count, eq } from 'drizzle-orm'
 import { z } from 'zod'
+import { idParam, mealSlot } from '@calorico/contracts'
 import { adminDb, db } from '../db/index.js'
 import { profiles, pushSubscriptions, reminders } from '../db/schema.js'
 import { env } from '../env.js'
 import { pushConfigured } from '../lib/push/send.js'
 import { deliver } from '../lib/reminders/scheduler.js'
 import { EVERY_DAY, REMINDER_PRESETS } from '../lib/reminders/presets.js'
-import { idParam, mealSlot } from '../lib/validation.js'
 
 /**
  * Reminders and the devices they are delivered to.

@@ -1,11 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { dayString, idParam, mealSlot, quantityG } from '@calorico/contracts'
 import { db } from '../db/index.js'
 import { diaryEntries, foods, mealItems, meals } from '../db/schema.js'
 import { env } from '../env.js'
 import { scaleNutriments } from '../lib/nutrition.js'
-import { dayString, idParam, mealSlot, quantityG } from '../lib/validation.js'
 
 const itemBody = z.object({
   foodId: z.string().uuid(),

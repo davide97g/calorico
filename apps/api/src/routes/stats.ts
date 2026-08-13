@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { eq, sql as raw } from 'drizzle-orm'
 import { z } from 'zod'
+import { dayString } from '@calorico/contracts'
 import { db } from '../db/index.js'
 import { profiles, type Profile } from '../db/schema.js'
 import {
@@ -13,7 +14,6 @@ import {
   type WeighIn,
 } from '../lib/stats.js'
 import { roundKcal, roundMacro } from '../lib/nutrition.js'
-import { dayString } from '../lib/validation.js'
 
 /**
  * A phone asking for four years of days would be asking for a chart nobody can

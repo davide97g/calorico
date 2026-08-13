@@ -5,7 +5,11 @@ ENV npm_config_update_notifier=false
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY packages/contracts/package.json packages/contracts/
 RUN npm ci --workspace @calorico/web --include-workspace-root
+# The contract is compiled first: `tsc -b` types the app from its declarations.
+COPY packages/contracts packages/contracts
+RUN npm run build -w @calorico/contracts
 COPY apps/web apps/web
 # Empty VITE_API_URL keeps requests same-origin so nginx can proxy /api.
 ARG VITE_API_URL=""

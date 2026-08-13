@@ -1,9 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, asc, desc, eq, gte, lte } from 'drizzle-orm'
 import { z } from 'zod'
+import { dayString } from '@calorico/contracts'
 import { db } from '../db/index.js'
 import { profiles, weightLogs } from '../db/schema.js'
-import { dayString } from '../lib/validation.js'
 
 const upsertBody = z.object({
   day: dayString,
