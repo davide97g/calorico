@@ -4,7 +4,6 @@ import { PieChart, Scale, TrendingDown, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { TopBar } from '@/components/layout/top-bar'
-import { AddFoodAction } from '@/components/dashboard/add-food-action'
 import { DaySwitcher } from '@/components/dashboard/day-switcher'
 import { DiaryPanel } from '@/components/dashboard/diary-panel'
 import { IntakeHero } from '@/components/dashboard/intake-hero'
@@ -115,32 +114,9 @@ export default function TodayPage() {
               goal={profile?.goal}
             />
 
-            {/* Repeating a food comes before starting a search: it is what most
-                days are made of. */}
-            <QuickLog day={day} />
-
-            <AddFoodAction day={day} />
-
-            <Panel>
-              <PanelHeader
-                icon={<PieChart />}
-                title="Ancora da assumere"
-                to={`/stats?tab=day&day=${day}`}
-              />
-              <div className="mt-4">
-                <MacroTriple
-                  carbs={{ value: totals.carbsG, target: targets.carbsG }}
-                  fat={{ value: totals.fatG, target: targets.fatG }}
-                  protein={{ value: totals.proteinG, target: targets.proteinG }}
-                />
-              </div>
-            </Panel>
-
-            {/* Today against the week it sits in: the dashboard's own way in to
-                the analysis, above the diary because a trend is read more often
-                than a past entry is edited. */}
-            <TrendPanel />
-
+            {/* What the budget above is made of, right under it: the diary
+                answers "where did those kcal go" before anything else on the
+                screen gets a turn. */}
             <DiaryPanel
               day={day}
               byMeal={data.byMeal}
@@ -161,6 +137,31 @@ export default function TodayPage() {
               }
               copying={copyDay.isPending}
             />
+
+            {/* Repeating a food is what most days are made of, so it stays on
+                the dashboard. Searching and scanning do not: the Log button in
+                the tab bar is the one way in to a food the app has not seen
+                this user eat before. */}
+            <QuickLog day={day} />
+
+            <Panel>
+              <PanelHeader
+                icon={<PieChart />}
+                title="Ancora da assumere"
+                to={`/stats?tab=day&day=${day}`}
+              />
+              <div className="mt-4">
+                <MacroTriple
+                  carbs={{ value: totals.carbsG, target: targets.carbsG }}
+                  fat={{ value: totals.fatG, target: targets.fatG }}
+                  protein={{ value: totals.proteinG, target: targets.proteinG }}
+                />
+              </div>
+            </Panel>
+
+            {/* Today against the week it sits in: the dashboard's own way in to
+                the analysis. */}
+            <TrendPanel />
 
             <WeightPanel weight={weight} goal={profile?.goal} />
           </>
