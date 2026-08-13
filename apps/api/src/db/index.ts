@@ -10,7 +10,16 @@ const poolOptions: postgres.Options<{}> = {
   // "already exists, skipping" on every boot is noise, not information.
   onnotice: (notice) => {
     const code = (notice as { code?: string }).code
-    if (code === '42710' || code === '42P07' || code === '25P01') return
+    // 42701 is the guarded ADD COLUMN in 0014_resync_snapshot, which is a no-op
+    // by design and would otherwise report itself four times per boot.
+    if (
+      code === '42710' ||
+      code === '42P07' ||
+      code === '25P01' ||
+      code === '42701'
+    ) {
+      return
+    }
     console.warn(`[pg] ${(notice as { message?: string }).message ?? notice}`)
   },
 }

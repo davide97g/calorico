@@ -45,8 +45,8 @@ straight from `main`.
   first, round once.
 - **Missing configuration means "feature off", not "crash".** A clone with only
   `DATABASE_URL` and `JWT_SECRET` must boot and work.
-- **`npm run db:generate` currently emits a bogus migration** — see
-  [docs/tech-debt.md](docs/tech-debt.md) item 1 before you trust it.
+- **A hand-written migration needs a snapshot too**, or `db:generate` starts
+  re-emitting it. See the note in [docs/conventions.md](docs/conventions.md).
 
 ## Conventions in one line each
 

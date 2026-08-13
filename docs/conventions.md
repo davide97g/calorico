@@ -75,6 +75,21 @@ Policies and roles that Drizzle does not model (RLS, `calorico_app`) live in
 hand-written migrations — `0012_gdpr_consent_and_rls.sql` is the pattern to
 follow. Migrations run on boot, so they must be idempotent and safe to re-apply.
 
+**A hand-written migration that changes the schema needs a snapshot too.**
+drizzle-kit only writes one for the migrations it generates, and every future
+diff is measured against the newest snapshot — so a hand-written `ADD COLUMN`
+with no snapshot makes `db:generate` emit that column again, forever. That is how
+the chain drifted two migrations out of line before `0014_resync_snapshot.sql`
+pulled it back; read that file before writing SQL by hand. Changes Drizzle cannot
+model at all — policies, roles, grants — are safe to hand-write, because there is
+nothing in `schema.ts` for a diff to disagree with.
+
+After any migration work, check the chain is quiet:
+
+```bash
+npm run db:generate   # must print "No schema changes, nothing to migrate"
+```
+
 ## Commits
 
 Conventional prefixes (`feat:`, `fix:`, `chore:`), subject in the imperative,

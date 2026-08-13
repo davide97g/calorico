@@ -7,31 +7,7 @@ Ordered by what would bite hardest.
 Everything here was verified against the code, not inferred. If you fix one,
 delete the entry.
 
-## 1. `npm run db:generate` emits a bogus migration
-
-`drizzle/meta/` holds snapshots up to `0011_snapshot.json`, but the migration
-chain runs to `0013`. `0012_gdpr_consent_and_rls.sql` and `0013_rls_family_ids.sql`
-were hand-written and never snapshotted, so drizzle-kit's idea of the schema is
-two migrations behind the database.
-
-Run `db:generate` today and it happily produces:
-
-```sql
-ALTER TABLE "users" ADD COLUMN "health_consent_at" timestamp with time zone;
-ALTER TABLE "users" ADD COLUMN "privacy_version" text;
-...
-```
-
-— columns that already exist. Applying that on a live database fails; committing
-it puts a landmine in the chain.
-
-**Until it is fixed:** read every generated migration before committing it, and
-delete the statements that re-add existing columns. **The fix** is to bring the
-snapshot chain back in line with the real schema (regenerate `0012`/`0013`
-snapshots to match what the hand-written SQL did), or to decide that migrations
-are hand-written from here on and drop `db:generate` from the scripts.
-
-## 2. No shared contract between the API and the web app
+## 1. No shared contract between the API and the web app
 
 `apps/web/src/lib/types.ts` (613 lines) is a hand-written mirror of every
 response the API returns. Nothing checks that it is right: change a route's
@@ -48,7 +24,7 @@ every route and every hook.
 A cheaper stopgap: a handful of response-shape assertions in the route tests, so
 a payload change fails a test instead of a screen.
 
-## 3. Files that have outgrown one file
+## 2. Files that have outgrown one file
 
 | File | Lines | What is tangled |
 | --- | --- | --- |
@@ -62,7 +38,7 @@ a payload change fails a test instead of a screen.
 None of these is broken; all of them make a targeted change harder than it should
 be. Split when you next have a reason to be in one of them, not as a sweep.
 
-## 4. `routes/stats.ts` casts raw SQL rows unchecked
+## 3. `routes/stats.ts` casts raw SQL rows unchecked
 
 Raw queries come back as `unknown` and are cast with
 `rowsOf<DailyRow>(result)` — a hand-written interface with snake_case fields that
@@ -74,7 +50,7 @@ currently protects this. Moving the query building into `lib/stats.ts` next to
 the arithmetic it feeds — and returning already-mapped camelCase rows — would
 make the cast a single, reviewable place.
 
-## 5. The web app has no tests above the helper level
+## 4. The web app has no tests above the helper level
 
 62 passing tests, all pure functions: date, format, food emoji, push eligibility.
 Untested: every hook, every optimistic update, every invalidation. `sumTotals`
@@ -84,7 +60,7 @@ diary consistent with the server, and nothing checks that they still do.
 They are pure functions with plain inputs — the cheapest test to add in the
 repo, and the one that would catch a real class of bug.
 
-## 6. Scaling still happens inline in three places
+## 5. Scaling still happens inline in three places
 
 `lib/nutrition.ts:scalePer100` is the shared path, and `food-detail` and
 `photo-review` use it. Still inline:
@@ -97,7 +73,7 @@ repo, and the one that would catch a real class of bug.
 
 Low risk, low reward. Worth doing the day a fourth caller appears.
 
-## 7. Exported types with no cross-module consumer
+## 6. Exported types with no cross-module consumer
 
 A dozen or so `export type`/`export interface` declarations are only used inside
 their own file (`ScoredFood`, `RankedScan`, `TickResult`, `PushFailure`,
