@@ -6,6 +6,7 @@ import { AppShell } from '@/components/layout/app-shell'
 import { MacroDonut } from '@/components/charts/macro-donut'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { FoodGallery } from '@/components/food/food-gallery'
+import { BarcodeStrip } from '@/components/food/barcode-strip'
 import { PortionChips, portionOptions } from '@/components/food/portion-chips'
 import { HistoryBadge } from '@/components/food/history-badge'
 import { Panel, PanelHeader } from '@/components/ui/panel'
@@ -163,6 +164,9 @@ export default function FoodDetailPage() {
           </span>
           <ChevronRight className="text-muted-foreground size-4" />
         </Link>
+        {/* Scanned foods carry their code, so the page can give it back:
+            tapping the strip blows it up for someone else's camera. */}
+        <BarcodeStrip barcode={food.barcode} name={food.name} className="mt-2" />
       </Panel>
 
       <Panel className="mt-3">
