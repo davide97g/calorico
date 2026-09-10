@@ -5,6 +5,7 @@ import { idParam, mealSlot, newFoodInput } from '@calorico/contracts'
 import { db } from '../db/index.js'
 import { favorites, foods, type Food, type NewFood } from '../db/schema.js'
 import { fetchByBarcode, searchOff } from '../lib/off.js'
+import { fetchTosanoByBarcode, searchTosano } from '../lib/tosano.js'
 import { recordScan } from '../lib/scan-log.js'
 import { recordFoodTouch } from '../lib/food-touch.js'
 import { cacheFoods } from '../lib/food-cache.js'
@@ -48,14 +49,24 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
     // ranking rules apply to the newcomers too. Unless the catalogue already
     // has the plain food that was asked for — see hasConfidentGenericMatch.
     if (!local && results.length < 8 && !hasConfidentGenericMatch(results, term)) {
+      let remote: NewFood[] = []
       try {
-        const remote = await searchOff(term, limit)
-        if (remote.length > 0) {
-          await cacheFoods(remote)
-          results = await searchLocalFoods(term, limit, request.user.sub)
-        }
+        remote = await searchOff(term, limit)
       } catch (err) {
         request.log.warn({ err }, 'OFF search failed, serving local results')
+      }
+      // Still nothing? The supermarket knows which products exist even when
+      // the crowd has not catalogued them — see lib/tosano.ts.
+      if (remote.length === 0) {
+        try {
+          remote = await searchTosano(term, limit)
+        } catch (err) {
+          request.log.warn({ err }, 'Tosano search failed')
+        }
+      }
+      if (remote.length > 0) {
+        await cacheFoods(remote)
+        results = await searchLocalFoods(term, limit, request.user.sub)
       }
     }
 
@@ -103,13 +114,27 @@ export const foodRoutes: FastifyPluginAsync = async (app) => {
     }
 
     let mapped: NewFood | null = null
+    let offDown = false
     try {
       mapped = await fetchByBarcode(code)
     } catch (err) {
       request.log.warn({ err, code }, 'OFF barcode lookup failed')
-      return reply.code(502).send({ error: 'off_unavailable' })
+      offDown = true
     }
-    if (!mapped) return reply.code(404).send({ error: 'product_not_found' })
+    // Open Food Facts silent or ignorant: ask the supermarket, which sells the
+    // pack and prints its label table. See lib/tosano.ts.
+    if (!mapped) {
+      try {
+        mapped = await fetchTosanoByBarcode(code)
+      } catch (err) {
+        request.log.warn({ err, code }, 'Tosano barcode lookup failed')
+      }
+    }
+    if (!mapped) {
+      return offDown
+        ? reply.code(502).send({ error: 'off_unavailable' })
+        : reply.code(404).send({ error: 'product_not_found' })
+    }
 
     const [saved] = await cacheFoods([mapped])
     if (saved) await logScan(saved)

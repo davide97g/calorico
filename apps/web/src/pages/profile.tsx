@@ -559,7 +559,18 @@ export default function ProfilePage() {
           >
             ANSES-CIQUAL 2020
           </a>
-          .
+          . Quando un prodotto non è su Open Food Facts, i valori arrivano
+          dall'etichetta pubblicata da{' '}
+          <a
+            href="https://www.latuaspesa.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground underline"
+          >
+            Tosano
+          </a>
+          : quelle schede sono contrassegnate dal suo logo. Marchio e dati
+          appartengono a Tosano Cerea S.p.A.
         </p>
       </Panel>
 

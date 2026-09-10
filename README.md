@@ -748,6 +748,9 @@ Worth knowing:
 | `TEST_DATABASE_URL` | —                            | Only read by the test run; unset skips the database suites |
 | `OFF_BASE_URL`    | `https://world.openfoodfacts.org` | Barcode lookups                           |
 | `OFF_SEARCH_URL`  | `https://search.openfoodfacts.org` | Text search (the v2 search endpoint is mostly 503) |
+| `TOSANO_ENABLED`  | `false`                        | The supermarket fallback for barcodes and searches Open Food Facts cannot answer. Off unless set to `true` |
+| `TOSANO_BASE_URL` | `https://www.latuaspesa.com`   | Its frontend API; no token, no session   |
+| `TOSANO_SEARCH_DETAILS` | `6`                      | Search hits that get the second call carrying their label table |
 
 ## Data model notes
 

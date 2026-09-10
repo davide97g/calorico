@@ -3,6 +3,7 @@ import { ArrowLeft, Barcode, Package, Sparkles } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
 import { BarcodeStrip } from '@/components/food/barcode-strip'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
+import { TosanoMark } from '@/components/food/tosano-mark'
 import { FoodGallery } from '@/components/food/food-gallery'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
@@ -25,7 +26,7 @@ export default function FoodInfoPage() {
     )
   }
 
-  const source = food.source === 'off' ? 'Open Food Facts' : food.source === 'generic' ? 'Tabelle di composizione' : 'Alimento personale'
+  const source = food.source === 'off' ? 'Open Food Facts' : food.source === 'generic' ? 'Tabelle di composizione' : food.source === 'tosano' ? 'Etichetta Tosano' : 'Alimento personale'
   const nutrients: Array<[string, string | null]> = [
     ['Energia', `${kcal(food.kcal100)} kcal`],
     ['Grassi', value(food.fat100)],
@@ -50,7 +51,10 @@ export default function FoodInfoPage() {
           <FoodEmojiTile name={food.name} category={food.category} size="lg" />
           <div className="min-w-0">
             <p className="text-primary-strong text-micro font-bold tracking-wide uppercase">Scheda alimento</p>
-            <h1 className="mt-1 text-xl leading-tight font-bold tracking-tight">{food.name}</h1>
+            <div className="mt-1 flex items-center gap-2">
+              <h1 className="text-xl leading-tight font-bold tracking-tight">{food.name}</h1>
+              {food.source === 'tosano' ? <TosanoMark className="h-4" /> : null}
+            </div>
             <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
               {food.category ?? 'Alimento'}{food.brand ? ` · ${food.brand}` : ''}
             </p>

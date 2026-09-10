@@ -89,12 +89,31 @@ Three different rules, each centralised, none of them to be re-derived inline:
   every family the user belongs to; a write needs one target, resolved by
   `resolveWriteFamilyId`.
 
+### Where a food comes from
+
+`foods.source` records it, and the lookup order is fixed:
+
+1. the local table, which is also the cache for everything below;
+2. **Open Food Facts** (`lib/off.ts`) — `off`, the packaged half of the
+   catalogue, plus `generic` rows built from composition tables by
+   `scripts/build-generic-catalogue.ts`;
+3. **Tosano** (`lib/tosano.ts`) — `tosano`, the supermarket's own label table,
+   reached only when OFF answers nothing. Its listing carries no nutrition, so
+   a hit costs a second call on the product's slug, and roughly three products
+   in four have no table there either. Those fall back to an OFF lookup on the
+   barcode Tosano supplied, and the row they produce says `off`: the source is
+   wherever the numbers came from, not whoever found the product.
+
+The web app prints the Tosano mark next to a `tosano` row
+(`components/food/tosano-mark.tsx`) — the only source it names in a list.
+
 ### Things that are off by default
 
 `env.ts` treats missing configuration as "feature absent", not "error": no
 `SENTRY_DSN` means no Sentry, no `VISION_*` means the photo flow answers 503 and
 the UI hides the button, no Stripe keys means the paywall stays hidden, no VAPID
-pair means reminders are unavailable. Keep that property — a fresh clone with
+pair means reminders are unavailable, `TOSANO_ENABLED` unset means searches and
+barcodes stop at Open Food Facts. Keep that property — a fresh clone with
 only `DATABASE_URL` and `JWT_SECRET` has to boot and work.
 
 ## packages/contracts
