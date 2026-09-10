@@ -41,6 +41,28 @@ const schema = z.object({
     .transform((v) => v !== 'false'),
 
   /**
+   * Tosano (latuaspesa.com), the fallback for everything Open Food Facts does
+   * not know. Its own frontend API answers plain requests — no token, no
+   * cookie, prices are the only thing a session unlocks and we never ask for
+   * them. Off unless switched on: it is one Italian chain's catalogue scraped
+   * for personal use, not a public data source. See lib/tosano.ts.
+   */
+  TOSANO_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+  TOSANO_BASE_URL: z.string().default('https://www.latuaspesa.com'),
+  TOSANO_USER_AGENT: z
+    .string()
+    .default('Calorico/0.1 (personal project; contact: you@example.com)'),
+  /**
+   * How many search hits get the second call that carries their nutrition
+   * table. Every one of them is a round trip on a screen someone is waiting
+   * on, and only about a quarter of products have the table at all.
+   */
+  TOSANO_SEARCH_DETAILS: z.coerce.number().int().min(1).max(20).default(6),
+
+  /**
    * Error tracking. Unset means Sentry is never initialised and nothing leaves
    * the box — the same all-or-nothing gate the features below use.
    */

@@ -30,7 +30,7 @@ export type ActivityLevel = z.infer<typeof activityLevel>
 export const goal = z.enum(['lose', 'maintain', 'gain'])
 export type Goal = z.infer<typeof goal>
 
-export const foodSource = z.enum(['off', 'generic', 'custom'])
+export const foodSource = z.enum(['off', 'generic', 'custom', 'tosano'])
 export type FoodSource = z.infer<typeof foodSource>
 
 /** Every shot comes from Open Food Facts; users cannot add their own. */

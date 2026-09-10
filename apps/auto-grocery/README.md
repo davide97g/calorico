@@ -92,6 +92,10 @@ Measured over 800 products from four food categories: **100% carry a barcode**
 against Open Food Facts, which the API already imports — the barcode is the
 join key, and `docs/context.md` explains where it lands.
 
+The API side of that is now live: `apps/api/src/lib/tosano.ts` reads the same
+endpoints when Open Food Facts cannot answer a barcode or a search, behind
+`TOSANO_ENABLED`.
+
 Nutrition per 100 g comes straight from the API in
 `metaData.product_description.nutritional_values`, but only for **roughly a
 quarter of products** (4 of 15 in a breakfast-aisle sample), as a hand-typed

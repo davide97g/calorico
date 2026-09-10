@@ -28,6 +28,7 @@ export const foodSourceEnum = pgEnum('food_source', [
   'off', // Open Food Facts (packaged / branded)
   'generic', // composition tables (raw & cooked foods)
   'custom', // created by a user
+  'tosano', // the supermarket's own label table, when OFF has never heard of it
 ])
 /**
  * Every shot comes from Open Food Facts. Users used to be able to add their own,

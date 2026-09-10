@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { BarcodeButton } from '@/components/food/barcode-strip'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
+import { TosanoMark } from '@/components/food/tosano-mark'
 import { UserAvatar } from '@/components/user-avatar'
 import { kcal } from '@/lib/format'
 import type { Food, PersonRef } from '@/lib/types'
@@ -34,7 +35,12 @@ export function FoodRow({
         <FoodEmojiTile name={food.name} category={food.category} />
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">{food.name}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-sm font-medium">{food.name}</span>
+            {/* A search can reach past Open Food Facts into the supermarket's
+                catalogue; when it did, the row credits it. */}
+            {food.source === 'tosano' ? <TosanoMark /> : null}
+          </span>
           <span className="text-muted-foreground block truncate text-xs">
             {/* Unpackaged food has no brand to show, and saying so is the point:
                 it tells someone hunting for a peach that this row is the fruit
