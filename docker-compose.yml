@@ -38,6 +38,12 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-https://calorico.example.com}
       OFF_USER_AGENT: '${OFF_USER_AGENT:-Calorico/0.1 (personal; contact you@example.com)}'
       OFF_ENABLED: ${OFF_ENABLED:-true}
+      # The supermarket fallback for a barcode or a search Open Food Facts
+      # cannot answer. Unset means it is never called.
+      TOSANO_ENABLED: ${TOSANO_ENABLED:-false}
+      TOSANO_BASE_URL: ${TOSANO_BASE_URL:-https://www.latuaspesa.com}
+      TOSANO_USER_AGENT: '${TOSANO_USER_AGENT:-Calorico/0.1 (personal; contact you@example.com)}'
+      TOSANO_SEARCH_DETAILS: ${TOSANO_SEARCH_DETAILS:-6}
       # Error tracking. Leave unset and Sentry is never initialised.
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
