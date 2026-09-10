@@ -28,6 +28,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # `api` is not a name this host can keep to itself: every Dokploy compose
+    # app publishes its own service names as aliases, several of them on the
+    # shared dokploy-network, and the web container is on that network too. A
+    # lookup of plain `api` from there can hand back another project's
+    # container — nginx then proxies to something that does not listen on 3001
+    # and the whole API answers 502. Everything internal addresses this name.
+    networks:
+      default:
+        aliases:
+          - calorico-api
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -77,7 +87,7 @@ services:
       # Where the API reads /version.json to spot a new deploy and notify the
       # devices still on the old build. The service name on the internal network,
       # not the public URL: it never leaves the compose network.
-      WEB_ORIGIN: ${WEB_ORIGIN:-http://web}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://calorico-web}
       RELEASE_NOTICE_DELAY_MINUTES: ${RELEASE_NOTICE_DELAY_MINUTES:-10}
     expose:
       - '3001'
@@ -114,8 +124,12 @@ services:
     networks:
       # Dokploy's Traefik lives on this external network; without it the domain
       # router can never reach the container (symptom: Traefik default cert, 404).
-      - dokploy-network
-      - default
+      dokploy-network:
+      default:
+        # Same collision as the api service above: `web` is claimed by four
+        # projects on this host.
+        aliases:
+          - calorico-web
 
 networks:
   dokploy-network:
