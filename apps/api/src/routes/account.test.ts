@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { beforeAll, beforeEach, afterAll, describe, expect, it } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
+import { PRIVACY_VERSION } from '../lib/privacy.js'
 import { diaryEntries, foods, families, users } from '../db/schema.js'
 import {
   auth,
@@ -221,7 +222,7 @@ describe.skipIf(!hasDb)('account and premium', () => {
         customFoods: { name: string }[]
       }
       expect(body.account.email).toBe(alice.email)
-      expect(body.account.privacyVersion).toBe('1.1')
+      expect(body.account.privacyVersion).toBe(PRIVACY_VERSION)
       expect(body.diary.map((e) => e.nameSnapshot)).toContain('Torta della nonna')
       expect(body.customFoods.map((f) => f.name)).toContain('Torta della nonna')
       expect(body.diary).toHaveLength(1)

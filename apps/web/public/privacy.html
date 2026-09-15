@@ -46,7 +46,7 @@
     <main class="wrap legal">
       <h1>Informativa sulla privacy</h1>
       <p class="updated">
-        Ultimo aggiornamento: 12 agosto 2026 · Versione 1.1
+        Ultimo aggiornamento: 15 settembre 2026 · Versione 1.2
       </p>
 
       <p>
@@ -281,12 +281,13 @@
               <th scope="row">Hosting del server</th>
               <td>
                 Tutti i dati dell'applicazione, che risiedono sul server e nel
-                database Postgres gestiti dal titolare su un VPS in Unione
-                Europea, orchestrato con Dokploy. Il fornitore
-                dell'infrastruttura agisce come responsabile del trattamento
-                (art. 28 GDPR).
+                database Postgres gestiti dal titolare su una macchina di sua
+                proprietà in Italia, orchestrata con Dokploy. Non c'è un
+                fornitore di hosting; l'app è raggiungibile tramite un tunnel
+                Cloudflare, che termina la connessione cifrata e agisce come
+                responsabile del trattamento (art. 28 GDPR).
               </td>
-              <td>Unione Europea</td>
+              <td>Italia; transito da Cloudflare (§6)</td>
             </tr>
             <tr>
               <th scope="row">Fornitore del modello di visione</th>
@@ -341,8 +342,18 @@
 
       <h2 id="trasferimenti">6. Trasferimenti fuori dall'Unione Europea</h2>
       <p>
-        Il server, il database e tutti i dati del diario restano all'interno
-        dell'Unione Europea.
+        Il server, il database e tutti i dati del diario restano in Italia, su
+        una macchina del titolare.
+      </p>
+      <p>
+        Il traffico fra il browser e quel server passa però dalla rete di
+        <strong>Cloudflare, Inc.</strong> (Stati Uniti), che termina la
+        connessione cifrata e inoltra le richieste attraverso un tunnel: nel
+        farlo vede i dati in transito, compresi quelli del diario. Il
+        trasferimento avviene sulla base delle Clausole Contrattuali Tipo
+        approvate dalla Commissione europea (decisione 2021/914) e della
+        certificazione al EU-U.S. Data Privacy Framework. Cloudflare non
+        conserva i dati dell'applicazione: li trasporta.
       </p>
       <p>
         Quando l'analisi dei pasti da foto è attiva, l'immagine è inviata al
