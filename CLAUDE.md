@@ -25,8 +25,9 @@ npm run typecheck && npm run lint && npm test && npm run build
 `apps/api/src/routes` or `apps/api/src/db`, run them for real —
 [docs/testing.md](docs/testing.md) has the two-line Docker recipe.
 
-CI is the only gate between a push to `main` and production: Dokploy deploys
-straight from `main`.
+CI is the only gate between a push to `main` and production, and also what opens
+it: Dokploy's own auto-deploy is off, and the `deploy` job in
+`.github/workflows/ci.yml` calls Dokploy once the checks are green.
 
 ## Rules that are easy to break silently
 

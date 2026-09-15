@@ -225,6 +225,19 @@ Notes on the join:
    whose email and password are printed in this README — fine on a laptop,
    an open door on a public deployment.
 
+6. Turn **Auto Deploy** off in Dokploy and let CI deploy instead. The `deploy`
+   job in `.github/workflows/ci.yml` runs after the checks on a push to `main`,
+   calls `compose.deploy` and waits for the result; it reads three repository
+   secrets, `DOKPLOY_URL`, `DOKPLOY_API_KEY` and `DOKPLOY_COMPOSE_ID`. With auto
+   deploy left on, Dokploy would deploy the push before the checks had finished.
+
+   If Dokploy sits on a private network, publish it on a hostname whose path
+   rule allows `api/compose\.(deploy|one)` and nothing else, so the tunnel
+   exposes the two endpoints CI needs rather than the whole admin API. Put
+   Cloudflare Access in front of it and the job will send the service token too,
+   from `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`; leave those secrets
+   unset and it sends nothing.
+
 `docker-compose.yml` keeps Postgres data in the named volume `calorico_pgdata` —
 add it to Dokploy's backup schedule and rotate both database backups and
 container logs within **30 days**, which is what the privacy notice states. If
@@ -614,8 +627,9 @@ the grace window, the weekday filter, a released claim after a failed delivery, 
 dead subscription being dropped, and a zone that is not the server's.
 
 `.github/workflows/ci.yml` runs typecheck, lint, tests and a production build on
-every push and pull request, with Postgres as a service container. Since Dokploy
-deploys from `main`, that workflow is the only gate in front of production.
+every push and pull request, with Postgres as a service container. On `main` a
+`deploy` job follows the checks and asks Dokploy to deploy, so that workflow is
+both the only gate in front of production and the only thing that opens it.
 
 ## PWA and updates
 

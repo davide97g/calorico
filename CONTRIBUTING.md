@@ -36,8 +36,8 @@ other — every request body and every response shape — lives in
 
 ## Before you open a pull request
 
-Run what CI runs. It is the only gate between `main` and production, because
-Dokploy deploys straight from `main`:
+Run what CI runs. It is the only gate between `main` and production, and what
+asks Dokploy to deploy once it is green:
 
 ```bash
 npm run typecheck

@@ -1,6 +1,6 @@
 <!--
-Dokploy deploys straight from main, so a merged pull request is a production
-deploy. CI is the only gate. Please make sure it is green before asking for a
+A merged pull request is a production deploy: green CI on main is what triggers
+it. CI is the only gate. Please make sure it is green before asking for a
 review.
 -->
 

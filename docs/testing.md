@@ -76,5 +76,5 @@ npm test            # plus TEST_DATABASE_URL if you touched routes or the schema
 npm run build       # catches what only breaks in production mode
 ```
 
-Those four are exactly what `.github/workflows/ci.yml` runs, and Dokploy deploys
-straight from `main`.
+Those four are exactly what `.github/workflows/ci.yml` runs, and a green run on
+`main` is what deploys: the workflow's `deploy` job asks Dokploy for it.

@@ -1,11 +1,18 @@
 name: CI
 
-# Dokploy deploys straight from main, so this is the only gate between a push and
-# production. It has to be the same checks a developer runs locally, no more.
+# Nothing deploys itself: Dokploy's own auto-deploy is off, and the deploy job
+# below is what puts main in production. So this is the only gate between a push
+# and production, and it has to be the same checks a developer runs locally.
 on:
   push:
     branches: [main]
   pull_request:
+
+# Two pushes in quick succession would otherwise deploy out of order. Queue them
+# instead of cancelling: a cancelled run leaves main green but undeployed.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   check:
@@ -51,3 +58,69 @@ jobs:
       # Catches a build that only breaks in production mode — a bad import in a
       # Vite plugin, a type-only export that survives tsc but not the bundler.
       - run: npm run build
+
+  deploy:
+    # Only a real push to main reaches production — never a pull request, never a
+    # branch. Dokploy is reached over the Cloudflare tunnel, behind an Access
+    # application: the service token gets the request past Cloudflare's edge, the
+    # API key past Dokploy. Both live in the repository secrets and nowhere else.
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    env:
+      DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+      DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+      DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+
+    steps:
+      # The compose status alone cannot say whether a deploy has started yet: it
+      # still reads "done" from the previous one for the first few seconds. The
+      # id of the newest deployment is what tells this run apart from the last.
+      - name: Note the current deployment
+        run: |
+          echo "before=$(curl -fsS --max-time 30 \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
+            -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+            "$DOKPLOY_URL/api/compose.one?composeId=$DOKPLOY_COMPOSE_ID" |
+            python3 -c 'import json,sys; d=json.load(sys.stdin)["deployments"]; print(d[0]["deploymentId"] if d else "")')" >> "$GITHUB_ENV"
+
+      - name: Trigger the Dokploy deploy
+        run: |
+          curl -fsS --max-time 60 -X POST \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
+            -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+            -H 'content-type: application/json' \
+            -d "{\"composeId\":\"$DOKPLOY_COMPOSE_ID\"}" \
+            "$DOKPLOY_URL/api/compose.deploy"
+
+      # The trigger only queues the build. Without this wait a red deploy still
+      # shows a green workflow, which is the one thing this job exists to stop.
+      - name: Wait for the deploy to finish
+        run: |
+          for _ in $(seq 1 120); do
+            sleep 15
+            latest="$(curl -fsS --max-time 30 \
+              -H "x-api-key: $DOKPLOY_API_KEY" \
+              -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
+              -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+              "$DOKPLOY_URL/api/compose.one?composeId=$DOKPLOY_COMPOSE_ID" |
+              python3 -c 'import json,sys; d=json.load(sys.stdin)["deployments"]; print(d[0]["deploymentId"], d[0]["status"]) if d else print("none idle")')"
+            id="${latest%% *}"
+            status="${latest##* }"
+            if [ "$id" = "$before" ]; then
+              echo "waiting for Dokploy to pick up the deploy"
+              continue
+            fi
+            echo "deployment $id: $status"
+            case "$status" in
+              done) exit 0 ;;
+              error) echo "::error::Dokploy reported a failed deploy"; exit 1 ;;
+            esac
+          done
+          echo "::error::deploy still running after 30 minutes"
+          exit 1
