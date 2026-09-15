@@ -238,6 +238,14 @@ Notes on the join:
    from `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`; leave those secrets
    unset and it sends nothing.
 
+Restoring a dump into a fresh volume needs the privileges as well as the data.
+`pg_restore --no-privileges` drops the grants that `0012_gdpr_consent_and_rls.sql`
+gave `calorico_app`, and because the restored database already carries the
+migration journal, the API's boot-time migration will not put them back: login
+still works (it runs as the owner) and every request that touches
+`SET ROLE calorico_app` answers 500. Restore with privileges, or re-run the
+`GRANT` statements from that migration afterwards.
+
 `docker-compose.yml` keeps Postgres data in the named volume `calorico_pgdata` —
 add it to Dokploy's backup schedule and rotate both database backups and
 container logs within **30 days**, which is what the privacy notice states. If

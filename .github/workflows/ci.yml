@@ -78,7 +78,8 @@ jobs:
     steps:
       # The compose status alone cannot say whether a deploy has started yet: it
       # still reads "done" from the previous one for the first few seconds. The
-      # id of the newest deployment is what tells this run apart from the last.
+      # id of the newest deployment is what tells this run apart from the last —
+      # newest by createdAt, because Dokploy returns the list oldest first.
       - name: Note the current deployment
         run: |
           echo "before=$(curl -fsS --max-time 30 \
@@ -86,7 +87,7 @@ jobs:
             -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
             -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
             "$DOKPLOY_URL/api/compose.one?composeId=$DOKPLOY_COMPOSE_ID" |
-            python3 -c 'import json,sys; d=json.load(sys.stdin)["deployments"]; print(d[0]["deploymentId"] if d else "")')" >> "$GITHUB_ENV"
+            python3 -c 'import json,sys; d=sorted(json.load(sys.stdin)["deployments"], key=lambda x: x["createdAt"]); print(d[-1]["deploymentId"] if d else "")')" >> "$GITHUB_ENV"
 
       - name: Trigger the Dokploy deploy
         run: |
@@ -109,7 +110,7 @@ jobs:
               -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
               -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
               "$DOKPLOY_URL/api/compose.one?composeId=$DOKPLOY_COMPOSE_ID" |
-              python3 -c 'import json,sys; d=json.load(sys.stdin)["deployments"]; print(d[0]["deploymentId"], d[0]["status"]) if d else print("none idle")')"
+              python3 -c 'import json,sys; d=sorted(json.load(sys.stdin)["deployments"], key=lambda x: x["createdAt"]); print(d[-1]["deploymentId"], d[-1]["status"]) if d else print("none idle")')"
             id="${latest%% *}"
             status="${latest##* }"
             if [ "$id" = "$before" ]; then
