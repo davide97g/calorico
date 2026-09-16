@@ -21,6 +21,7 @@
     "build:catalogue": "tsx src/scripts/build-generic-catalogue.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1133.0",
     "@calorico/contracts": "*",
     "@fastify/cors": "^11.3.0",
     "@fastify/helmet": "^13.1.0",

@@ -1,5 +1,12 @@
 import { z } from 'zod'
-import { personRef, scanKind, timestamp } from './primitives.js'
+import {
+  groceryCategory,
+  grocerySource,
+  groceryUnit,
+  personRef,
+  scanKind,
+  timestamp,
+} from './primitives.js'
 
 /**
  * The shared surfaces: a grocery list and a scan feed, both of which can belong
@@ -17,6 +24,17 @@ export const groceryItem = z.object({
   nameSnapshot: z.string(),
   brandSnapshot: z.string().nullable(),
   quantity: z.number(),
+  unit: groceryUnit,
+  category: groceryCategory,
+  /** `auto` rows were written by the pantry; the list marks them as such. */
+  source: grocerySource,
+  /**
+   * A ready-to-use, already-signed path to the row's photo, or null. A path
+   * rather than a key because the bucket is never reachable from a browser —
+   * the API serves the bytes, and the signature in the query string is what
+   * lets an `<img>` fetch them without an Authorization header.
+   */
+  imagePath: z.string().nullable(),
   completed: z.boolean(),
   completedAt: timestamp.nullable(),
   createdAt: timestamp,
@@ -26,7 +44,15 @@ export const groceryItem = z.object({
 })
 export type GroceryItem = z.infer<typeof groceryItem>
 
-export const groceryResponse = z.object({ items: z.array(groceryItem) })
+export const groceryResponse = z.object({
+  items: z.array(groceryItem),
+  /**
+   * False when the server has no bucket configured. The client hides the camera
+   * rather than offering a button that can only answer 503 — the same thing the
+   * vision status does for the photo flow.
+   */
+  imagesEnabled: z.boolean(),
+})
 export type GroceryResponse = z.infer<typeof groceryResponse>
 
 /** A line the list has held before, offered back while typing. */
@@ -35,6 +61,8 @@ export const grocerySuggestion = z.object({
   name: z.string(),
   brand: z.string().nullable(),
   foodId: z.string().nullable(),
+  /** The aisle it was filed under last time, so re-adding keeps it. */
+  category: groceryCategory,
   times: z.number(),
   lastAt: timestamp,
   score: z.number(),

@@ -13,7 +13,7 @@ import {
 import { PremiumSheet } from '@/components/premium/premium-sheet'
 import { useAnalyzeMealPhoto, useVisionStatus } from '@/hooks/use-vision'
 import { ApiError } from '@/lib/api'
-import { compressImage } from '@/lib/image-compress'
+import { blobToBase64, compressImage } from '@/lib/image-compress'
 import { todayISO } from '@/lib/date'
 import { currentMeal } from '@/lib/format'
 import type { Meal } from '@/lib/types'
@@ -33,19 +33,6 @@ interface PhotoMealSheetProps {
 const ANALYSIS_COMPRESSION = { maxEdge: 1568, targetBytes: 500 * 1024 }
 
 /** Strips the `data:image/webp;base64,` prefix — the API wants raw base64. */
-function toBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = () => reject(new Error('read_failed'))
-    reader.onload = () => {
-      const result = String(reader.result)
-      const comma = result.indexOf(',')
-      resolve(comma === -1 ? result : result.slice(comma + 1))
-    }
-    reader.readAsDataURL(blob)
-  })
-}
-
 export function PhotoMealSheet({
   open,
   onOpenChange,
@@ -78,7 +65,7 @@ export function PhotoMealSheet({
     try {
       const { blob, contentType } = await compressImage(file, ANALYSIS_COMPRESSION)
       const analysis = await analyze.mutateAsync({
-        image: await toBase64(blob),
+        image: await blobToBase64(blob),
         contentType,
       })
 

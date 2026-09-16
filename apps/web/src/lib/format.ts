@@ -1,4 +1,4 @@
-import type { Meal } from './types'
+import type { GroceryCategory, GroceryUnit, Meal } from './types'
 
 const nf0 = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 })
 const nf1 = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 1 })
@@ -65,6 +65,38 @@ export const GOAL_LABELS = {
 } as const
 
 /** Percentage of a target, clamped for display only. */
+/**
+ * The aisles, in the order a trolley goes round — which is also the order the
+ * list is grouped in, so the screen reads like the walk.
+ */
+export const GROCERY_CATEGORY_ORDER: GroceryCategory[] = [
+  'food',
+  'household',
+  'hygiene',
+  'other',
+]
+
+export const GROCERY_CATEGORY_LABELS: Record<GroceryCategory, string> = {
+  food: 'Alimentari',
+  household: 'Casa',
+  hygiene: 'Igiene',
+  other: 'Altro',
+}
+
+export const GROCERY_CATEGORY_EMOJI: Record<GroceryCategory, string> = {
+  food: '🛒',
+  household: '🧽',
+  hygiene: '🧴',
+  other: '📦',
+}
+
+export const GROCERY_UNITS: GroceryUnit[] = ['pz', 'g', 'kg', 'l', 'ml']
+
+/** `pz` reads as a bare count next to a number, so it has no suffix at all. */
+export function groceryQuantity(quantity: number, unit: GroceryUnit) {
+  return unit === 'pz' ? `${quantity}` : `${nf1.format(quantity)} ${unit}`
+}
+
 export function progress(value: number, target: number) {
   if (!target) return 0
   return Math.max(0, Math.min(999, (value / target) * 100))

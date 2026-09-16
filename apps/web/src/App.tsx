@@ -26,6 +26,7 @@ const WeightPage = lazy(() => import('@/pages/weight'))
 const ProfilePage = lazy(() => import('@/pages/profile'))
 const OnboardingPage = lazy(() => import('@/pages/onboarding'))
 const GroceryPage = lazy(() => import('@/pages/grocery'))
+const PantryPage = lazy(() => import('@/pages/pantry'))
 const PhotoReviewPage = lazy(() => import('@/pages/photo-review'))
 const FamilyPage = lazy(() => import('@/pages/family'))
 const JoinPage = lazy(() => import('@/pages/join'))
@@ -126,6 +127,14 @@ export default function App() {
           element={
             <RequireAuth>
               <GroceryPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/pantry"
+          element={
+            <RequireAuth>
+              <PantryPage />
             </RequireAuth>
           }
         />

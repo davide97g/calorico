@@ -100,3 +100,21 @@ export async function compressImage(
 
   return { blob, contentType, width, height }
 }
+
+/**
+ * The compressed blob as raw base64, with the data-URI prefix stripped — what
+ * both upload endpoints take, because JSON needs no multipart plugin on the
+ * server and the photo flow already worked this way.
+ */
+export function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('read_failed'))
+    reader.onload = () => {
+      const result = String(reader.result)
+      const comma = result.indexOf(',')
+      resolve(comma === -1 ? result : result.slice(comma + 1))
+    }
+    reader.readAsDataURL(blob)
+  })
+}

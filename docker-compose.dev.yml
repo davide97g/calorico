@@ -18,5 +18,26 @@ services:
       timeout: 5s
       retries: 10
 
+  # Object storage for the grocery photos, the local twin of the `minio` service
+  # in docker-compose.yml. Behind a profile for the same reason: the app runs
+  # perfectly well with no bucket at all.
+  #   docker compose -f docker-compose.dev.yml --profile images up -d
+  # Console on http://localhost:9001, calorico / calorico-dev-secret.
+  minio:
+    image: minio/minio:latest
+    container_name: calorico-minio-dev
+    profiles: ['images']
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: calorico
+      MINIO_ROOT_PASSWORD: calorico-dev-secret
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - calorico_minio_dev:/data
+
 volumes:
   calorico_pgdata_dev:
+  calorico_minio_dev:

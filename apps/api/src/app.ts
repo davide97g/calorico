@@ -22,9 +22,10 @@ import { foodImageRoutes } from './routes/food-images.js'
 import { diaryRoutes } from './routes/diary.js'
 import { statsRoutes } from './routes/stats.js'
 import { weightRoutes } from './routes/weight.js'
-import { groceryRoutes } from './routes/grocery.js'
+import { groceryImageRoutes, groceryRoutes } from './routes/grocery.js'
 import { visionRoutes } from './routes/vision.js'
 import { familyRoutes } from './routes/families.js'
+import { pantryRoutes } from './routes/pantry.js'
 import { scanRoutes } from './routes/scans.js'
 import { notificationRoutes } from './routes/notifications.js'
 import { mealRoutes } from './routes/meals.js'
@@ -200,6 +201,10 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(statsRoutes, { prefix: '/api/stats' })
   await app.register(weightRoutes, { prefix: '/api/weight' })
   await app.register(groceryRoutes, { prefix: '/api/grocery' })
+  // Its own plugin under the same prefix: the photo link is signed rather than
+  // bearing a token, because an <img> cannot send an Authorization header.
+  await app.register(groceryImageRoutes, { prefix: '/api/grocery' })
+  await app.register(pantryRoutes, { prefix: '/api/pantry' })
   await app.register(familyRoutes, { prefix: '/api/families' })
   await app.register(scanRoutes, { prefix: '/api/scans' })
   await app.register(notificationRoutes, { prefix: '/api/notifications' })

@@ -20,8 +20,8 @@ map and the list of invariants.
 npm run typecheck && npm run lint && npm test && npm run build
 ```
 
-`npm test` **skips the ten database-backed API suites** unless
-`TEST_DATABASE_URL` is set: 97 tests instead of 214. If you touched
+`npm test` **skips the twelve database-backed API suites** unless
+`TEST_DATABASE_URL` is set: 133 tests instead of 276. If you touched
 `apps/api/src/routes` or `apps/api/src/db`, run them for real —
 [docs/testing.md](docs/testing.md) has the two-line Docker recipe.
 

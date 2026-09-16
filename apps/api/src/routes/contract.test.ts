@@ -18,6 +18,7 @@ import {
   meResponse,
   mealAnalysis,
   notificationSettings,
+  pantryResponse,
   periodsResponse,
   premiumStatus,
   profile as profileContract,
@@ -145,6 +146,13 @@ describe.skipIf(!hasDb)('response contracts', () => {
     })
 
     await post('/api/grocery', { name: 'Pane', quantity: 2 })
+    // The custom food above carries no package size, which is the case the
+    // client has to answer for: most of what Tosano knows has none either.
+    await post('/api/pantry', {
+      foodId: ids.foodId,
+      packages: 2,
+      packageSizeG: 500,
+    })
 
     const family = await post('/api/families', { name: 'Casa' })
     ids.familyId = (family as { id: string }).id
@@ -341,6 +349,12 @@ describe.skipIf(!hasDb)('response contracts', () => {
       grocerySuggestionsResponse,
       await get('/api/grocery/suggestions?q=pan'),
     )
+  })
+
+  it('GET /pantry', async () => {
+    const pantry = expectContract(pantryResponse, await get('/api/pantry'))
+    expect(pantry.items).toHaveLength(1)
+    expect(pantry.items[0]?.totalG).toBe(1000)
   })
 
   it('GET /families, its invites and the public preview', async () => {

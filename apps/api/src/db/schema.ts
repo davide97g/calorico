@@ -44,6 +44,36 @@ export const scanKindEnum = pgEnum('scan_kind', [
   'photo', // meal photo sent to the vision provider
 ])
 /**
+ * What aisle a shopping row belongs to. The list is grouped by it, in this
+ * order, because that is the order a supermarket is walked — and the order a
+ * pickup order is picked in. Only `food` rows can ever carry a `foodId`:
+ * detergents and pans are shopping, never eating, so nothing tracks them.
+ */
+export const groceryCategoryEnum = pgEnum('grocery_category', [
+  'food',
+  'household',
+  'hygiene',
+  'other',
+])
+/**
+ * What the quantity counts. `pz` (pezzi) is the default because a shopping list
+ * is mostly "two of these" — the weight units are for the counter, where six
+ * hundred grams of mince is the thing being asked for, not six of anything.
+ */
+export const groceryUnitEnum = pgEnum('grocery_unit', [
+  'pz',
+  'g',
+  'kg',
+  'l',
+  'ml',
+])
+/**
+ * Who put the row there. `auto` means the pantry ran the product down to its
+ * last portion and added it — worth marking, because a row nobody remembers
+ * writing is the one a user deletes in confusion. See lib/pantry.ts.
+ */
+export const grocerySourceEnum = pgEnum('grocery_source', ['manual', 'auto'])
+/**
  * What a reminder is about. The kind is what decides whether the reminder can
  * skip itself — see lib/reminders/due.ts — and which copy it sends:
  *
@@ -459,6 +489,16 @@ export const groceryItems = pgTable(
     nameSnapshot: text('name_snapshot').notNull(),
     brandSnapshot: text('brand_snapshot'),
     quantity: integer('quantity').notNull().default(1),
+    unit: groceryUnitEnum('unit').notNull().default('pz'),
+    category: groceryCategoryEnum('category').notNull().default('food'),
+    source: grocerySourceEnum('source').notNull().default('manual'),
+    /**
+     * Object key in the bucket, not a URL: the endpoint and the bucket name are
+     * configuration and change when the storage moves, while the key does not.
+     * Null is the normal case — a photo is for the rows a name cannot pin down,
+     * the specific descaler, the tap washer of the right size.
+     */
+    imageKey: text('image_key'),
     completed: boolean('completed').notNull().default(false),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -473,6 +513,74 @@ export const groceryItems = pgTable(
       .on(t.listId, t.dedupeKey)
       .where(sql`${t.completed} = false`),
     index('grocery_list_status_idx').on(t.listId, t.completed, t.createdAt),
+  ],
+)
+
+/**
+ * What the household has in stock, in grams, per product.
+ *
+ * This is what lets the shopping list write itself: every diary entry of a
+ * tracked food takes its grams off the stock, and the moment the last package
+ * runs down to its final portion the product goes on the list on its own.
+ *
+ * Stocking is opt-in per product and nothing here is ever created implicitly.
+ * That is the whole design: scanning a barcode used to add the product to the
+ * shopping list, and the list filled with everything anyone had ever held — the
+ * note in hooks/use-grocery.ts is about exactly that. A pantry that stocked
+ * itself from the diary would repeat the mistake with more steps, so consuming
+ * a food with no row here does nothing at all.
+ *
+ * Two numbers rather than one because a jar being open matters: `remainingG` is
+ * the open package, `sealedPackages` the untouched ones behind it. Everything
+ * in lib/pantry.ts works on their total and normalises back into the pair, so
+ * the arithmetic never has to care which is which.
+ */
+export const pantryItems = pgTable(
+  'pantry_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Who stocked it. Attribution, not ownership — see listId. */
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Null means a private pantry; set means the whole family shares it. */
+    familyId: uuid('family_id').references(() => families.id, {
+      onDelete: 'cascade',
+    }),
+    /** The same generated-column trick grocery_items uses, for the same reason. */
+    listId: uuid('list_id').generatedAlwaysAs(
+      (): SQL => sql`coalesce(${pantryItems.familyId}, ${pantryItems.userId})`,
+    ),
+    foodId: uuid('food_id')
+      .notNull()
+      .references(() => foods.id, { onDelete: 'cascade' }),
+    /** Unopened packages behind the one in use. */
+    sealedPackages: integer('sealed_packages').notNull().default(0),
+    /** Grams left in the open package. */
+    remainingG: real('remaining_g').notNull().default(0),
+    /**
+     * Snapshotted from `foods.packageSizeG` when the row was stocked, because a
+     * catalogue that revises a 400 g jar to 380 g must not silently restate how
+     * much is in the cupboard.
+     */
+    packageSizeG: real('package_size_g').notNull(),
+    /**
+     * When the low-stock row was last written to the shopping list. It is what
+     * makes the add fire once per package cycle rather than on every bite: a
+     * user who deletes the automatic row has said no, and the next spoonful
+     * must not put it straight back. Cleared on restock.
+     */
+    lowNotifiedAt: timestamp('low_notified_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('pantry_list_food_unique').on(t.listId, t.foodId),
+    index('pantry_list_idx').on(t.listId, t.updatedAt),
   ],
 )
 
@@ -691,6 +799,8 @@ export type DiaryEntry = typeof diaryEntries.$inferSelect
 export type WeightLog = typeof weightLogs.$inferSelect
 export type FoodTouch = typeof foodTouches.$inferSelect
 export type GroceryItem = typeof groceryItems.$inferSelect
+export type PantryItem = typeof pantryItems.$inferSelect
+export type NewPantryItem = typeof pantryItems.$inferInsert
 export type Family = typeof families.$inferSelect
 export type FamilyMember = typeof familyMembers.$inferSelect
 export type FamilyInvite = typeof familyInvites.$inferSelect

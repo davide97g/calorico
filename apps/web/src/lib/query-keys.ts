@@ -93,6 +93,13 @@ export const queryKeys = {
     suggestions: (q: string) => ['grocery', 'suggestions', q] as const,
   },
 
+  /**
+   * Not under `grocery`, although the two move together: a mutation on either
+   * side invalidates both by name, and nesting one under the other would make
+   * every list refetch pull the cupboard down with it.
+   */
+  pantry: ['pantry'] as const,
+
   scans: {
     all: ['scans'] as const,
     list: (q: string) => ['scans', q] as const,

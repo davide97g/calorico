@@ -2,8 +2,8 @@
 
 ## The one thing that surprises everyone
 
-`npm test` passes with no Postgres running — because ten of the seventeen API
-suites **skip themselves**. `src/test/setup.ts` only accepts a database URL from
+`npm test` passes with no Postgres running — because twelve of the twenty-two
+API suites **skip themselves**. `src/test/setup.ts` only accepts a database URL from
 `TEST_DATABASE_URL`, deliberately: the route tests `truncate` every table, and
 pointing them at the development database by accident would wipe a real diary.
 
@@ -11,8 +11,8 @@ So there are two very different green runs:
 
 | Command | API result |
 | --- | --- |
-| `npm test` | 7 files, 97 tests — pure unit tests only |
-| with `TEST_DATABASE_URL` | 18 files, 231 tests — every route, cascade and index |
+| `npm test` | 10 files, 133 tests — pure unit tests only |
+| with `TEST_DATABASE_URL` | 22 files, 276 tests — every route, cascade and index |
 
 CI always runs the second one. If you touched anything under `src/routes` or
 `src/db` and only ran the first, you have not tested your change.
@@ -43,7 +43,8 @@ run with `fileParallelism: false` because they share one database.
   Postgres. They exist because cascades, generated columns, partial unique
   indexes and `pg_trgm` have no useful fake.
 - `src/routes/rls.test.ts` — the row-level-security policies themselves. It is
-  the only test that proves `calorico_app` cannot read another user's rows.
+  the only test that proves `calorico_app` cannot read another user's rows, for
+  a diary (one owner) and for a pantry (a household).
 - `src/routes/contract.test.ts` — every response the web app reads, parsed
   through `@calorico/contracts`, which the web app types itself from. It is the
   only thing that notices a payload and its client drifting apart, so a new
@@ -51,7 +52,7 @@ run with `fileParallelism: false` because they share one database.
   renamed or retyped field fails.
 - `src/lib/reminders/scheduler.test.ts`, `src/lib/releases/notifier.test.ts` —
   delivery logic with an injected sender; nothing is ever pushed.
-- `apps/web` — 6 files, 62 tests: pure helpers (date, format, food emoji, push
+- `apps/web` — 7 files, 70 tests: pure helpers (date, format, food emoji, push
   eligibility including the iOS rules). No component rendering.
 
 `src/test/harness.ts` is the shared setup: `startApp`, `resetDb`, `createUser`.

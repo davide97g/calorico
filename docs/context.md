@@ -70,8 +70,10 @@ rules in it — ranking, nutrition maths, sharing, quotas, push delivery — liv
 - `db` is a proxy. Import it and use it; never capture it in a module-level
   variable and never pass it across a request boundary.
 - `adminDb` bypasses RLS. It is correct for login, the Stripe webhook, the
-  schedulers, migrations, seeds and the token-version lookup — and wrong
-  everywhere else.
+  schedulers, migrations, seeds, the token-version lookup and the signed grocery
+  photo route — and wrong everywhere else. The last two entries are the same
+  case: a request proving itself with a signature instead of a session, reading
+  exactly the one row that signature names.
 - RLS is a second line of defence, not the first. Handlers still write their own
   `eq(table.userId, request.user.sub)`; `src/routes/rls.test.ts` guards the
   policies themselves.
@@ -85,9 +87,10 @@ Three different rules, each centralised, none of them to be re-derived inline:
 - **Foods** — `lib/food-visibility.ts`. Catalogue rows (`off`, `generic`) are
   everyone's; `custom` belongs to `createdBy`. Search, barcode lookup and the
   detail route all have to spell this the same way or a homemade recipe leaks.
-- **Shared rows** — grocery list, scan feed: `lib/family.ts`. Reads merge across
-  every family the user belongs to; a write needs one target, resolved by
-  `resolveWriteFamilyId`.
+- **Shared rows** — grocery list, pantry, scan feed: `lib/family.ts`. Reads merge
+  across every family the user belongs to; a write needs one target, resolved by
+  `resolveWriteFamilyId`. All three carry a generated `listId`
+  (`coalesce(family_id, user_id)`) so "the household's rows" is one column.
 
 ### Where a food comes from
 
@@ -107,12 +110,36 @@ Three different rules, each centralised, none of them to be re-derived inline:
 The web app prints the Tosano mark next to a `tosano` row
 (`components/food/tosano-mark.tsx`) — the only source it names in a list.
 
+### How the shopping list writes itself
+
+`lib/pantry.ts` is the loop, and it is the only place in the API where writing
+one row causes another to appear:
+
+1. A product is stocked on purpose — `POST /api/pantry`, packages and a package
+   size. Nothing here is ever created implicitly.
+2. Every diary write moves the stock by a delta, inside the same transaction as
+   the entry: create, batch, patch (the difference), delete and copy all call
+   `applyPantryDelta`. A negative delta hands grams back, so correcting a
+   mistyped 300 g does not drain the cupboard for good.
+3. Crossing `PANTRY_LOW_FRACTION` of one package writes a `source: 'auto'` row
+   onto the shopping list and stamps `lowNotifiedAt`. The stamp is what makes it
+   fire once per package cycle: a user who deletes the automatic row has said
+   no, and the next spoonful must not put it back.
+4. Ticking that row off the list restocks the cupboard and clears the stamp,
+   which re-arms the whole thing.
+
+Consuming a food with no pantry row does nothing at all. That is deliberate:
+scanning a barcode used to add the product to the shopping list, and the list
+filled with everything anyone had ever picked up — a cupboard that stocked
+itself from the diary would repeat that with more steps.
+
 ### Things that are off by default
 
 `env.ts` treats missing configuration as "feature absent", not "error": no
 `SENTRY_DSN` means no Sentry, no `VISION_*` means the photo flow answers 503 and
 the UI hides the button, no Stripe keys means the paywall stays hidden, no VAPID
-pair means reminders are unavailable, `TOSANO_ENABLED` unset means searches and
+pair means reminders are unavailable, no `S3_*` means the grocery photo button
+never appears, `TOSANO_ENABLED` unset means searches and
 barcodes stop at Open Food Facts. Keep that property — a fresh clone with
 only `DATABASE_URL` and `JWT_SECRET` has to boot and work.
 
@@ -124,6 +151,7 @@ src/food.ts           Foods, their images, portion history, and newFoodInput.
 src/diary.ts          Entries, totals, targets, the day payload, batch input.
 src/stats.ts          Everything the Analisi tab reads.
 src/weight.ts src/meals.ts src/social.ts src/notifications.ts
+src/pantry.ts         The cupboard: a stocked product, and what it takes to change it.
 src/account.ts        Session, profile, bodyMetrics, targets, premium.
 src/vision.ts         Photo analysis and its quota.
 ```
@@ -165,6 +193,7 @@ Data access is grouped by domain, and the grouping is the API surface:
 | `use-vision` | photo-analysis status and the analysis call |
 | `use-profile` | profile patch, target suggestions, onboarding |
 | `use-meals` | saved plates |
+| `use-pantry` | the cupboard; every mutation can write a shopping row, so all of them invalidate the list too |
 | `use-grocery`, `use-family`, `use-scans`, `use-notifications`, `use-premium` | one feature each |
 | `use-auth` | session, the `me` query, login/logout |
 
@@ -194,6 +223,10 @@ invisible in review and obvious to a user.
 - **A diary entry keeps a snapshot.** `nameSnapshot`, `brandSnapshot` and the
   scaled macros are written on the row, so deleting a food never rewrites
   history.
+- **Stock is one number, stored as two.** `sealedPackages` and `remainingG` are
+  a total split so that an open package can be told from an untouched one;
+  `lib/pantry.ts` works on the total and normalises back, and 400 g of a 400 g
+  jar is one jar open, not one jar sealed.
 - **Averages are per logged day, never per calendar day** (`lib/stats.ts`), and
   an empty day is still a row: coverage is a statistic of its own.
 - **The UI copy is Italian.** Code, comments, commits and docs are English.

@@ -40,6 +40,27 @@ export type FoodImageKind = z.infer<typeof foodImageKind>
 export const scanKind = z.enum(['barcode', 'photo'])
 export type ScanKind = z.infer<typeof scanKind>
 
+/**
+ * The aisle a shopping row belongs to, and the order the list is grouped in —
+ * the order a supermarket is walked, which is also the order a pickup order is
+ * picked in. Only `food` rows ever carry a foodId.
+ */
+export const groceryCategory = z.enum([
+  'food',
+  'household',
+  'hygiene',
+  'other',
+])
+export type GroceryCategory = z.infer<typeof groceryCategory>
+
+/** What the quantity counts. `pz` is pezzi, the default for a shopping list. */
+export const groceryUnit = z.enum(['pz', 'g', 'kg', 'l', 'ml'])
+export type GroceryUnit = z.infer<typeof groceryUnit>
+
+/** `auto` means the pantry put the row there, not a person. */
+export const grocerySource = z.enum(['manual', 'auto'])
+export type GrocerySource = z.infer<typeof grocerySource>
+
 export const reminderKind = z.enum(['meal', 'review', 'weight', 'custom'])
 export type ReminderKind = z.infer<typeof reminderKind>
 

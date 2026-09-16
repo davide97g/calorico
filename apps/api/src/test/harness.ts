@@ -13,6 +13,7 @@ const TABLES = [
   'push_subscriptions',
   'scan_events',
   'grocery_items',
+  'pantry_items',
   'favorites',
   'food_touches',
   'meal_items',

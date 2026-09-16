@@ -77,4 +77,40 @@ describe.skipIf(!hasDb)('row level security', () => {
     })
     expect(aliceView).toHaveLength(1)
   })
+
+  it('keeps a private pantry out of another account reach', async () => {
+    const alice = await createUser(app)
+    const bob = await createUser(app)
+
+    const food = await app.inject({
+      method: 'POST',
+      url: '/api/foods',
+      headers: auth(alice),
+      payload: {
+        name: 'Crema alla nocciola',
+        kcal100: 539,
+        protein100: 6,
+        carbs100: 57,
+        fat100: 31,
+      },
+    })
+    const foodId = (food.json() as { id: string }).id
+    const stocked = await app.inject({
+      method: 'POST',
+      url: '/api/pantry',
+      headers: auth(alice),
+      payload: { foodId, packages: 1, packageSizeG: 400 },
+    })
+    expect(stocked.statusCode).toBe(201)
+
+    const asRole = (userId: string) =>
+      adminSql.begin(async (tx) => {
+        await tx.unsafe('SET LOCAL ROLE calorico_app')
+        await tx`select set_config('app.user_id', ${userId}, true)`
+        return tx`select id from pantry_items`
+      })
+
+    expect(await asRole(bob.id)).toHaveLength(0)
+    expect(await asRole(alice.id)).toHaveLength(1)
+  })
 })

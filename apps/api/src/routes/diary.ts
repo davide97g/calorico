@@ -15,6 +15,7 @@ import {
   scaleNutriments,
   sumNutrients,
 } from '../lib/nutrition.js'
+import { applyPantryDelta } from '../lib/pantry.js'
 import { env } from '../env.js'
 
 const createBody = z.object({
@@ -103,19 +104,25 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
     if (!food) return reply.code(404).send({ error: 'food_not_found' })
 
     const macros = scaleNutriments(food, body.quantityG)
-    const [created] = await db
-      .insert(diaryEntries)
-      .values({
-        userId: request.user.sub,
-        foodId: food.id,
-        day: body.day,
-        meal: body.meal,
-        quantityG: body.quantityG,
-        nameSnapshot: food.name,
-        brandSnapshot: food.brand,
-        ...macros,
-      })
-      .returning()
+    // One transaction because eating is also spending: if the stock cannot be
+    // taken off the cupboard, the entry that spent it must not stand either.
+    const created = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(diaryEntries)
+        .values({
+          userId: request.user.sub,
+          foodId: food.id,
+          day: body.day,
+          meal: body.meal,
+          quantityG: body.quantityG,
+          nameSnapshot: food.name,
+          brandSnapshot: food.brand,
+          ...macros,
+        })
+        .returning()
+      await applyPantryDelta(tx, request.user.sub, food.id, body.quantityG)
+      return row
+    })
 
     return reply.code(201).send(created)
   })
@@ -183,7 +190,19 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
         })
       }
 
-      return tx.insert(diaryEntries).values(rows).returning()
+      const inserted = await tx.insert(diaryEntries).values(rows).returning()
+
+      // Summed per food first: a plate can name the same product twice, and two
+      // reads of one cupboard row would have the second overwrite the first.
+      const byFood = new Map<string, number>()
+      for (const row of rows) {
+        byFood.set(row.foodId, (byFood.get(row.foodId) ?? 0) + row.quantityG)
+      }
+      for (const [foodId, grams] of byFood) {
+        await applyPantryDelta(tx, userId, foodId, grams)
+      }
+
+      return inserted
     })
 
     return reply.code(201).send({ entries: created })
@@ -237,29 +256,58 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
       macros = scaleNutriments(per100, body.quantityG)
     }
 
-    const [updated] = await db
-      .update(diaryEntries)
-      .set({
-        ...(body.meal ? { meal: body.meal } : {}),
-        ...(body.day ? { day: body.day } : {}),
-        ...(body.quantityG != null ? { quantityG: body.quantityG } : {}),
-        ...(macros ?? {}),
-      })
-      .where(eq(diaryEntries.id, id))
-      .returning()
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(diaryEntries)
+        .set({
+          ...(body.meal ? { meal: body.meal } : {}),
+          ...(body.day ? { day: body.day } : {}),
+          ...(body.quantityG != null ? { quantityG: body.quantityG } : {}),
+          ...(macros ?? {}),
+        })
+        .where(eq(diaryEntries.id, id))
+        .returning()
+
+      // Only the difference. Correcting a mistyped 300 g to 30 g hands 270 g
+      // back to the cupboard, which is the whole reason the stock moves by a
+      // delta rather than being recomputed from the diary.
+      if (existing.foodId && body.quantityG != null) {
+        await applyPantryDelta(
+          tx,
+          userId,
+          existing.foodId,
+          body.quantityG - existing.quantityG,
+        )
+      }
+
+      return row
+    })
 
     return updated
   })
 
   app.delete('/:id', async (request, reply) => {
     const { id } = idParam.parse(request.params)
-    const deleted = await db
-      .delete(diaryEntries)
-      .where(
-        and(eq(diaryEntries.id, id), eq(diaryEntries.userId, request.user.sub)),
-      )
-      .returning({ id: diaryEntries.id })
-    if (deleted.length === 0) return reply.code(404).send({ error: 'not_found' })
+    const userId = request.user.sub
+
+    const deleted = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .delete(diaryEntries)
+        .where(and(eq(diaryEntries.id, id), eq(diaryEntries.userId, userId)))
+        .returning({
+          id: diaryEntries.id,
+          foodId: diaryEntries.foodId,
+          quantityG: diaryEntries.quantityG,
+        })
+      if (!row) return null
+      // An entry that never happened never ate anything.
+      if (row.foodId) {
+        await applyPantryDelta(tx, userId, row.foodId, -row.quantityG)
+      }
+      return row
+    })
+
+    if (!deleted) return reply.code(404).send({ error: 'not_found' })
     return reply.code(204).send()
   })
 
@@ -283,25 +331,42 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
 
     if (source.length === 0) return { copied: 0 }
 
-    await db.insert(diaryEntries).values(
-      source.map((e) => ({
-        userId,
-        foodId: e.foodId,
-        day: body.to,
-        meal: e.meal,
-        quantityG: e.quantityG,
-        nameSnapshot: e.nameSnapshot,
-        brandSnapshot: e.brandSnapshot,
-        kcal: e.kcal,
-        proteinG: e.proteinG,
-        carbsG: e.carbsG,
-        fatG: e.fatG,
-        fiberG: e.fiberG,
-        sugarsG: e.sugarsG,
-        satFatG: e.satFatG,
-        saltG: e.saltG,
-      })),
-    )
+    await db.transaction(async (tx) => {
+      await tx.insert(diaryEntries).values(
+        source.map((e) => ({
+          userId,
+          foodId: e.foodId,
+          day: body.to,
+          meal: e.meal,
+          quantityG: e.quantityG,
+          nameSnapshot: e.nameSnapshot,
+          brandSnapshot: e.brandSnapshot,
+          kcal: e.kcal,
+          proteinG: e.proteinG,
+          carbsG: e.carbsG,
+          fatG: e.fatG,
+          fiberG: e.fiberG,
+          sugarsG: e.sugarsG,
+          satFatG: e.satFatG,
+          saltG: e.saltG,
+        })),
+      )
+
+      // A copied meal is a meal eaten again, so it comes out of the cupboard
+      // too — otherwise "same lunch as yesterday" would be the one way to eat
+      // a tracked product without ever running it down.
+      const byFood = new Map<string, number>()
+      for (const entry of source) {
+        if (!entry.foodId) continue
+        byFood.set(
+          entry.foodId,
+          (byFood.get(entry.foodId) ?? 0) + entry.quantityG,
+        )
+      }
+      for (const [foodId, grams] of byFood) {
+        await applyPantryDelta(tx, userId, foodId, grams)
+      }
+    })
 
     return { copied: source.length }
   })

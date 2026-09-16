@@ -48,6 +48,11 @@ Food data comes from two sources:
 - One emoji per food in every list and grouped view, guessed from the name; real
   product photos appear only on the detail pages, under **Foto** — packshot,
   ingredients and nutrition-label shots (see [Photos](#photos))
+- Shared shopping list: one list per household, free-text lines next to
+  catalogue products, grouped by aisle, with an optional photo for the things a
+  name cannot pin down — see [Shopping list and pantry](#shopping-list-and-pantry)
+- A pantry that writes the list for you: stock a product once, and eating it runs
+  the count down until it puts itself back on the list
 - Weight log with trend chart and BMI
 - Push reminders at fixed times — meals, an evening check, the weekly weigh-in —
   as many as you want, each able to stay quiet when the thing is already done;
@@ -773,6 +778,68 @@ Worth knowing:
 | `TOSANO_ENABLED`  | `false`                        | The supermarket fallback for barcodes and searches Open Food Facts cannot answer. Off unless set to `true` |
 | `TOSANO_BASE_URL` | `https://www.latuaspesa.com`   | Its frontend API; no token, no session   |
 | `TOSANO_SEARCH_DETAILS` | `6`                      | Search hits that get the second call carrying their label table |
+| `PANTRY_LOW_FRACTION` | `0.15`                   | How little may be left of a tracked product before it puts itself on the shopping list, as a fraction of one package |
+| `S3_ENDPOINT` | —                                | Photos on shopping rows. Endpoint, bucket and both keys are needed together; without them the camera never appears |
+| `S3_BUCKET` | `calorico`                         | Created on first use. Never published |
+| `S3_ACCESS_KEY_ID` | —                           | Also MinIO's root user, when the `images` profile runs it |
+| `S3_SECRET_ACCESS_KEY` | —                       | Also MinIO's root password |
+| `GROCERY_MAX_IMAGE_BYTES` | `524288`             | Backstop; the browser compresses to ~180 KB first |
+| `GROCERY_IMAGE_TTL_SECONDS` | `3600`             | How long a signed photo link stays valid |
+
+## Shopping list and pantry
+
+The list is shared with the family — everybody sees it, anybody ticks a row off,
+and reads merge across every family you belong to. A row is either a catalogue
+product or whatever you typed, which is what lets detergents and a tap washer
+sit on the same list as the milk. Rows are grouped by aisle (alimentari, casa,
+igiene, altro), in the order a trolley goes round, which is also the order a
+pickup order is picked in.
+
+### Photos on a row
+
+For the things a name does not pin down — the specific descaler, the washer of
+the right size. Optional, and off unless a bucket is configured: `S3_ENDPOINT`,
+`S3_BUCKET`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` are needed together,
+and without them the camera never appears.
+
+The stack ships MinIO for this, on the same machine, behind a compose profile:
+
+```bash
+# production
+COMPOSE_PROFILES=images          # in .env, then redeploy
+S3_ENDPOINT=http://calorico-minio:9000
+
+# local
+docker compose -f docker-compose.dev.yml --profile images up -d
+S3_ENDPOINT=http://localhost:9000
+```
+
+The bucket is created on first use and never published: no port is exposed and
+the browser never talks to it. The API serves the bytes on a link that carries
+its own short-lived signature, because an `<img>` cannot present a bearer token.
+Moving the photos to R2 or S3 later is those same four variables and nothing
+else.
+
+### The pantry
+
+Stock a product — how many packages, and how much one package weighs — and every
+diary entry of it takes its grams off the cupboard. When what is left drops
+under `PANTRY_LOW_FRACTION` of a package (0.15 by default: the last breakfast
+out of a 400 g jar) the product goes on the shopping list on its own, marked
+**Auto**. Ticking that row off puts the packages back and re-arms the whole
+thing.
+
+Two rules keep it honest:
+
+- **Nothing is tracked unless you say so.** Eating a food with no pantry row does
+  nothing at all. Scanning used to add products to the list by itself and the
+  list filled with everything anyone had ever picked up.
+- **It fires once per package.** Delete the automatic row and it stays deleted
+  until the product is restocked — a row you deleted on purpose must not come
+  back with the next spoonful.
+
+Editing or deleting a diary entry hands the grams back, so correcting a mistyped
+300 g does not empty the cupboard for good.
 
 ## Data model notes
 

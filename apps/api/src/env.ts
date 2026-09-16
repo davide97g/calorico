@@ -119,6 +119,63 @@ const schema = z.object({
   VISION_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
 
   /**
+   * Photos on shopping rows, kept in an S3-compatible bucket — MinIO on the
+   * same machine, in the compose file next to this app. Endpoint, bucket and
+   * both keys are required together; with any of them missing the upload button
+   * never appears and rows simply show no photo. Same all-or-nothing gate as
+   * vision and push.
+   *
+   * The bucket is never published: it has no public read policy and the browser
+   * never talks to it. The API reads the object and serves the bytes, which is
+   * why moving the storage later changes four variables and nothing else.
+   */
+  S3_ENDPOINT: blankToUndefined(z.string().url().optional()),
+  S3_BUCKET: blankToUndefined(z.string().optional()),
+  S3_ACCESS_KEY_ID: blankToUndefined(z.string().optional()),
+  S3_SECRET_ACCESS_KEY: blankToUndefined(z.string().optional()),
+  /** MinIO ignores it, but the SDK refuses to sign a request without one. */
+  S3_REGION: z.string().default('us-east-1'),
+  /**
+   * MinIO addresses buckets as a path segment, not as a subdomain: virtual-host
+   * style would need a wildcard DNS entry for a service reached by its compose
+   * name. Only turn this off when pointing at something that wants the AWS
+   * form.
+   */
+  S3_FORCE_PATH_STYLE: z
+    .string()
+    .default('true')
+    .transform((v) => v !== 'false'),
+  /**
+   * Backstop for a client that skipped compression, same role as
+   * VISION_MAX_IMAGE_BYTES. The browser aims well under this.
+   */
+  GROCERY_MAX_IMAGE_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(512 * 1024),
+  /**
+   * How long a signed image link stays valid. Long enough that a list left open
+   * on a counter through a shop still renders, short enough that a link copied
+   * out of the DOM is not a permanent handle on the photo.
+   */
+  GROCERY_IMAGE_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(60)
+    .max(86_400)
+    .default(3600),
+
+  /**
+   * How little may be left of a tracked product before it puts itself on the
+   * shopping list, as a fraction of one package. 0.15 of a 400 g jar is the
+   * last 60 g — about one more breakfast, which is the moment worth being told
+   * about: earlier and the list fills with things still in the cupboard, later
+   * and the reminder arrives after the product has run out.
+   */
+  PANTRY_LOW_FRACTION: z.coerce.number().min(0).max(0.9).default(0.15),
+
+  /**
    * Web Push. The two keys and the contact subject are required together: with
    * any of them missing the reminder scheduler never starts and the client is
    * told notifications are unavailable, rather than letting users arm reminders
@@ -278,6 +335,21 @@ const push =
       }
     : null
 
+/** Present only when the endpoint, the bucket and both keys are configured. */
+const storage =
+  d.S3_ENDPOINT && d.S3_BUCKET && d.S3_ACCESS_KEY_ID && d.S3_SECRET_ACCESS_KEY
+    ? {
+        endpoint: d.S3_ENDPOINT,
+        bucket: d.S3_BUCKET,
+        accessKeyId: d.S3_ACCESS_KEY_ID,
+        secretAccessKey: d.S3_SECRET_ACCESS_KEY,
+        region: d.S3_REGION,
+        forcePathStyle: d.S3_FORCE_PATH_STYLE,
+        maxImageBytes: d.GROCERY_MAX_IMAGE_BYTES,
+        imageTtlSeconds: d.GROCERY_IMAGE_TTL_SECONDS,
+      }
+    : null
+
 /** Present only when the key, the price and the webhook secret are all set. */
 const stripe =
   d.STRIPE_SECRET_KEY && d.STRIPE_PRICE_ID && d.STRIPE_WEBHOOK_SECRET
@@ -303,4 +375,6 @@ export const env = {
   vision,
   push,
   stripe,
+  /** Null when no bucket is configured; shopping rows then carry no photos. */
+  storage,
 }

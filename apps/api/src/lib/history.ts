@@ -407,6 +407,8 @@ export interface GrocerySuggestion {
   name: string
   brand: string | null
   foodId: string | null
+  /** The aisle it was filed under last time, so re-adding keeps it. */
+  category: 'food' | 'household' | 'hygiene' | 'other'
   times: number
   lastAt: Date
   score: number
@@ -439,6 +441,7 @@ export async function grocerySuggestions(
         grocery_items.name_snapshot as name,
         grocery_items.brand_snapshot as brand,
         grocery_items.food_id as food_id,
+        grocery_items.category as category,
         grocery_items.created_at as at,
         ${decayed(sql`grocery_items.created_at`)} as weight
       from grocery_items
@@ -452,6 +455,8 @@ export async function grocerySuggestions(
         ${scanEvents.nameSnapshot},
         ${scanEvents.brandSnapshot},
         ${scanEvents.foodId},
+        -- A scan is always a product off a shelf, so it can only be food.
+        'food'::grocery_category,
         ${scanEvents.createdAt},
         ${decayed(sql`${scanEvents.createdAt}`)}
       from ${scanEvents}
@@ -464,6 +469,7 @@ export async function grocerySuggestions(
         (array_agg(name order by at desc))[1] as name,
         (array_agg(brand order by at desc))[1] as brand,
         (array_agg(food_id order by at desc))[1] as food_id,
+        (array_agg(category order by at desc))[1] as category,
         count(*)::int as times,
         max(at) as last_at,
         sum(weight)::float8 as score
@@ -492,6 +498,7 @@ export async function grocerySuggestions(
     name: string
     brand: string | null
     food_id: string | null
+    category: 'food' | 'household' | 'hygiene' | 'other'
     times: number
     last_at: Date
     score: number
@@ -502,6 +509,7 @@ export async function grocerySuggestions(
     name: row.name,
     brand: row.brand,
     foodId: row.food_id,
+    category: row.category,
     times: Number(row.times),
     lastAt: row.last_at,
     score: Number(row.score),

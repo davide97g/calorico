@@ -3,6 +3,14 @@ const TOKEN_KEY = 'calorico.token'
 /** Empty in production: nginx proxies /api to the API container, same origin. */
 const BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 
+/**
+ * An absolute URL for a path the API already signed — a grocery photo, whose
+ * link an `<img>` fetches without going through `api()` and without a token.
+ */
+export function apiUrl(path: string) {
+  return `${BASE}/api${path}`
+}
+
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY)
 }

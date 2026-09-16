@@ -15,7 +15,6 @@ delete the entry.
 | `apps/web/src/pages/profile.tsx` | 734 | targets, metrics, account, export, deletion |
 | `apps/web/src/lib/push.ts` | 702 | subscription lifecycle, iOS quirks, failure notes, diagnostics |
 | `apps/api/src/routes/stats.ts` | 520 | four endpoints of inline SQL |
-| `apps/web/src/pages/grocery.tsx` | 510 | list, suggestions, family switching |
 | `apps/api/src/lib/history.ts` | 509 | four unrelated rankings |
 
 None of these is broken; all of them make a targeted change harder than it should
