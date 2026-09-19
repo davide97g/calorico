@@ -5,6 +5,7 @@ import {
   Loader2,
   Minus,
   Plus,
+  ScanBarcode,
   Search,
   Trash2,
   X,
@@ -12,6 +13,7 @@ import {
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { TopBar } from '@/components/layout/top-bar'
+import { BarcodeScanner } from '@/components/food/barcode-scanner'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,7 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useFoodSearch } from '@/hooks/use-foods'
+import { useBarcodeLookup, useFoodSearch } from '@/hooks/use-foods'
 import {
   useCreateRecipe,
   useDeleteRecipe,
@@ -96,6 +98,7 @@ export default function RecipeEditPage() {
 
   const [term, setTerm] = useState('')
   const [debounced, setDebounced] = useState('')
+  const [scanning, setScanning] = useState(false)
   const resultsRef = useRef<HTMLUListElement>(null)
 
   useEffect(() => {
@@ -104,6 +107,7 @@ export default function RecipeEditPage() {
   }, [term])
 
   const search = useFoodSearch(debounced)
+  const barcode = useBarcodeLookup()
 
   // The form is filled from the server once and then belongs to the person
   // typing into it: refetching must never overwrite an edit in progress.
@@ -189,6 +193,34 @@ export default function RecipeEditPage() {
     ])
     setTerm('')
     setDebounced('')
+  }
+
+  /**
+   * The pack in your hand is the other way to name an ingredient, and the
+   * better one whenever there is a label: no spelling, no picking the right
+   * yogurt out of nine. Same lookup as the search screen's scanner, so a
+   * product the catalogue has never seen is cached by the scan itself.
+   */
+  const handleScan = (code: string) => {
+    barcode.mutate(code, {
+      onSuccess: (food) => {
+        setScanning(false)
+        if (lines.some((line) => line.foodId === food.id)) {
+          toast.info(`${food.name} è già fra gli ingredienti`)
+          return
+        }
+        addFood(food)
+        toast.success(`${food.name} aggiunto`, {
+          description: 'Scrivi quanti grammi ne metti.',
+        })
+      },
+      onError: (err) =>
+        toast.error(
+          err instanceof ApiError
+            ? err.message
+            : 'Ricerca del codice a barre non riuscita',
+        ),
+    })
   }
 
   const valid =
@@ -381,18 +413,31 @@ export default function RecipeEditPage() {
           </p>
         )}
 
-        <div className="relative mt-3">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
-          {search.isFetching && debounced.length >= 2 ? (
-            <Loader2 className="text-muted-foreground absolute top-1/2 right-3.5 size-4 -translate-y-1/2 animate-spin" />
-          ) : null}
-          <Input
-            value={term}
-            onChange={(event) => setTerm(event.target.value)}
-            placeholder="Aggiungi un ingrediente…"
-            aria-label="Cerca un ingrediente"
-            className="h-12 rounded-full pr-10 pl-10 text-sm"
-          />
+        {/* Typed or scanned, side by side, exactly as on the search screen: an
+            ingredient is a food like any other and gets both ways in. */}
+        <div className="mt-3 flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
+            {search.isFetching && debounced.length >= 2 ? (
+              <Loader2 className="text-muted-foreground absolute top-1/2 right-3.5 size-4 -translate-y-1/2 animate-spin" />
+            ) : null}
+            <Input
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+              placeholder="Aggiungi un ingrediente…"
+              aria-label="Cerca un ingrediente"
+              className="h-12 rounded-full pr-10 pl-10 text-sm"
+            />
+          </div>
+          <Button
+            variant="secondary"
+            size="icon"
+            className="bg-secondary size-12 shrink-0 rounded-full"
+            onClick={() => setScanning(true)}
+            aria-label="Scansiona il codice a barre di un ingrediente"
+          >
+            <ScanBarcode className="text-primary-strong size-5" />
+          </Button>
         </div>
 
         {debounced.length >= 2 ? (
@@ -503,29 +548,46 @@ export default function RecipeEditPage() {
           transparent half of the gradient covers real content, and a tap that
           lands on nothing is worse than one that scrolls. */}
       <div className="pointer-events-none sticky bottom-0 z-10 -mx-4 mt-4 bg-gradient-to-t from-background via-background to-transparent px-4 pt-7 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="bg-card shadow-float pointer-events-auto rounded-lg p-3">
-          <div className="flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-muted-foreground text-micro font-semibold tracking-wide uppercase">
-                Una porzione
-              </p>
-              <p className="font-display tabular mt-1 text-2xl leading-none font-extrabold tracking-tight">
-                {kcal(perPortionKcal)}
-                <span className="text-muted-foreground ml-1 text-sm font-semibold">
-                  kcal
-                </span>
-              </p>
-              <p className="text-muted-foreground tabular mt-1 text-micro">
-                {grams(portionG)} g · {kcal(per100Kcal)} kcal/100 g
-              </p>
+        {/* Nothing to say before the first ingredient — and saying "0 kcal"
+            there costs the search field and the scan button the room they
+            need, on the one screen state where they are the whole job. */}
+        {lines.length ? (
+          <div className="bg-card shadow-float pointer-events-auto rounded-lg p-3">
+            <div className="flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-micro font-semibold tracking-wide uppercase">
+                  Una porzione
+                </p>
+                <p className="font-display tabular mt-1 text-2xl leading-none font-extrabold tracking-tight">
+                  {kcal(perPortionKcal)}
+                  <span className="text-muted-foreground ml-1 text-sm font-semibold">
+                    kcal
+                  </span>
+                </p>
+                <p className="text-muted-foreground tabular mt-1 text-micro">
+                  {grams(portionG)} g · {kcal(per100Kcal)} kcal/100 g
+                </p>
+              </div>
+              <dl className="flex shrink-0 gap-1.5">
+                <MacroPill
+                  label="C"
+                  value={totals.carbsG / servingsValue}
+                  accent="bg-carbs"
+                />
+                <MacroPill
+                  label="G"
+                  value={totals.fatG / servingsValue}
+                  accent="bg-fat"
+                />
+                <MacroPill
+                  label="P"
+                  value={totals.proteinG / servingsValue}
+                  accent="bg-protein"
+                />
+              </dl>
             </div>
-            <dl className="flex shrink-0 gap-1.5">
-              <MacroPill label="C" value={totals.carbsG / servingsValue} accent="bg-carbs" />
-              <MacroPill label="G" value={totals.fatG / servingsValue} accent="bg-fat" />
-              <MacroPill label="P" value={totals.proteinG / servingsValue} accent="bg-protein" />
-            </dl>
           </div>
-        </div>
+        ) : null}
 
         <Button
           className="shadow-float pointer-events-auto mt-2 h-13 w-full rounded-full text-base font-semibold"
@@ -540,6 +602,13 @@ export default function RecipeEditPage() {
           {editing ? 'Salva le modifiche' : 'Salva la ricetta'}
         </Button>
       </div>
+
+      <BarcodeScanner
+        open={scanning}
+        onOpenChange={setScanning}
+        onDetected={handleScan}
+        isLoading={barcode.isPending}
+      />
 
       <Dialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
         <DialogContent className="max-w-sm rounded-xl">
