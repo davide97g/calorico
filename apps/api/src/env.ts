@@ -232,6 +232,12 @@ const schema = z.object({
    */
   MAX_MEALS_PER_USER: z.coerce.number().int().min(1).max(100).default(40),
   /**
+   * How many recipes one account may keep. Higher than the plates above
+   * because a recipe is a food somebody wrote down, and a cookbook is longer
+   * than a list of breakfasts.
+   */
+  MAX_RECIPES_PER_USER: z.coerce.number().int().min(1).max(500).default(100),
+  /**
    * How late a reminder may still go out. It covers a restart, a deploy or a
    * clock that drifted across the minute the reminder was due; past it the
    * notification is stale enough to be noise and is dropped for the day.

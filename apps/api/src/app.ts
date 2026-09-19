@@ -29,6 +29,7 @@ import { pantryRoutes } from './routes/pantry.js'
 import { scanRoutes } from './routes/scans.js'
 import { notificationRoutes } from './routes/notifications.js'
 import { mealRoutes } from './routes/meals.js'
+import { recipeRoutes } from './routes/recipes.js'
 
 declare module '@fastify/jwt' {
   /** `ver` is the users.token_version the token was signed with. */
@@ -198,6 +199,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(foodImageRoutes, { prefix: '/api/foods' })
   await app.register(diaryRoutes, { prefix: '/api/diary' })
   await app.register(mealRoutes, { prefix: '/api/meals' })
+  await app.register(recipeRoutes, { prefix: '/api/recipes' })
   await app.register(statsRoutes, { prefix: '/api/stats' })
   await app.register(weightRoutes, { prefix: '/api/weight' })
   await app.register(groceryRoutes, { prefix: '/api/grocery' })

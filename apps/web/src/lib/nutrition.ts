@@ -23,6 +23,39 @@ export function scalePer100(per100: Nutrients100, grams: number) {
 }
 
 /**
+ * What a list of weighed foods adds up to — the recipe editor's live panel.
+ *
+ * Mirrors `composeRecipe` on the server (apps/api/src/lib/recipe.ts) in the one
+ * way that matters: sum first, round once. Rounding each line and adding the
+ * results would drift a tenth of a gram away from the dish the save writes, and
+ * a number that changes when you press Save reads as a bug.
+ *
+ * Only the four figures the panel shows. The optional macros are the server's
+ * to work out, because "nobody declared one" is not a number a form can hold.
+ */
+export interface WeighedPer100 {
+  kcal100: number
+  protein100: number
+  carbs100: number
+  fat100: number
+}
+
+export function composeLines(
+  lines: readonly { per100: WeighedPer100; quantityG: number }[],
+) {
+  const round = (n: number) => Math.round(n * 10) / 10
+  const sum = (pick: (per100: WeighedPer100) => number) =>
+    lines.reduce((acc, line) => acc + (pick(line.per100) * line.quantityG) / 100, 0)
+
+  return {
+    kcal: Math.round(sum((p) => p.kcal100)),
+    proteinG: round(sum((p) => p.protein100)),
+    carbsG: round(sum((p) => p.carbs100)),
+    fatG: round(sum((p) => p.fat100)),
+  }
+}
+
+/**
  * Mirror of the server's `sumNutrients` + `roundNutrients`: an optimistic
  * update has to produce the totals the next fetch will confirm, or the numbers
  * jump the moment the response lands. Sum first, round once, at the end.

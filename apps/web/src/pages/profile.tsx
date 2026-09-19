@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
 import {
   BellRing,
+  ChefHat,
   CreditCard,
   Download,
   LogOut,
@@ -34,6 +35,7 @@ import { DeleteAccountDialog } from '@/components/profile/delete-account-dialog'
 import { PremiumSheet } from '@/components/premium/premium-sheet'
 import { useAuth } from '@/hooks/use-auth'
 import { useFamilies } from '@/hooks/use-family'
+import { useRecipes } from '@/hooks/use-recipes'
 import { useSuggestedTargets, useUpdateProfile } from '@/hooks/use-profile'
 import {
   useBillingPortal,
@@ -59,6 +61,7 @@ export default function ProfilePage() {
   const updateProfile = useUpdateProfile()
   const suggested = useSuggestedTargets()
   const families = useFamilies()
+  const recipes = useRecipes()
   const premium = usePremium()
   const cancelPremium = useCancelPremium()
   const billingPortal = useBillingPortal()
@@ -78,6 +81,7 @@ export default function ProfilePage() {
   if (!profile || !user) return null
 
   const familyList = families.data?.families ?? []
+  const recipeCount = recipes.data?.items.length ?? 0
 
   const num = (v: string, fallback: number) => {
     const n = Number(v.replace(',', '.'))
@@ -240,6 +244,15 @@ export default function ProfilePage() {
             diario e il peso restano solo tuoi.
           </p>
         )}
+      </Panel>
+
+      <Panel className="mt-3">
+        <PanelHeader icon={<ChefHat />} title="Le mie ricette" to="/recipes" />
+        <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
+          {recipeCount
+            ? `${recipeCount} ${recipeCount === 1 ? 'ricetta' : 'ricette'}: pesi gli ingredienti una volta, poi registri i grammi che mangi.`
+            : 'Un piatto che cucini spesso, pesato una volta sola: dopo basta dire quanti grammi ne hai mangiati.'}
+        </p>
       </Panel>
 
       <Panel className="mt-3">

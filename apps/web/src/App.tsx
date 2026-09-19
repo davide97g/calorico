@@ -31,6 +31,8 @@ const PhotoReviewPage = lazy(() => import('@/pages/photo-review'))
 const FamilyPage = lazy(() => import('@/pages/family'))
 const JoinPage = lazy(() => import('@/pages/join'))
 const ScansPage = lazy(() => import('@/pages/scans'))
+const RecipesPage = lazy(() => import('@/pages/recipes'))
+const RecipeEditPage = lazy(() => import('@/pages/recipe-edit'))
 const NotificationsPage = lazy(() => import('@/pages/notifications'))
 
 function FullScreenLoader() {
@@ -143,6 +145,32 @@ export default function App() {
           element={
             <RequireAuth>
               <AddFoodPage />
+            </RequireAuth>
+          }
+        />
+        {/* `/recipes/new` before `/recipes/:id`: a static segment must not be
+            read as an id. */}
+        <Route
+          path="/recipes"
+          element={
+            <RequireAuth>
+              <RecipesPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/recipes/new"
+          element={
+            <RequireAuth>
+              <RecipeEditPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/recipes/:id"
+          element={
+            <RequireAuth>
+              <RecipeEditPage />
             </RequireAuth>
           }
         />

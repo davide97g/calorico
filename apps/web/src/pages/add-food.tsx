@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft,
   Camera,
+  ChefHat,
   Clock,
   Loader2,
   MoreHorizontal,
@@ -226,18 +227,34 @@ export default function AddFoodPage() {
               <p className="text-muted-foreground text-sm">
                 Nessun risultato per “{debounced}”.
               </p>
-              <Button
-                variant="secondary"
-                className="mt-3 rounded-full"
-                onClick={() =>
-                  navigate(
-                    `/food/new?day=${day}&meal=${meal}&name=${encodeURIComponent(debounced)}`,
-                  )
-                }
-              >
-                <PlusCircle className="size-4" />
-                Crea “{debounced}”
-              </Button>
+              <div className="mt-3 flex flex-col items-center gap-2">
+                <Button
+                  variant="secondary"
+                  className="rounded-full"
+                  onClick={() =>
+                    navigate(
+                      `/food/new?day=${day}&meal=${meal}&name=${encodeURIComponent(debounced)}`,
+                    )
+                  }
+                >
+                  <PlusCircle className="size-4" />
+                  Crea “{debounced}”
+                </Button>
+                {/* The other half of "the catalogue does not have this": a dish
+                    nobody sells is not one food, it is several weighed out. */}
+                <Button
+                  variant="ghost"
+                  className="text-muted-foreground rounded-full"
+                  onClick={() =>
+                    navigate(
+                      `/recipes/new?day=${day}&meal=${meal}&name=${encodeURIComponent(debounced)}`,
+                    )
+                  }
+                >
+                  <ChefHat className="size-4" />
+                  …oppure è una ricetta
+                </Button>
+              </div>
             </div>
           )}
         </Panel>
@@ -412,6 +429,17 @@ export default function AddFoodPage() {
         >
           <PlusCircle className="size-4" />
           Crea un alimento personalizzato
+        </Button>
+        {/* The cookbook is not a tab: a recipe *is* a food, so it already comes
+            back from the search above and from Recenti. This is the way in to
+            write one, and to change one. */}
+        <Button
+          variant="ghost"
+          className="text-muted-foreground w-full rounded-full"
+          onClick={() => navigate(`/recipes?day=${day}&meal=${meal}`)}
+        >
+          <ChefHat className="size-4" />
+          Le mie ricette
         </Button>
       </div>
 

@@ -113,4 +113,42 @@ describe.skipIf(!hasDb)('row level security', () => {
     expect(await asRole(bob.id)).toHaveLength(0)
     expect(await asRole(alice.id)).toHaveLength(1)
   })
+
+  it('keeps a recipe and its lines to the account that wrote them', async () => {
+    const alice = await createUser(app)
+    const bob = await createUser(app)
+
+    const food = await app.inject({
+      method: 'POST',
+      url: '/api/foods',
+      headers: auth(alice),
+      payload: { name: 'Farina di avena', kcal100: 370 },
+    })
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/recipes',
+      headers: auth(alice),
+      payload: {
+        name: 'Pancake proteici',
+        servings: 2,
+        items: [
+          { foodId: (food.json() as { id: string }).id, quantityG: 60 },
+        ],
+      },
+    })
+    expect(created.statusCode).toBe(201)
+
+    const asRole = (userId: string, table: string) =>
+      adminSql.begin(async (tx) => {
+        await tx.unsafe('SET LOCAL ROLE calorico_app')
+        await tx`select set_config('app.user_id', ${userId}, true)`
+        return tx.unsafe(`select id from ${table}`)
+      })
+
+    expect(await asRole(bob.id, 'recipes')).toHaveLength(0)
+    expect(await asRole(alice.id, 'recipes')).toHaveLength(1)
+    // The lines follow the recipe: their policy is written through it.
+    expect(await asRole(bob.id, 'recipe_ingredients')).toHaveLength(0)
+    expect(await asRole(alice.id, 'recipe_ingredients')).toHaveLength(1)
+  })
 })

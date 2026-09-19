@@ -18,6 +18,8 @@ const TABLES = [
   'food_touches',
   'meal_items',
   'meals',
+  'recipe_ingredients',
+  'recipes',
   'diary_entries',
   'weight_logs',
   'food_images',

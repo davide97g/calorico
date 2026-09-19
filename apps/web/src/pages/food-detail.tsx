@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Check, ChevronRight, Info, Star } from 'lucide-react'
+import { ArrowLeft, Check, ChefHat, ChevronRight, Info, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/app-shell'
 import { MacroDonut } from '@/components/charts/macro-donut'
@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { WhenBar } from '@/components/food/when-picker'
 import { useAddEntry } from '@/hooks/use-diary'
 import { useFood, useFoodPortions, useToggleFavorite } from '@/hooks/use-foods'
+import { useRecipes } from '@/hooks/use-recipes'
 import { isFutureDay, todayISO } from '@/lib/date'
 import { currentMeal, grams, kcal } from '@/lib/format'
 import { scalePer100 } from '@/lib/nutrition'
@@ -30,6 +31,17 @@ export default function FoodDetailPage() {
 
   const { data: food, isLoading } = useFood(id)
   const { data: portions } = useFoodPortions(id)
+  /**
+   * Only asked for once the food turns out to be a recipe, which is the one
+   * case this screen has something more to offer: the dish behind the numbers.
+   * The cookbook is a short list and it is already cached by the screens that
+   * open it.
+   */
+  const recipes = useRecipes()
+  const recipe =
+    food?.source === 'recipe'
+      ? recipes.data?.items.find((r) => r.food.id === food.id)
+      : undefined
   const addEntry = useAddEntry()
   const toggleFavorite = useToggleFavorite()
 
@@ -164,6 +176,24 @@ export default function FoodDetailPage() {
           </span>
           <ChevronRight className="text-muted-foreground size-4" />
         </Link>
+        {/* A recipe's numbers are the user's own arithmetic, so the page says
+            where they came from and how to change them. */}
+        {recipe ? (
+          <Link
+            to={`/recipes/${recipe.id}`}
+            className="bg-secondary/70 mt-2 flex h-11 items-center justify-between rounded-md px-3 text-xs font-semibold transition-colors active:scale-[0.98]"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <ChefHat className="text-primary-strong size-4 shrink-0" />
+              <span className="truncate">
+                {recipe.items.length}{' '}
+                {recipe.items.length === 1 ? 'ingrediente' : 'ingredienti'} ·{' '}
+                {grams(recipe.yieldG)} g in tutto
+              </span>
+            </span>
+            <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+          </Link>
+        ) : null}
         {/* Scanned foods carry their code, so the page can give it back:
             tapping the strip blows it up for someone else's camera. */}
         <BarcodeStrip barcode={food.barcode} name={food.name} className="mt-2" />
@@ -205,7 +235,11 @@ export default function FoodDetailPage() {
           <p className="text-muted-foreground mt-3 px-1 text-xs">
             {grams(grams_)} {food.unit} su {food.packageSizeLabel ?? `${grams(food.packageSizeG)} ${food.unit}`}
             <span className="ml-1 tabular">
-              · {Math.min(100, Math.round((grams_ / food.packageSizeG) * 100))}% confezione
+              {/* A recipe carries the whole dish in the same field a pack
+                  carries its net weight, so the percentage is already right —
+                  only the noun changes. */}
+              · {Math.min(100, Math.round((grams_ / food.packageSizeG) * 100))}%{' '}
+              {food.source === 'recipe' ? 'della ricetta' : 'confezione'}
             </span>
           </p>
         ) : null}

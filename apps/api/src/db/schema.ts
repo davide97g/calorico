@@ -29,6 +29,7 @@ export const foodSourceEnum = pgEnum('food_source', [
   'generic', // composition tables (raw & cooked foods)
   'custom', // created by a user
   'tosano', // the supermarket's own label table, when OFF has never heard of it
+  'recipe', // composed by a user out of other foods — see the recipes table
 ])
 /**
  * Every shot comes from Open Food Facts. Users used to be able to add their own,
@@ -789,6 +790,75 @@ export const mealItems = pgTable(
   (t) => [index('meal_items_meal_idx').on(t.mealId, t.sort)],
 )
 
+/**
+ * A dish somebody cooks, kept as a food.
+ *
+ * The row here holds only what a composition needs — how much the finished dish
+ * weighs and how many portions it is meant to be — because the nutrition of a
+ * recipe is a `foods` row like any other, `source: 'recipe'`, recomputed from
+ * the ingredients on every save. That is what makes a recipe searchable,
+ * loggable by the gram, likeable and countable without a second code path
+ * anywhere: the diary never learns that recipes exist.
+ *
+ * `yield_g` is asked for rather than summed because cooking changes weight —
+ * a risotto loses water, a soaked legume gains it — and the per-100 g figures
+ * are wrong by exactly that much if the raw total is assumed. It defaults to
+ * the sum of the ingredients, which is right for anything uncooked.
+ */
+export const recipes = pgTable(
+  'recipes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /**
+     * The food this recipe keeps in step. Deleting the food deletes the recipe:
+     * the pair is one thing, and diary entries survive on their snapshots.
+     */
+    foodId: uuid('food_id')
+      .notNull()
+      .references(() => foods.id, { onDelete: 'cascade' }),
+    /** How many portions the whole dish is meant to be. One means "all of it". */
+    servings: real('servings').notNull().default(1),
+    /** What the finished dish weighs. See the note above. */
+    yieldG: real('yield_g').notNull(),
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('recipes_food_unique').on(t.foodId),
+    index('recipes_user_idx').on(t.userId, t.updatedAt),
+  ],
+)
+
+/**
+ * One line of a recipe. No snapshot, unlike a diary entry: the point of these
+ * rows is that the dish can be recomputed, which needs the ingredient's live
+ * numbers. A deleted ingredient takes its line with it, and the save that
+ * follows re-measures the dish without it.
+ */
+export const recipeIngredients = pgTable(
+  'recipe_ingredients',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    recipeId: uuid('recipe_id')
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'cascade' }),
+    foodId: uuid('food_id')
+      .notNull()
+      .references(() => foods.id, { onDelete: 'cascade' }),
+    quantityG: real('quantity_g').notNull(),
+    sort: integer('sort').notNull().default(0),
+  },
+  (t) => [index('recipe_ingredients_recipe_idx').on(t.recipeId, t.sort)],
+)
+
 export type User = typeof users.$inferSelect
 export type Profile = typeof profiles.$inferSelect
 export type Food = typeof foods.$inferSelect
@@ -811,4 +881,6 @@ export type NewReminder = typeof reminders.$inferInsert
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect
 export type AppRelease = typeof appReleases.$inferSelect
 export type SavedMeal = typeof meals.$inferSelect
+export type Recipe = typeof recipes.$inferSelect
+export type RecipeIngredient = typeof recipeIngredients.$inferSelect
 export type MealItem = typeof mealItems.$inferSelect

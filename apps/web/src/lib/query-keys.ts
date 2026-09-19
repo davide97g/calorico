@@ -66,6 +66,16 @@ export const queryKeys = {
     list: (meal?: Meal) => ['meals', meal ?? 'any'] as const,
   },
 
+  /**
+   * Not under `foods`, although a recipe owns one: the cookbook is a short
+   * list this user wrote, and invalidating every catalogue query to refresh it
+   * would drop the search results the same screen is showing.
+   */
+  recipes: {
+    all: ['recipes'] as const,
+    detail: (id: string) => ['recipes', id] as const,
+  },
+
   profile: {
     suggestedTargets: ['profile', 'suggested'] as const,
   },

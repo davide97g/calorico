@@ -82,6 +82,8 @@ const MESSAGES: Record<string, string> = {
   off_unavailable:
     'Open Food Facts non risponde in questo momento. Riprova tra poco.',
   food_not_found: 'Alimento non trovato.',
+  recipe_not_found: 'Ricetta non trovata.',
+  too_many_recipes: 'Hai raggiunto il numero massimo di ricette.',
   incomplete_profile: 'Completa prima il tuo profilo.',
   no_weight_logged: 'Registra prima un peso.',
   unauthorized: 'Sessione scaduta, accedi di nuovo.',

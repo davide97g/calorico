@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { BarcodeButton } from '@/components/food/barcode-strip'
 import { FoodEmojiTile } from '@/components/food/food-emoji-tile'
+import { RecipeMark } from '@/components/food/recipe-mark'
 import { TosanoMark } from '@/components/food/tosano-mark'
 import { UserAvatar } from '@/components/user-avatar'
 import { kcal } from '@/lib/format'
@@ -40,6 +41,9 @@ export function FoodRow({
             {/* A search can reach past Open Food Facts into the supermarket's
                 catalogue; when it did, the row credits it. */}
             {food.source === 'tosano' ? <TosanoMark /> : null}
+            {/* A dish this user wrote down, sitting in the same list as the
+                catalogue: worth saying whose numbers these are. */}
+            {food.source === 'recipe' ? <RecipeMark /> : null}
           </span>
           <span className="text-muted-foreground block truncate text-xs">
             {/* Unpackaged food has no brand to show, and saying so is the point:

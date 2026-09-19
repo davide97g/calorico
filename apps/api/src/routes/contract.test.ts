@@ -23,6 +23,7 @@ import {
   premiumStatus,
   profile as profileContract,
   recentFood,
+  recipe as recipeContract,
   reminder,
   savedMeal,
   scansResponse,
@@ -143,6 +144,12 @@ describe.skipIf(!hasDb)('response contracts', () => {
       name: 'Colazione di sempre',
       meal: 'breakfast',
       items: [{ foodId: ids.foodId, quantityG: 100 }],
+    })
+
+    await post('/api/recipes', {
+      name: 'Pancake proteici',
+      servings: 2,
+      items: [{ foodId: ids.foodId, quantityG: 200 }],
     })
 
     await post('/api/grocery', { name: 'Pane', quantity: 2 })
@@ -330,6 +337,16 @@ describe.skipIf(!hasDb)('response contracts', () => {
       await get('/api/meals'),
     )
     expect(meals.items[0]?.items.length).toBe(1)
+  })
+
+  it('GET /recipes and GET /recipes/:id', async () => {
+    const list = expectContract(
+      z.object({ items: z.array(recipeContract) }),
+      await get('/api/recipes'),
+    )
+    const first = list.items[0]!
+    expect(first.items).toHaveLength(1)
+    expectContract(recipeContract, await get(`/api/recipes/${first.id}`))
   })
 
   it('GET /grocery and its suggestions', async () => {
