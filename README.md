@@ -45,6 +45,9 @@ Food data comes from two sources:
   corrected before it reaches the diary — capped per account, see
   [Meal photos](#meal-photos) and [Premium](#premium)
 - Custom foods, favourites, recent foods, saved plates, copy-a-previous-day
+- Recipes: weigh the ingredients once, say how much the dish makes, and it
+  becomes a food — searchable, and logged by the gram or by the portion, so a
+  tray of lasagne is a number of grams like anything else
 - One emoji per food in every list and grouped view, guessed from the name; real
   product photos appear only on the detail pages, under **Foto** — packshot,
   ingredients and nutrition-label shots (see [Photos](#photos))

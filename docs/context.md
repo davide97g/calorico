@@ -108,7 +108,33 @@ Three different rules, each centralised, none of them to be re-derived inline:
    wherever the numbers came from, not whoever found the product.
 
 The web app prints the Tosano mark next to a `tosano` row
-(`components/food/tosano-mark.tsx`) — the only source it names in a list.
+(`components/food/tosano-mark.tsx`), and its own mark next to a `recipe` one.
+
+### A recipe is a food
+
+`recipes` + `recipe_ingredients` hold the composition; the nutrition is a
+`foods` row with `source: 'recipe'`, recomputed by `lib/recipe.ts` on every
+save. That is the whole design, and it is what lets search find a dish, the
+diary log it by the gram, the portion chips offer "one portion" and the stats
+count it — none of them knowing that recipes exist.
+
+Four things follow from it:
+
+- **The numbers are a snapshot.** An ingredient corrected in the catalogue does
+  not move a dish somebody has been logging for a month; saving the recipe again
+  re-measures it. That is also why a recipe may be an ingredient of another one
+  without any risk of a loop.
+- **`yield_g` is asked for, not summed.** Cooking changes weight, and the
+  per-100 g figures are wrong by exactly that much if the raw total is assumed.
+  It defaults to the sum of the ingredients, which is right for anything
+  uncooked, and the food carries it as `packageSizeG` so the food screen's
+  "28% of the pack" line reads "28% of the recipe" with no new UI.
+- **A portion is the food's `servingSizeG`** (`yield_g / servings`), so logging
+  one is the chip that was already there.
+- **A recipe is private, like a custom food.** `lib/food-visibility.ts` lists
+  both sources, and the `foods_visibility` RLS policy draws the same line on
+  `created_by`. Deleting a recipe deletes its food; diary entries keep their
+  snapshots.
 
 ### How the shopping list writes itself
 
@@ -193,6 +219,7 @@ Data access is grouped by domain, and the grouping is the API surface:
 | `use-vision` | photo-analysis status and the analysis call |
 | `use-profile` | profile patch, target suggestions, onboarding |
 | `use-meals` | saved plates |
+| `use-recipes` | the cookbook; every write also rewrites a food, so all of them invalidate the catalogue |
 | `use-pantry` | the cupboard; every mutation can write a shopping row, so all of them invalidate the list too |
 | `use-grocery`, `use-family`, `use-scans`, `use-notifications`, `use-premium` | one feature each |
 | `use-auth` | session, the `me` query, login/logout |
