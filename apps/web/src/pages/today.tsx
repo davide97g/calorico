@@ -8,6 +8,7 @@ import { DaySwitcher } from '@/components/dashboard/day-switcher'
 import { DiaryPanel } from '@/components/dashboard/diary-panel'
 import { IntakeHero } from '@/components/dashboard/intake-hero'
 import { QuickLog } from '@/components/dashboard/quick-log'
+import { RecipesPanel } from '@/components/dashboard/recipes-panel'
 import { TrendPanel } from '@/components/dashboard/trend-panel'
 import { MacroTriple } from '@/components/charts/macro-bars'
 import { Panel, PanelHeader } from '@/components/ui/panel'
@@ -21,7 +22,7 @@ import {
 import { useWeight } from '@/hooks/use-weight'
 import { useAuth } from '@/hooks/use-auth'
 import { addDaysISO, isFutureDay, todayISO } from '@/lib/date'
-import { signed } from '@/lib/format'
+import { currentMeal, signed } from '@/lib/format'
 import type { DiaryEntry, Goal, WeightResponse } from '@/lib/types'
 
 export default function TodayPage() {
@@ -164,6 +165,11 @@ export default function TodayPage() {
             <TrendPanel />
 
             <WeightPanel weight={weight} goal={profile?.goal} />
+
+            {/* Last, because a recipe is the exception in a day made of the
+                same few foods — and still on the dashboard, because a cookbook
+                nobody is reminded of is a cookbook nobody writes. */}
+            <RecipesPanel day={day} meal={currentMeal()} />
           </>
         )}
       </div>

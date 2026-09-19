@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ChevronRight, Loader2, ScanBarcode, Search } from 'lucide-react'
+import {
+  Check,
+  ChefHat,
+  ChevronRight,
+  Loader2,
+  ScanBarcode,
+  Search,
+} from 'lucide-react'
 import {
   Drawer,
   DrawerContent,
@@ -16,6 +23,7 @@ import { WhenBar } from '@/components/food/when-picker'
 import { useRecentFoods } from '@/hooks/use-foods'
 import { useLogMeal, useSavedMeals } from '@/hooks/use-meals'
 import { useQuickLog } from '@/hooks/use-quick-log'
+import { useRecipes } from '@/hooks/use-recipes'
 import { todayISO } from '@/lib/date'
 import { rememberedPortion } from '@/lib/portion'
 import { currentMeal, grams, kcal } from '@/lib/format'
@@ -51,6 +59,7 @@ export function QuickLogSheet({
   const piatti = useSavedMeals(when.meal)
   const { log, loggingFoodId } = useQuickLog()
   const logMeal = useLogMeal()
+  const recipes = useRecipes()
 
   // A sheet reopened an hour later is a new decision, not the old draft.
   useEffect(() => {
@@ -62,6 +71,7 @@ export function QuickLogSheet({
 
   const items = data?.items ?? []
   const saved = piatti.data?.items ?? []
+  const recipeCount = recipes.data?.items.length ?? 0
 
   const handleLog = (food: RecentFood) => {
     log({
@@ -91,6 +101,26 @@ export function QuickLogSheet({
 
           <div className="shrink-0 px-4">
             <WhenBar value={when} onChange={setWhen} variant="inset" />
+
+            {/* Above the list rather than beside the cold paths below it: a
+                recipe is a thing you cooked on purpose and come back to, and
+                nobody finds it if the only way in is a search screen. It shows
+                on an empty cookbook too — this is also where you learn the
+                feature exists. */}
+            <button
+              type="button"
+              onClick={() => leave(`/recipes?day=${when.day}&meal=${when.meal}`)}
+              className="bg-primary/18 text-foreground active:bg-primary/28 mt-2 flex h-12 w-full items-center gap-2.5 rounded-full px-4 transition-colors"
+            >
+              <ChefHat className="text-primary-strong size-4 shrink-0" strokeWidth={2.2} />
+              <span className="text-sm font-semibold">Le mie ricette</span>
+              <span className="text-muted-foreground ml-auto truncate text-xs">
+                {recipeCount
+                  ? `${recipeCount} ${recipeCount === 1 ? 'ricetta' : 'ricette'}`
+                  : 'Pesa un piatto una volta sola'}
+              </span>
+              <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+            </button>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-3">
