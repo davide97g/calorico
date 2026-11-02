@@ -22,7 +22,7 @@ ARG VITE_SENTRY_ENVIRONMENT="production"
 ENV VITE_SENTRY_ENVIRONMENT=$VITE_SENTRY_ENVIRONMENT
 RUN npm run build -w @calorico/web
 
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.30-alpine AS runtime
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY apps/web/security-headers.conf /etc/nginx/security-headers.conf
 # Tighter policy for the static legal pages, which run no script at all.
